@@ -1,0 +1,18 @@
+name: spider-animation
+version: '${project.version}'
+main: com.heledron.spideranimation.SpiderAnimationPlugin
+api-version: '1.20'
+
+commands:
+  stage:
+    description: Sets the demo stage of the animation
+    usage: /stage <stage:int>
+  gait:
+    description: Sets gait options
+    usage: /gait <option:string> <value:double>
+  fall:
+    description: Teleports the spider up by the specified height
+    usage: /fall <height:double>
+  debug:
+    description: Toggles debug mode
+    usage: /debug <option:string> <value:boolean?>
