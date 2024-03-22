@@ -19,9 +19,9 @@ class SpiderAnimationPlugin : JavaPlugin() {
 
         val world = server.getWorld("world")!!
 
-        val blockDisplayRenderer = BlockDisplayRenderer(this)
+        val displayRenderer = DisplayRenderer(this)
 
-        var renderer: Renderer = blockDisplayRenderer
+        var renderer: Renderer = displayRenderer
         val debugGraphicsOptions = RenderDebugOptions.all()
         var renderDebugGraphics = false
 
@@ -92,7 +92,7 @@ class SpiderAnimationPlugin : JavaPlugin() {
                     chainVisVal.unRender()
                     chainVisualizer = null
                 } else {
-                    chainVisualizer = KinematicChainVisualizer.create(3, 1.5, location.toVector(), blockDisplayRenderer).apply {
+                    chainVisualizer = KinematicChainVisualizer.create(3, 1.5, location.toVector(), displayRenderer).apply {
                         render(world, true)
                     }
                 }
@@ -116,12 +116,12 @@ class SpiderAnimationPlugin : JavaPlugin() {
                     }
                     Material.LIGHT_BLUE_DYE -> {
                         spider?.apply { renderer.clearSpider(this) }
-                        renderer = if (renderer == blockDisplayRenderer) {
+                        renderer = if (renderer == displayRenderer) {
                             event.player.location.world.playSound(event.player.location, Sound.ENTITY_AXOLOTL_ATTACK, 1.0f, 1.0f)
                             ParticleRenderer
                         } else {
                             event.player.location.world.playSound(event.player.location, Sound.ITEM_ARMOR_EQUIP_NETHERITE, 1.0f, 1.0f)
-                            blockDisplayRenderer
+                            displayRenderer
                         }
                     }
                     Material.NETHERITE_INGOT -> {
@@ -302,7 +302,7 @@ class SpiderAnimationPlugin : JavaPlugin() {
     }
 
     override fun onDisable() {
-        BlockDisplayRegistry.clearAll()
+        DisplayRegistry.clearAll()
     }
 }
 

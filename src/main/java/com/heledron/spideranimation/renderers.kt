@@ -3,6 +3,7 @@ package com.heledron.spideranimation
 import org.bukkit.*
 import org.bukkit.entity.BlockDisplay
 import org.bukkit.entity.Display
+import org.bukkit.entity.ItemDisplay
 import org.bukkit.plugin.Plugin
 import org.bukkit.util.Transformation
 import org.bukkit.util.Vector
@@ -40,15 +41,15 @@ class RenderDebugOptions(
     }
 }
 
-class BlockDisplayRenderer(val plugin: Plugin) : Renderer {
-    val legSegments = BlockDisplayRegistry<ChainSegment>()
-    val legTargetPositions = BlockDisplayRegistry<Leg>()
-    val triggerZones = BlockDisplayRegistry<Leg>()
-    val legRestPositions = BlockDisplayRegistry<Leg>()
-    val legRestPositionCenter = BlockDisplayRegistry<Leg>()
-    val endEffectors = BlockDisplayRegistry<Leg>()
-    val targets = BlockDisplayRegistry<Any>()
-    val directions = BlockDisplayRegistry<Spider>()
+class DisplayRenderer(val plugin: Plugin) : Renderer {
+    val legSegments = DisplayRegistry<ChainSegment>()
+    val legTargetPositions = DisplayRegistry<Leg>()
+    val triggerZones = DisplayRegistry<Leg>()
+    val legRestPositions = DisplayRegistry<Leg>()
+    val legRestPositionCenter = DisplayRegistry<Leg>()
+    val endEffectors = DisplayRegistry<Leg>()
+    val targets = DisplayRegistry<Any>()
+    val directions = DisplayRegistry<Spider>()
 
     override fun renderSpider(spider: Spider, debug: RenderDebugOptions) {
         for (leg in spider.legs) {
@@ -56,6 +57,7 @@ class BlockDisplayRenderer(val plugin: Plugin) : Renderer {
         }
 
         renderDirection(spider, debug.spiderDirection)
+        renderBones(spider)
 
         getVisibleTarget(spider)?.let { renderTarget(it, true, spider) } ?: renderTarget(spider.location, false, spider)
 
@@ -86,7 +88,7 @@ class BlockDisplayRenderer(val plugin: Plugin) : Renderer {
         val location = spider.location.clone()
         location.add(spider.location.direction)
 
-        directions.renderIf(spider, location, render) {
+        directions.renderBlockIf(spider, location, render) {
             it.teleportDuration = 1
             it.brightness = Display.Brightness(15, 15)
 
@@ -98,8 +100,53 @@ class BlockDisplayRenderer(val plugin: Plugin) : Renderer {
         }
     }
 
+    fun renderBones(spider: Spider){
+        val location = spider.location.clone()
+        location.pitch = 0f
+
+        spider.itemBones.forEach() { itemDisplay ->
+            directions.renderItem(spider, location) {
+                it.transformation = itemDisplay.transformation
+                it.teleportDuration = itemDisplay.teleportDuration
+                it.interpolationDuration = itemDisplay.interpolationDuration
+                it.viewRange = itemDisplay.viewRange
+                it.shadowRadius = itemDisplay.shadowRadius
+                it.shadowStrength = itemDisplay.shadowStrength
+                it.displayWidth = itemDisplay.displayWidth
+                it.displayHeight = itemDisplay.displayHeight
+                it.interpolationDelay = itemDisplay.interpolationDelay
+                it.billboard = itemDisplay.billboard
+                it.glowColorOverride = itemDisplay.glowColorOverride
+                it.brightness = itemDisplay.brightness
+            }?.apply {
+                this.itemStack = itemDisplay.itemStack
+                this.itemDisplayTransform = itemDisplay.itemDisplayTransform
+                this.teleport(location)
+            }
+        }
+        spider.blockBones.forEach() { blockDisplay ->
+            directions.renderBlock(spider, location) {
+                it.transformation = blockDisplay.transformation
+                it.teleportDuration = blockDisplay.teleportDuration
+                it.interpolationDuration = blockDisplay.interpolationDuration
+                it.viewRange = blockDisplay.viewRange
+                it.shadowRadius = blockDisplay.shadowRadius
+                it.shadowStrength = blockDisplay.shadowStrength
+                it.displayWidth = blockDisplay.displayWidth
+                it.displayHeight = blockDisplay.displayHeight
+                it.interpolationDelay = blockDisplay.interpolationDelay
+                it.billboard = blockDisplay.billboard
+                it.glowColorOverride = blockDisplay.glowColorOverride
+                it.brightness = blockDisplay.brightness
+            }?.apply {
+                this.block = blockDisplay.block
+                this.teleport(location)
+            }
+        }
+    }
+
     fun renderTarget(location: Location, visible: Boolean, identifier: Any) {
-        targets.renderIf(identifier, location, visible) {
+        targets.renderBlockIf(identifier, location, visible) {
             it.block = Material.REDSTONE_BLOCK.createBlockData()
             it.teleportDuration = 1
             it.brightness = Display.Brightness(15, 15)
@@ -146,7 +193,7 @@ class BlockDisplayRenderer(val plugin: Plugin) : Renderer {
     fun renderLegTargetPosition(leg: Leg, renderDebug: Boolean) {
         val location = leg.targetPosition.toLocation(leg.parent.location.world)
 
-        legTargetPositions.renderIf(leg, location, renderDebug) {
+        legTargetPositions.renderBlockIf(leg, location, renderDebug) {
             it.teleportDuration = 1
             it.brightness = Display.Brightness(15, 15)
 
@@ -167,7 +214,7 @@ class BlockDisplayRenderer(val plugin: Plugin) : Renderer {
 
         location.y = yCenter
 
-        legRestPositions.renderIf(leg, location, renderDebug) {
+        legRestPositions.renderBlockIf(leg, location, renderDebug) {
             it.teleportDuration = 1
             it.brightness = Display.Brightness(15, 15)
 
@@ -178,7 +225,7 @@ class BlockDisplayRenderer(val plugin: Plugin) : Renderer {
             this.teleport(location)
         }
 
-        legRestPositionCenter.renderIf(leg, location, renderDebug) {
+        legRestPositionCenter.renderBlockIf(leg, location, renderDebug) {
             it.teleportDuration = 1
             it.brightness = Display.Brightness(15, 15)
 
@@ -194,7 +241,7 @@ class BlockDisplayRenderer(val plugin: Plugin) : Renderer {
     fun renderLegTriggerZone(leg: Leg, renderDebug: Boolean) {
         val location = leg.targetPosition.toLocation(leg.parent.location.world)
 
-        triggerZones.renderIf(leg, location, renderDebug) {
+        triggerZones.renderBlockIf(leg, location, renderDebug) {
             it.teleportDuration = 1
             it.brightness = Display.Brightness(15, 15)
             it.interpolationDuration = 1
@@ -215,7 +262,7 @@ class BlockDisplayRenderer(val plugin: Plugin) : Renderer {
     fun renderLegEndEffector(leg: Leg, renderDebug: Boolean) {
         val position = leg.endEffector.toLocation(leg.parent.location.world)
 
-        endEffectors.renderIf(leg, position, renderDebug) {
+        endEffectors.renderBlockIf(leg, position, renderDebug) {
             it.teleportDuration = 1
             it.brightness = Display.Brightness(15, 15)
 
@@ -230,7 +277,7 @@ class BlockDisplayRenderer(val plugin: Plugin) : Renderer {
         val xSize = thickness
         val ySize = thickness
         val zSize = segment.length.toFloat()
-        return legSegments.render(segment, location) {
+        return legSegments.renderBlock(segment, location) {
             it.block = Material.NETHERITE_BLOCK.createBlockData()
             it.teleportDuration = 1
             it.interpolationDuration = 1
@@ -300,10 +347,7 @@ object ParticleRenderer : Renderer {
     }
 
     override fun renderSpider(spider: Spider, debug: RenderDebugOptions) {
-        renderLeg(spider.leftFrontLeg)
-        renderLeg(spider.rightFrontLeg)
-        renderLeg(spider.leftBackLeg)
-        renderLeg(spider.rightBackLeg)
+        spider.legs.forEach(::renderLeg)
 
         getVisibleTarget(spider)?.let { renderTarget(it) }
     }
@@ -318,47 +362,70 @@ interface Renderer {
     fun clearSpider(spider: Spider)
 }
 
-class BlockDisplayRegistry<T> {
-    val displays = WeakHashMap<T, BlockDisplay>()
+class DisplayRegistry<T> {
+    val blockDisplays = WeakHashMap<T, BlockDisplay>()
+    val itemDisplays = WeakHashMap<T, ItemDisplay>()
 
     init {
         instances.add(this)
     }
 
-    fun render(identifier: T, location: Location, init: (BlockDisplay) -> Unit): BlockDisplay {
-        val entity = displays.getOrPut(identifier) {
+    fun renderBlock(identifier: T, location: Location, init: (BlockDisplay) -> Unit): BlockDisplay {
+        val entity = blockDisplays.getOrPut(identifier) {
             location.world.spawn(location, BlockDisplay::class.java) {
                 init(it)
             }
         }
 
         entity.teleport(location)
-
         return entity
     }
 
-    fun renderIf(identifier: T, location: Location, condition: Boolean, init: (BlockDisplay) -> Unit): BlockDisplay? {
+    fun renderItem(identifier: T, location: Location, init: (ItemDisplay) -> Unit): ItemDisplay {
+        val entity = itemDisplays.getOrPut(identifier) {
+            location.world.spawn(location, ItemDisplay::class.java) {
+                init(it)
+            }
+        }
+
+        entity.teleport(location)
+        return entity
+    }
+
+    fun renderBlockIf(identifier: T, location: Location, condition: Boolean, init: (BlockDisplay) -> Unit): BlockDisplay? {
         if (!condition) {
-            displays[identifier]?.remove()
-            displays.remove(identifier)
+            blockDisplays[identifier]?.remove()
+            blockDisplays.remove(identifier)
             return null
         }
 
-        return render(identifier, location, init)
+        return renderBlock(identifier, location, init)
+    }
+
+    fun renderItemIf(identifier: T, location: Location, condition: Boolean, init: (ItemDisplay) -> Unit): ItemDisplay? {
+        if (!condition) {
+            itemDisplays[identifier]?.remove()
+            itemDisplays.remove(identifier)
+            return null
+        }
+
+        return renderItem(identifier, location, init)
     }
 
     fun clear(identifier: T) {
-        displays[identifier]?.remove()
-        displays.remove(identifier)
+        blockDisplays[identifier]?.remove()
+        blockDisplays.remove(identifier)
     }
 
     fun clearAll() {
-        for (entity in displays.values) entity.remove()
-        displays.clear()
+        for (entity in blockDisplays.values) entity.remove()
+        blockDisplays.clear()
+        for (entity in itemDisplays.values) entity.remove()
+        itemDisplays.clear()
     }
 
     companion object {
-        val instances = ArrayList<BlockDisplayRegistry<*>>()
+        val instances = ArrayList<DisplayRegistry<*>>()
 
         fun clearAll() {
             for (instance in instances) instance.clearAll()

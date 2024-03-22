@@ -2,7 +2,10 @@ package com.heledron.spideranimation
 
 import org.bukkit.FluidCollisionMode
 import org.bukkit.Location
+import org.bukkit.entity.BlockDisplay
+import org.bukkit.entity.ItemDisplay
 import org.bukkit.util.Vector
+import java.util.ArrayList
 import kotlin.math.*
 
 data class Gait(
@@ -51,13 +54,20 @@ class Spider(val location: Location, val gait: Gait) {
     val rightFrontLeg = createLeg(Vector(-0.9, -gait.bodyHeight, 0.9), 0.9 * gait.legSegmentLength, gait.legSegmentCount)
     val leftBackLeg = createLeg(Vector(1.0, -gait.bodyHeight, -1.1), 1.2 * gait.legSegmentLength, gait.legSegmentCount)
     val rightBackLeg = createLeg(Vector(-1.0, -gait.bodyHeight, -1.1), 1.2 * gait.legSegmentLength, gait.legSegmentCount)
-    val legs = listOf(leftFrontLeg, rightFrontLeg, leftBackLeg, rightBackLeg)
+    val legs = ArrayList<Leg>()
+
+    val blockBones = ArrayList<BlockDisplay>()
+    val itemBones = ArrayList<ItemDisplay>()
 
     var isRotating = false
     var didHitGround = false
 
     init {
         location.y += gait.bodyHeight
+        legs.add(leftFrontLeg)
+        legs.add(rightFrontLeg)
+        legs.add(leftBackLeg)
+        legs.add(rightBackLeg)
     }
 
     fun accelerateToVelocity(targetVelocity: Vector) {
