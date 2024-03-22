@@ -1,6 +1,6 @@
 package com.heledron.spideranimation.chain_visualizer
 
-import com.heledron.spideranimation.BlockDisplayRenderer
+import com.heledron.spideranimation.DisplayRenderer
 import com.heledron.spideranimation.ChainSegment
 import org.bukkit.World
 import org.bukkit.entity.Display
@@ -10,7 +10,7 @@ import org.bukkit.util.Vector
 class KinematicChainVisualizer(
         val root: Vector,
         val segments: List<ChainSegment>,
-        val blockDisplayRenderer: BlockDisplayRenderer
+        val displayRenderer: DisplayRenderer
 ) {
     var iterator = 0
     var prevIterator = 0
@@ -113,7 +113,7 @@ class KinematicChainVisualizer(
 
                 // val oldLocation = BlockDisplayRenderer.legSegments.displays[segment]?.location
 
-                blockDisplayRenderer.renderSegment(pos, segment, thickness, upVector).apply {
+                displayRenderer.renderSegment(pos, segment, thickness, upVector).apply {
                     this.interpolationDuration = 4
                     this.teleportDuration = 4
                     this.brightness = Display.Brightness(0, 15)
@@ -124,16 +124,16 @@ class KinematicChainVisualizer(
         }
 
         val targetLocation = this.target?.toLocation(world) ?: this.root.toLocation(world)
-        blockDisplayRenderer.renderTarget(targetLocation, this.target != null, this)
+        displayRenderer.renderTarget(targetLocation, this.target != null, this)
     }
 
     fun unRender() {
-        blockDisplayRenderer.targets.clear(this)
-        for (segment in this.segments) blockDisplayRenderer.legSegments.clear(segment)
+        displayRenderer.targets.clear(this)
+        for (segment in this.segments) displayRenderer.legSegments.clear(segment)
     }
 
     companion object {
-        fun create(segments: Int, length: Double, root: Vector, renderer: BlockDisplayRenderer): KinematicChainVisualizer {
+        fun create(segments: Int, length: Double, root: Vector, renderer: DisplayRenderer): KinematicChainVisualizer {
             val segmentList = (0 until segments).map { ChainSegment(root.clone(), length) }
             return KinematicChainVisualizer(root.clone(), segmentList, renderer).apply { reset() }
         }
