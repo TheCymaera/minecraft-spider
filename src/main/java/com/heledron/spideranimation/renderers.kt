@@ -3,7 +3,6 @@ package com.heledron.spideranimation
 import org.bukkit.*
 import org.bukkit.entity.BlockDisplay
 import org.bukkit.entity.Display
-import org.bukkit.plugin.Plugin
 import org.bukkit.util.Transformation
 import org.bukkit.util.Vector
 import org.joml.*
@@ -40,15 +39,65 @@ class RenderDebugOptions(
     }
 }
 
-class BlockDisplayRenderer(val plugin: Plugin) : Renderer {
-    val legSegments = BlockDisplayRegistry<ChainSegment>()
-    val legTargetPositions = BlockDisplayRegistry<Leg>()
-    val triggerZones = BlockDisplayRegistry<Leg>()
-    val legRestPositions = BlockDisplayRegistry<Leg>()
-    val legRestPositionCenter = BlockDisplayRegistry<Leg>()
-    val endEffectors = BlockDisplayRegistry<Leg>()
-    val targets = BlockDisplayRegistry<Any>()
-    val directions = BlockDisplayRegistry<Spider>()
+object BlockDisplayRenderer : Renderer {
+    val displays = HashMap<Any, BlockDisplay>()
+
+    enum class Identifier {
+        TARGET,
+        LEG_TARGET_POSITION,
+        LEG_TRIGGER_ZONE,
+        LEG_REST_POSITION,
+        LEG_REST_POSITION_CENTER,
+        LEG_END_EFFECTOR,
+        DIRECTION;
+
+        companion object {
+            fun chainSegment(segment: ChainSegment): Any { return segment }
+            fun legTargetPosition(leg: Leg): Any { return Pair(LEG_TARGET_POSITION, leg) }
+            fun legTriggerZone(leg: Leg): Any { return Pair(LEG_TRIGGER_ZONE, leg) }
+            fun legRestPosition(leg: Leg): Any { return Pair(LEG_REST_POSITION, leg) }
+            fun legRestPositionCenter(leg: Leg): Any { return Pair(LEG_REST_POSITION_CENTER, leg) }
+            fun legEndEffector(leg: Leg): Any { return Pair(LEG_END_EFFECTOR, leg) }
+            fun direction(spider: Spider): Any { return Pair(DIRECTION, spider) }
+            fun target(id: Any): Any { return Pair(TARGET, id) }
+        }
+    }
+
+    fun render(identifier: Any, location: Location, init: (BlockDisplay) -> Unit): BlockDisplay {
+        if (displays.size > 100) {
+            throw IllegalStateException("Too many displays. Check for memory leaks.")
+        }
+
+
+        val entity = displays.getOrPut(identifier) {
+            location.world.spawn(location, BlockDisplay::class.java) {
+                init(it)
+            }
+        }
+
+        entity.teleport(location)
+
+        return entity
+    }
+
+    fun renderIf(identifier: Any, location: Location, condition: Boolean, init: (BlockDisplay) -> Unit): BlockDisplay? {
+        if (!condition) {
+            clear(identifier)
+            return null
+        }
+
+        return render(identifier, location, init)
+    }
+
+    override fun clear(identifier: Any) {
+        displays[identifier]?.remove()
+        displays.remove(identifier)
+    }
+
+    fun clearAll() {
+        for (entity in displays.values) entity.remove()
+        displays.clear()
+    }
 
     override fun renderSpider(spider: Spider, debug: RenderDebugOptions) {
         for (leg in spider.legs) {
@@ -57,36 +106,32 @@ class BlockDisplayRenderer(val plugin: Plugin) : Renderer {
 
         renderDirection(spider, debug.spiderDirection)
 
-        getVisibleTarget(spider)?.let { renderTarget(it, true, spider) } ?: renderTarget(spider.location, false, spider)
-
         if (spider.didHitGround) {
-            runLater(plugin, 1) {
-                spider.location.world.playSound(spider.location, Sound.BLOCK_NETHERITE_BLOCK_FALL, 1.0f, .8f)
-            }
+            spider.location.world.playSound(spider.location, Sound.BLOCK_NETHERITE_BLOCK_FALL, 1.0f, .8f)
         }
     }
 
     override fun clearSpider(spider: Spider) {
         for (leg in spider.legs) {
             for (segment in leg.chain.segments) {
-                legSegments.clear(segment)
+                clear(Identifier.chainSegment(segment))
             }
-            legTargetPositions.clear(leg)
-            triggerZones.clear(leg)
-            legRestPositions.clear(leg)
-            legRestPositionCenter.clear(leg)
-            endEffectors.clear(leg)
+
+            clear(Identifier.legTargetPosition(leg))
+            clear(Identifier.legTriggerZone(leg))
+            clear(Identifier.legRestPosition(leg))
+            clear(Identifier.legRestPositionCenter(leg))
+            clear(Identifier.legEndEffector(leg))
         }
 
-        targets.clear(spider)
-        directions.clear(spider)
+        clear(Identifier.direction(spider))
     }
 
     fun renderDirection(spider: Spider, render: Boolean) {
         val location = spider.location.clone()
         location.add(spider.location.direction)
 
-        directions.renderIf(spider, location, render) {
+        renderIf(Identifier.direction(spider), location, render) {
             it.teleportDuration = 1
             it.brightness = Display.Brightness(15, 15)
 
@@ -98,8 +143,8 @@ class BlockDisplayRenderer(val plugin: Plugin) : Renderer {
         }
     }
 
-    fun renderTarget(location: Location, visible: Boolean, identifier: Any) {
-        targets.renderIf(identifier, location, visible) {
+    override fun renderTarget(location: Location, identifier: Any) {
+        render(identifier, location) {
             it.block = Material.REDSTONE_BLOCK.createBlockData()
             it.teleportDuration = 1
             it.brightness = Display.Brightness(15, 15)
@@ -137,16 +182,14 @@ class BlockDisplayRenderer(val plugin: Plugin) : Renderer {
             val location = leg.endEffector.toLocation(leg.parent.location.world)
             val volume = .3f
             val pitch = 1.0f + Math.random().toFloat() * 0.1f
-            runLater(plugin, 1) {
-                location.world.playSound(location, Sound.BLOCK_NETHERITE_BLOCK_STEP, volume, pitch)
-            }
+            location.world.playSound(location, Sound.BLOCK_NETHERITE_BLOCK_STEP, volume, pitch)
         }
     }
 
     fun renderLegTargetPosition(leg: Leg, renderDebug: Boolean) {
         val location = leg.targetPosition.toLocation(leg.parent.location.world)
 
-        legTargetPositions.renderIf(leg, location, renderDebug) {
+        renderIf(Identifier.legTargetPosition(leg), location, renderDebug) {
             it.teleportDuration = 1
             it.brightness = Display.Brightness(15, 15)
 
@@ -167,7 +210,7 @@ class BlockDisplayRenderer(val plugin: Plugin) : Renderer {
 
         location.y = yCenter
 
-        legRestPositions.renderIf(leg, location, renderDebug) {
+        renderIf(Identifier.legRestPosition(leg), location, renderDebug) {
             it.teleportDuration = 1
             it.brightness = Display.Brightness(15, 15)
 
@@ -178,7 +221,7 @@ class BlockDisplayRenderer(val plugin: Plugin) : Renderer {
             this.teleport(location)
         }
 
-        legRestPositionCenter.renderIf(leg, location, renderDebug) {
+        renderIf(Identifier.legRestPositionCenter(leg), location, renderDebug) {
             it.teleportDuration = 1
             it.brightness = Display.Brightness(15, 15)
 
@@ -194,7 +237,7 @@ class BlockDisplayRenderer(val plugin: Plugin) : Renderer {
     fun renderLegTriggerZone(leg: Leg, renderDebug: Boolean) {
         val location = leg.targetPosition.toLocation(leg.parent.location.world)
 
-        triggerZones.renderIf(leg, location, renderDebug) {
+        renderIf(Identifier.legTriggerZone(leg), location, renderDebug) {
             it.teleportDuration = 1
             it.brightness = Display.Brightness(15, 15)
             it.interpolationDuration = 1
@@ -215,7 +258,7 @@ class BlockDisplayRenderer(val plugin: Plugin) : Renderer {
     fun renderLegEndEffector(leg: Leg, renderDebug: Boolean) {
         val position = leg.endEffector.toLocation(leg.parent.location.world)
 
-        endEffectors.renderIf(leg, position, renderDebug) {
+        renderIf(Identifier.legEndEffector(leg), position, renderDebug) {
             it.teleportDuration = 1
             it.brightness = Display.Brightness(15, 15)
 
@@ -230,7 +273,7 @@ class BlockDisplayRenderer(val plugin: Plugin) : Renderer {
         val xSize = thickness
         val ySize = thickness
         val zSize = segment.length.toFloat()
-        return legSegments.render(segment, location) {
+        return render(Identifier.chainSegment(segment), location) {
             it.block = Material.NETHERITE_BLOCK.createBlockData()
             it.teleportDuration = 1
             it.interpolationDuration = 1
@@ -244,20 +287,13 @@ class BlockDisplayRenderer(val plugin: Plugin) : Renderer {
 
             // this.setTransformationMatrix(matrix)
 
-            // decompose matrix
-             val translation = matrix.getTranslation(Vector3f())
-             val rotation = matrix.getUnnormalizedRotation(Quaternionf())
-             val scale = matrix.getScale(Vector3f())
-
-             val transform = Transformation(translation, rotation, scale, Quaternionf())
-
+            val transform = transformFromMatrix(matrix)
             if (this.transformation != transform) {
                 this.transformation = transform
                 this.interpolationDelay = 0
             }
         }
     }
-
 }
 
 fun centredTransform(xSize: Float, ySize: Float, zSize: Float): Transformation {
@@ -267,6 +303,14 @@ fun centredTransform(xSize: Float, ySize: Float, zSize: Float): Transformation {
         Vector3f(xSize, ySize, zSize),
         AxisAngle4f(0f, 0f, 0f, 1f)
     )
+}
+
+fun transformFromMatrix(matrix: Matrix4f): Transformation {
+    val translation = matrix.getTranslation(Vector3f())
+    val rotation = matrix.getUnnormalizedRotation(Quaternionf())
+    val scale = matrix.getScale(Vector3f())
+
+    return Transformation(translation, rotation, scale, Quaternionf())
 }
 
 object ParticleRenderer : Renderer {
@@ -295,7 +339,7 @@ object ParticleRenderer : Renderer {
         }
     }
 
-    fun renderTarget(location: Location) {
+    override fun renderTarget(location: Location, identifier: Any) {
         location.world.spawnParticle(Particle.REDSTONE, location, 1, 0.0, 0.0, 0.0, 0.0, Particle.DustOptions(Color.RED, 1f))
     }
 
@@ -304,8 +348,6 @@ object ParticleRenderer : Renderer {
         renderLeg(spider.rightFrontLeg)
         renderLeg(spider.leftBackLeg)
         renderLeg(spider.rightBackLeg)
-
-        getVisibleTarget(spider)?.let { renderTarget(it) }
     }
 
     override fun clearSpider(spider: Spider) {
@@ -316,62 +358,6 @@ object ParticleRenderer : Renderer {
 interface Renderer {
     fun renderSpider(spider: Spider, debug: RenderDebugOptions)
     fun clearSpider(spider: Spider)
-}
-
-class BlockDisplayRegistry<T> {
-    val displays = WeakHashMap<T, BlockDisplay>()
-
-    init {
-        instances.add(this)
-    }
-
-    fun render(identifier: T, location: Location, init: (BlockDisplay) -> Unit): BlockDisplay {
-        val entity = displays.getOrPut(identifier) {
-            location.world.spawn(location, BlockDisplay::class.java) {
-                init(it)
-            }
-        }
-
-        entity.teleport(location)
-
-        return entity
-    }
-
-    fun renderIf(identifier: T, location: Location, condition: Boolean, init: (BlockDisplay) -> Unit): BlockDisplay? {
-        if (!condition) {
-            displays[identifier]?.remove()
-            displays.remove(identifier)
-            return null
-        }
-
-        return render(identifier, location, init)
-    }
-
-    fun clear(identifier: T) {
-        displays[identifier]?.remove()
-        displays.remove(identifier)
-    }
-
-    fun clearAll() {
-        for (entity in displays.values) entity.remove()
-        displays.clear()
-    }
-
-    companion object {
-        val instances = ArrayList<BlockDisplayRegistry<*>>()
-
-        fun clearAll() {
-            for (instance in instances) instance.clearAll()
-        }
-    }
-}
-
-
-fun getVisibleTarget(spider: Spider): Location? {
-    val target = spider.behaviour as? TargetBehaviour
-    if (target != null && target.visible) {
-        return target.target
-    }
-
-    return null
+    fun renderTarget(location: Location, identifier: Any) {}
+    fun clear(identifier: Any) {}
 }

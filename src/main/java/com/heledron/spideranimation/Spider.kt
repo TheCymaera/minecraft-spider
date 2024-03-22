@@ -34,11 +34,8 @@ data class Gait(
     var legSegmentLength = 1.0
     var legSegmentCount = 3
 
-    var legScanGround = true
-    var applyGravity = true
-    var legAlwaysCanMove = false
     var legScanAlternativeGround = true
-    var legApplyScanHeightBias = true
+    var legScanHeightBias = .5
 }
 
 
@@ -119,36 +116,29 @@ class Spider(val location: Location, val gait: Gait) {
         behaviour.update(this)
 
         // apply gravity and air resistance
+        velocity.y -= gait.gravityAcceleration
+        velocity.y *= (1 - gait.airDragCoefficient)
+
+        if (isGrounded()) {
+            // adjust body height
+            val legsAverageY = legs.map { it.targetPosition.y }.average()
+            val targetY = legsAverageY + gait.bodyHeight
+            val stabilizedY = lerpNumberByFactor(location.y, targetY, gait.bodyHeightCorrectionFactor)
+            val maxThrust = gait.bodyHeightCorrectionAcceleration
+            val minThrust = 0.0
+
+            val thrust = (stabilizedY - location.y - velocity.y).coerceIn(minThrust, maxThrust)
+            velocity.y += thrust
+        }
+
+        // resolve ground collision
         val bounce = Vector(0.0, 0.0, 0.0)
-        if (gait.legScanGround) {
-            if (gait.applyGravity) {
-                velocity.y -= gait.gravityAcceleration
-                velocity.y *= (1 - gait.airDragCoefficient)
-            }
+        val resolveY = resolveGroundCollision(location.clone().add(velocity))
+        if (resolveY > 0.0) {
+            location.y += resolveY
+            if (velocity.y < 0) bounce.y = -velocity.y * gait.bounceFactor
 
-            if (isGrounded()) {
-                // adjust body height
-                val legsAverageY = legs.map { it.targetPosition.y }.average()
-                val targetY = legsAverageY + gait.bodyHeight
-                val stabilizedY = lerpNumberByFactor(location.y, targetY, gait.bodyHeightCorrectionFactor)
-                val maxThrust = gait.bodyHeightCorrectionAcceleration
-
-                // normally, we allow gravity to apply the downwards force,
-                // but if there is none, we need to do it ourselves so the spider doesn't float
-                val minThrust = if (!gait.applyGravity) -maxThrust else 0.0
-
-                val thrust = (stabilizedY - location.y - velocity.y).coerceIn(minThrust, maxThrust)
-                velocity.y += thrust
-            }
-
-            // resolve ground collision
-            val resolveY = resolveGroundCollision(location.clone().add(velocity))
-            if (resolveY > 0.0) {
-                location.y += resolveY
-                if (velocity.y < 0)bounce.y = -velocity.y * gait.bounceFactor
-
-                didHitGround = resolveY > (gait.gravityAcceleration * 2) * (1 - gait.airDragCoefficient)
-            }
+            didHitGround = resolveY > (gait.gravityAcceleration * 2) * (1 - gait.airDragCoefficient)
         }
 
         // apply velocity
@@ -221,7 +211,6 @@ class Leg(
 
         chain.root.copy(parent.location.toVector())
 
-
         if (!parent.gait.legNoStraighten) chain.straighten(endEffector, parent.gait.legStraightenHeight)
         chain.fabrik(endEffector)
     }
@@ -251,10 +240,8 @@ class Leg(
             onGround = onGround()
             didStep = onGround
 
-            if (gait.legScanGround) {
-                val yCollision = resolveGroundCollision(endEffector.toLocation(parent.location.world))
-                endEffector.y += yCollision
-            }
+            val yCollision = resolveGroundCollision(endEffector.toLocation(parent.location.world))
+            endEffector.y += yCollision
         }
 
         if (isMoving) {
@@ -279,7 +266,7 @@ class Leg(
         } else {
             // begin moving leg
             val verticalDistance = verticalDistance(endEffector, targetPosition)
-            val canMove = gait.legAlwaysCanMove || isStranded || parent.adjacentLegs(this).all { !it.isMoving }
+            val canMove = isStranded || parent.adjacentLegs(this).all { !it.isMoving }
             if (canMove && (distanceToTarget > triggerDistance() || verticalDistance >= 0.0001)) {
                 isMoving = true
             }
@@ -287,7 +274,6 @@ class Leg(
     }
 
     private fun onGround(): Boolean {
-        if (!parent.gait.legScanGround) return !isMoving
         return isOnGround(endEffector.toLocation(parent.location.world))
     }
 
@@ -297,8 +283,6 @@ class Leg(
 
     private fun locateGround(): Location? {
         val location = restPosition.toLocation(parent.location.world)
-
-        if (!parent.gait.legScanGround) return location
 
         fun rayCast(x: Double, z: Double): Location? {
             val y = location.y + scanGroundAbove
@@ -314,7 +298,7 @@ class Leg(
 
         if (!parent.gait.legScanAlternativeGround) return mainCandidate
 
-        if (mainCandidate != null && parent.gait.legApplyScanHeightBias) {
+        if (mainCandidate != null) {
             if (mainCandidate.y in location.y - .24 .. location.y + 1.5) {
                 return mainCandidate
             }
@@ -333,10 +317,9 @@ class Leg(
         )
 
          val preferredLocation = location.clone()
-         if (parent.gait.legApplyScanHeightBias) {
-             val frontBlock = location.clone().add(parent.location.direction.clone().multiply(1)).block
-             if (!frontBlock.isPassable) preferredLocation.y += .5
-         }
+
+         val frontBlock = location.clone().add(parent.location.direction.clone().multiply(1)).block
+         if (!frontBlock.isPassable) preferredLocation.y += parent.gait.legScanHeightBias
 
         // return closest to preferred location
          return candidates.minByOrNull { it?.distanceSquared(preferredLocation) ?: Double.MAX_VALUE }

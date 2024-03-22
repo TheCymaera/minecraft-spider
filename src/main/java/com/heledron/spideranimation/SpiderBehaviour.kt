@@ -14,7 +14,7 @@ object StayStillBehaviour : SpiderBehaviour {
     }
 }
 
-class TargetBehaviour(val target: Location, val distance: Double, val visible: Boolean) : SpiderBehaviour {
+class TargetBehaviour(val target: Location, val distance: Double) : SpiderBehaviour {
     override fun update(spider: Spider) {
         val targetDirection = target.toVector().clone().subtract(spider.location.toVector()).normalize()
         spider.rotateTowards(targetDirection)

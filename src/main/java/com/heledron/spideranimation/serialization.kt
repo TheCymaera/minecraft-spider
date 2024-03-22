@@ -44,13 +44,10 @@ fun gaitToMap(gait: Gait): HashMap<String, Any> {
 
     map["bodyHeightCorrectionAcceleration"] = gait.bodyHeightCorrectionAcceleration
     map["bodyHeightCorrectionFactor"] = gait.bodyHeightCorrectionFactor
-    map["applyGravity"] = gait.applyGravity
     map["bodyHeight"] = gait.bodyHeight
 
-    map["legScanGround"] = gait.legScanGround
-    map["legAlwaysCanMove"] = gait.legAlwaysCanMove
     map["legScanAlternativeGround"] = gait.legScanAlternativeGround
-    map["legApplyScanHeightBias"] = gait.legApplyScanHeightBias
+    map["legScanHeightBias"] = gait.legScanHeightBias
 
     map["legStraightenHeight"] = gait.legStraightenHeight
     map["legNoStraighten"] = gait.legNoStraighten
@@ -79,13 +76,10 @@ fun gaitFromMap(gait: Gait, map: Map<String, Any>) {
 
     (map["bodyHeightCorrectionAcceleration"] as? Double)?.apply { gait.bodyHeightCorrectionAcceleration = this }
     (map["bodyHeightCorrectionFactor"] as? Double)?.apply { gait.bodyHeightCorrectionFactor = this }
-    (map["applyGravity"] as? Boolean)?.apply { gait.applyGravity = this }
     (map["bodyHeight"] as? Double)?.apply { gait.bodyHeight = this }
 
-    (map["legScanGround"] as? Boolean)?.apply { gait.legScanGround = this }
-    (map["legAlwaysCanMove"] as? Boolean)?.apply { gait.legAlwaysCanMove = this }
     (map["legScanAlternativeGround"] as? Boolean)?.apply { gait.legScanAlternativeGround = this }
-    (map["legApplyScanHeightBias"] as? Boolean)?.apply { gait.legApplyScanHeightBias = this }
+    (map["legScanHeightBias"] as? Double)?.apply { gait.legScanHeightBias = this }
 
     (map["legStraightenHeight"] as? Double)?.apply { gait.legStraightenHeight = this }
     (map["legNoStraighten"] as? Boolean)?.apply { gait.legNoStraighten = this }

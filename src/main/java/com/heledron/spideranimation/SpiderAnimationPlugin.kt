@@ -1,11 +1,7 @@
 package com.heledron.spideranimation
 
-import com.heledron.spideranimation.chain_visualizer.KinematicChainVisualizer
 import net.kyori.adventure.text.Component
-import org.bukkit.Bukkit
-import org.bukkit.FluidCollisionMode
-import org.bukkit.Material
-import org.bukkit.Sound
+import org.bukkit.*
 import org.bukkit.event.block.Action
 import org.bukkit.plugin.Plugin
 import org.bukkit.plugin.java.JavaPlugin
@@ -19,28 +15,36 @@ class SpiderAnimationPlugin : JavaPlugin() {
 
         val world = server.getWorld("world")!!
 
-        val blockDisplayRenderer = BlockDisplayRenderer(this)
 
-        var renderer: Renderer = blockDisplayRenderer
+        var renderer: Renderer = BlockDisplayRenderer
         val debugGraphicsOptions = RenderDebugOptions.all()
         var renderDebugGraphics = false
 
-        var spider: Spider? = null //Spider(Location(world, 0.0, 52.0, 0.0))
+        var spider: Spider? = null
         val gait = Gait()
+        var target: Location? = null
         gaitFromMap(gait, loadMapFromConfig(this, "gait"))
 
         var chainVisualizer: KinematicChainVisualizer? = null
 
-
         interval(this, 0, 1) {
-            val valSpider = spider ?: return@interval
+            spider?.apply {
+                update()
+                renderer.renderSpider(this, if (renderDebugGraphics) debugGraphicsOptions else RenderDebugOptions.none())
+            }
 
-            valSpider.update()
-            renderer.renderSpider(valSpider, if (renderDebugGraphics) debugGraphicsOptions else RenderDebugOptions.none())
+            val targetVal = target ?: chainVisualizer?.target?.toLocation(world)
+            if (targetVal != null) {
+                renderer.renderTarget(targetVal, BlockDisplayRenderer.Identifier.target(0))
+            } else {
+                renderer.clear(BlockDisplayRenderer.Identifier.target(0))
+            }
         }
 
         server.scheduler.scheduleSyncRepeatingTask(this, {
             val followPlayer = Bukkit.getOnlinePlayers().firstOrNull() ?: return@scheduleSyncRepeatingTask
+
+            target = null
 
             when (followPlayer.inventory.itemInMainHand.type) {
                 Material.ARROW -> {
@@ -57,29 +61,29 @@ class SpiderAnimationPlugin : JavaPlugin() {
                             this.render(world, false)
                         }
                     } else {
-                        val target = result.hitPosition.toLocation(followPlayer.world)
-                        spider?.behaviour = TargetBehaviour(target, 1.0, true)
+                        val targetVal = result.hitPosition.toLocation(followPlayer.world)
+                        target = targetVal
 
                         chainVisualizer?.apply {
-                            this.target = target.toVector()
+                            this.target = targetVal.toVector()
                             this.resetIterator()
                             this.render(world, false)
                         }
+
+                        spider?.behaviour = TargetBehaviour(targetVal, 1.0)
                     }
                 }
 
                 Material.CARROT_ON_A_STICK -> {
-                    spider?.behaviour = TargetBehaviour(followPlayer.location, 5.0, false)
+                    spider?.behaviour = TargetBehaviour(followPlayer.location, 5.0)
                 }
                 else -> {
                     spider?.behaviour = StayStillBehaviour
                 }
             }
-
         }, 0, 1)
 
         // /summon minecraft:area_effect_cloud -26 -11 26 {Tags:["spider.chain_visualizer"]}
-        // on spawn: create a chain visualizer
         server.pluginManager.registerEvents(object : org.bukkit.event.Listener {
             @org.bukkit.event.EventHandler
             fun onEntitySpawn(event: org.bukkit.event.entity.EntitySpawnEvent) {
@@ -92,7 +96,7 @@ class SpiderAnimationPlugin : JavaPlugin() {
                     chainVisVal.unRender()
                     chainVisualizer = null
                 } else {
-                    chainVisualizer = KinematicChainVisualizer.create(3, 1.5, location.toVector(), blockDisplayRenderer).apply {
+                    chainVisualizer = KinematicChainVisualizer.create(3, 1.5, location.toVector()).apply {
                         render(world, true)
                     }
                 }
@@ -116,12 +120,12 @@ class SpiderAnimationPlugin : JavaPlugin() {
                     }
                     Material.LIGHT_BLUE_DYE -> {
                         spider?.apply { renderer.clearSpider(this) }
-                        renderer = if (renderer == blockDisplayRenderer) {
+                        renderer = if (renderer == BlockDisplayRenderer) {
                             event.player.location.world.playSound(event.player.location, Sound.ENTITY_AXOLOTL_ATTACK, 1.0f, 1.0f)
                             ParticleRenderer
                         } else {
                             event.player.location.world.playSound(event.player.location, Sound.ITEM_ARMOR_EQUIP_NETHERITE, 1.0f, 1.0f)
-                            blockDisplayRenderer
+                            BlockDisplayRenderer
                         }
                     }
                     Material.NETHERITE_INGOT -> {
@@ -163,48 +167,6 @@ class SpiderAnimationPlugin : JavaPlugin() {
                 }
             }
         }, this)
-
-        // default: /setgait .2
-        // big step: /setgait .2 .2
-        // eldritch horror: /setgait 1 1.6
-
-//        getCommand("setgait")?.apply {
-//            setExecutor { sender, _, _, args ->
-//                val spiderVal = spider ?: return@setExecutor false
-//
-//                val walkSpeed = args.getOrNull(0)?.toDoubleOrNull()
-//                val legSpeed = args.getOrNull(1)?.toDoubleOrNull()
-//
-//
-//                if (walkSpeed == null) {
-//                    return@setExecutor false
-//                }
-//
-//                spiderVal.gait = if (legSpeed != null) Gait(walkSpeed, legSpeed) else Gait(walkSpeed)
-//
-//                sender.sendMessage(
-//                    "Set gait to:\n" +
-//                            String.format("walk_speed: %.2f\n", spiderVal.gait.walkSpeed) +
-//                            String.format("leg_speed: %.2f\n", spiderVal.gait.legSpeed)
-//                )
-//                return@setExecutor true
-//            }
-//        }
-
-        getCommand("stage")?.apply {
-            setExecutor { sender, _, _, args ->
-                val stage = args.getOrNull(0)?.toIntOrNull() ?: return@setExecutor false
-
-                val name = setStage(gait, debugGraphicsOptions, stage)
-
-                if (name != null) sender.sendMessage("Set stage $stage: $name")
-                else sender.sendMessage("Unknown stage: $stage")
-
-                saveMapToConfig(this@SpiderAnimationPlugin, "gait", gaitToMap(gait))
-
-                return@setExecutor true
-            }
-        }
 
         getCommand("gait")?.apply {
             setExecutor { sender, _, _, args ->
@@ -302,7 +264,7 @@ class SpiderAnimationPlugin : JavaPlugin() {
     }
 
     override fun onDisable() {
-        BlockDisplayRegistry.clearAll()
+        BlockDisplayRenderer.clearAll()
     }
 }
 
