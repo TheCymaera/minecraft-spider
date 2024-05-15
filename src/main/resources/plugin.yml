@@ -13,3 +13,6 @@ commands:
   debug:
     description: Toggle debug options
     usage: /debug <option:string> <value:boolean?>
+  body_plan:
+    description: Set the body plan of the spider
+    usage: /body_plan <plan:string>

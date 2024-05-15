@@ -20,11 +20,9 @@ class KinematicChain(
         }
     }
 
-    fun straighten(target: Vector, height: Double) {
-        val direction = target.clone().subtract(root).normalize()
-        direction.y += height
+    fun straightenDirection(direction: Vector) {
         direction.normalize()
-
+//        val direction = target.clone().subtract(root).normalize()
         val position = root.clone()
         for (segment in segments) {
             position.add(direction.clone().multiply(segment.length))

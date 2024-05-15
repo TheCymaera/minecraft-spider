@@ -1,23 +1,65 @@
 package com.heledron.spideranimation
 
-import org.bukkit.FluidCollisionMode
+import com.heledron.spideranimation.components.*
 import org.bukkit.Location
 import org.bukkit.util.Vector
+import java.io.Closeable
 import kotlin.math.*
 
-data class Gait(
-    var walkSpeed: Double = .15,
-    var legSpeed: Double = walkSpeed * 3
+
+interface SpiderComponent : Closeable {
+    fun update() {}
+    fun render() {}
+    override fun close() {}
+}
+
+object EmptyComponent : SpiderComponent
+
+class Gait(
+    walkSpeed: Double,
+    var gallopBreakpoint: Double,
 ) {
-    var walkAcceleration = walkSpeed / 7
-    var rotateSpeed = walkSpeed
+    companion object {
+        fun defaultWalk(): Gait {
+            return Gait(.15, 10000.0)
+        }
+
+        fun defaultGallop(): Gait {
+            return Gait(.4, .7)
+        }
+    }
+
+    fun scale(scale: Double) {
+        walkSpeed *= scale
+        walkAcceleration *= scale
+        legMoveSpeed *= scale
+        legLiftHeight *= scale
+        legDropDistance *= scale
+        legStationaryTriggerDistance *= scale
+        legWalkingTriggerDistance *= scale
+        legDiscomfortDistance *= scale
+        legVerticalTriggerDistance *= scale
+        legVerticalDiscomfortDistance *= scale
+        bodyHeight *= scale
+        legScanHeightBias *= scale
+    }
+
+    var walkSpeed = walkSpeed
+    var walkAcceleration = .15 / 4
+
+    var rotateSpeed = .15
+
+    var legMoveSpeed = walkSpeed * 3
 
     var legLiftHeight = .35
     var legDropDistance = legLiftHeight
 
     var legStationaryTriggerDistance = .25
-    var legMovingTriggerDistance = .9
+    var legWalkingTriggerDistance = .8
     var legDiscomfortDistance = 1.2
+
+    var legVerticalTriggerDistance = 1.5
+    var legVerticalDiscomfortDistance = 1.6
 
     var gravityAcceleration = .08
     var airDragCoefficient = .02
@@ -28,47 +70,85 @@ data class Gait(
     var bodyHeightCorrectionAcceleration = gravityAcceleration * 4
     var bodyHeightCorrectionFactor = .25
 
-    var legStraightenHeight = 1.25
+    var legStraightenRotation = -60.0
+    var legStraightenMinRotation = -90.0
+    var legStraightenMaxRotation = -20.0
     var legNoStraighten = false
-
-    var legSegmentLength = 1.0
-    var legSegmentCount = 3
 
     var legScanAlternativeGround = true
     var legScanHeightBias = .5
+
+    var tridentKnockBack = .3
+    var legLookAheadFraction = .6
+    var groundDragCoefficient = .2
+
+    var legMoveCooldown = 2
+
+    var stabilizationFactor = .1
 }
 
 
-class Spider(val location: Location, val gait: Gait) {
-    var behaviour: SpiderBehaviour = StayStillBehaviour
+class Spider(val location: Location, var gait: Gait, val bodyPlan: SpiderBodyPlan): Closeable {
+    var isWalking = false; private set
+    var isRotatingYaw = false; private set
+    var isRotatingPitch = false; private set
+    var rotateVelocity = 0.0; private set
 
     val velocity = Vector(0.0, 0.0, 0.0)
+    init { location.y += gait.bodyHeight }
 
-    val leftFrontLeg = createLeg(Vector(0.9, -gait.bodyHeight, 0.9), 0.9 * gait.legSegmentLength, gait.legSegmentCount)
-    val rightFrontLeg = createLeg(Vector(-0.9, -gait.bodyHeight, 0.9), 0.9 * gait.legSegmentLength, gait.legSegmentCount)
-    val leftBackLeg = createLeg(Vector(1.0, -gait.bodyHeight, -1.1), 1.2 * gait.legSegmentLength, gait.legSegmentCount)
-    val rightBackLeg = createLeg(Vector(-1.0, -gait.bodyHeight, -1.1), 1.2 * gait.legSegmentLength, gait.legSegmentCount)
-    val legs = listOf(leftFrontLeg, rightFrontLeg, leftBackLeg, rightBackLeg)
+    val body = SpiderBody(this)
+    init { bodyPlan.initialize(this) }
 
-    var isRotating = false
-    var didHitGround = false
+    val cloak = Cloak(this)
+    val sound = SoundEffects(this)
+    var mount = Mountable(this)
 
-    init {
-        location.y += gait.bodyHeight
+    var behaviour: SpiderComponent = StayStillBehaviour(this)
+    set (value) {
+        field.close()
+        field = value
+    }
+    var renderer: SpiderComponent = SpiderEntityRenderer(this)
+    set (value) {
+        field.close()
+        field = value
     }
 
-    fun accelerateToVelocity(targetVelocity: Vector) {
-        val target = targetVelocity.clone()
-        if (legs.any { it.uncomfortable }) {
-            target.multiply(0)
+    var debugRenderer: SpiderComponent? = null
+    set (value) {
+        field?.close()
+        field = value
+    }
+
+    val isGalloping get() = velocity.length() > gait.gallopBreakpoint * gait.walkSpeed && isWalking
+
+    override fun close() {
+        getComponents().forEach { it.close() }
+    }
+
+    fun teleport(newLocation: Location) {
+        val diff = newLocation.toVector().subtract(location.toVector())
+
+        copyLocation(location, newLocation)
+
+        for (leg in body.legs) {
+            leg.endEffector.add(diff)
+            for (segment in leg.chain.segments) segment.position.add(diff)
         }
-        lerpVectorByConstant(velocity, target.setY(velocity.y), gait.walkAcceleration)
     }
 
     fun rotateTowards(targetDirection: Vector) {
+        // pitch
+        val targetPitch = -Math.toDegrees(atan2(targetDirection.y, targetDirection.clone().setY(0).length())).coerceIn(-30.0, 30.0)
+        val oldPitch = location.pitch
+        location.pitch = lerpNumberByConstant(oldPitch.toDouble(), targetPitch, Math.toDegrees(gait.rotateSpeed)).toFloat()//.coerceIn(minPitch, maxPitch)
+        isRotatingPitch = abs(targetPitch - oldPitch) > 0.0001
+
+        // yaw
+        val maxSpeed = gait.rotateSpeed * body.legs.filter { it.isGrounded() }.size / body.legs.size
         location.yaw %= 360
         val oldYaw = Math.toRadians(location.yaw.toDouble())
-
         val targetYaw = atan2(-targetDirection.x, targetDirection.z)
 
         val optimizedTargetYaw = if (abs(targetYaw - oldYaw) > PI) {
@@ -77,303 +157,59 @@ class Spider(val location: Location, val gait: Gait) {
             targetYaw
         }
 
-        isRotating = abs(optimizedTargetYaw - oldYaw) > 0.0001
+        isRotatingYaw = abs(optimizedTargetYaw - oldYaw) > 0.0001
 
-        if (!isRotating || legs.any { it.uncomfortable }) return
+        rotateVelocity = 0.0
+        if (!isRotatingYaw || body.legs.any { it.uncomfortable && !it.isMoving }) return
 
-        val newYaw = lerpNumberByConstant(oldYaw, optimizedTargetYaw, gait.rotateSpeed)
+        val newYaw = lerpNumberByConstant(oldYaw, optimizedTargetYaw, maxSpeed)
         location.yaw = Math.toDegrees(newYaw).toFloat()
 
-        // rotate legs end effector
-        for (leg in legs) {
-            if (leg.isGrounded()) continue
-            val vector = leg.endEffector.clone().subtract(location.toVector())
-            vector.rotateAroundY(newYaw - oldYaw)
-            leg.endEffector.copy(location.toVector()).add(vector)
+        rotateVelocity = -(newYaw - oldYaw)
+    }
+
+    fun walkAt(targetVelocity: Vector) {
+        val acceleration = gait.walkAcceleration// * body.legs.filter { it.isGrounded() }.size / body.legs.size
+        val target = targetVelocity.clone()
+        if (body.legs.any { it.uncomfortable && !it.isMoving }) {
+            lerpVectorByConstant(velocity, Vector(0, 0, 0), acceleration)
+            isWalking = true
+        } else {
+            lerpVectorByConstant(velocity, target.setY(velocity.y), acceleration)
+            isWalking = velocity.x != 0.0 && velocity.z != 0.0
         }
     }
 
-    fun teleport(newLocation: Location) {
-        val diff = newLocation.toVector().subtract(location.toVector())
-
-        location.world = newLocation.world
-        location.x = newLocation.x
-        location.y = newLocation.y
-        location.z = newLocation.z
-
-        for (leg in legs) {
-            leg.endEffector.add(diff)
-            for (segment in leg.chain.segments) {
-                segment.position.add(diff)
-            }
-        }
+    fun getComponents() = iterator<SpiderComponent> {
+        yield(cloak)
+        yield(behaviour)
+        yield(body)
+        yield(renderer)
+        yield(debugRenderer ?: EmptyComponent)
+        yield(sound)
+        yield(mount)
     }
 
     fun update() {
         // update behaviour
-        didHitGround = false
-        isRotating = false
-        behaviour.update(this)
+        isRotatingYaw = false
+        rotateVelocity = 0.0
+        isWalking = false
 
-        // apply gravity and air resistance
-        velocity.y -= gait.gravityAcceleration
-        velocity.y *= (1 - gait.airDragCoefficient)
+        for (component in getComponents()) component.update()
 
-        if (isGrounded()) {
-            // adjust body height
-            val legsAverageY = legs.map { it.targetPosition.y }.average()
-            val targetY = legsAverageY + gait.bodyHeight
-            val stabilizedY = lerpNumberByFactor(location.y, targetY, gait.bodyHeightCorrectionFactor)
-            val maxThrust = gait.bodyHeightCorrectionAcceleration
-            val minThrust = 0.0
-
-            val thrust = (stabilizedY - location.y - velocity.y).coerceIn(minThrust, maxThrust)
-            velocity.y += thrust
-        }
-
-        // resolve ground collision
-        val bounce = Vector(0.0, 0.0, 0.0)
-        val resolveY = resolveGroundCollision(location.clone().add(velocity))
-        if (resolveY > 0.0) {
-            location.y += resolveY
-            if (velocity.y < 0) bounce.y = -velocity.y * gait.bounceFactor
-
-            didHitGround = resolveY > (gait.gravityAcceleration * 2) * (1 - gait.airDragCoefficient)
-        }
-
-        // apply velocity
-        location.add(velocity)
-        velocity.add(bounce)
-
-        // move legs
-        for (leg in legs) {
-            leg.update()
-        }
+        for (component in getComponents()) component.render()
     }
 
-    fun adjacentLegs(leg: Leg): List<Leg> {
-        return when (leg) {
-            leftFrontLeg -> listOf(rightFrontLeg, leftBackLeg)
-            rightFrontLeg -> listOf(rightBackLeg, leftFrontLeg)
-            leftBackLeg -> listOf(rightBackLeg, leftFrontLeg)
-            rightBackLeg -> listOf(rightFrontLeg, leftBackLeg)
-            else -> listOf()
-        }
+    fun relativePosition(point: Vector, pitch: Float = location.pitch): Vector {
+        return location.toVector().add(relativeVector(point, pitch))
     }
 
-    fun isGrounded(): Boolean {
-        if (leftFrontLeg.isGrounded() && rightBackLeg.isGrounded()) return true
-        if (rightFrontLeg.isGrounded() && leftBackLeg.isGrounded()) return true
-        return false
-    }
-
-    private fun createLeg(restPosition: Vector, segmentLength: Double, segmentsCount: Int): Leg {
-        val segments = arrayListOf<ChainSegment>()
-        for (i in 1 .. segmentsCount) {
-            val position = location.toVector().add(restPosition.clone().normalize().multiply(segmentLength * i))
-            segments.add(ChainSegment(position, segmentLength))
-        }
-        val chain = KinematicChain(location.toVector(), segments)
-        return Leg(this, restPosition, chain)
+    fun relativeVector(point: Vector, pitch: Float = location.pitch): Vector {
+        val out = point.clone()
+        out.rotateAroundX(Math.toRadians(pitch.toDouble()))
+        out.rotateAroundY(-Math.toRadians(location.yaw.toDouble()))
+        return out
     }
 }
 
-class Leg(
-    val parent: Spider,
-    val relativeRestPosition: Vector,
-    val chain: KinematicChain,
-) {
-    val scanGroundAbove = 2.0
-    val scanGroundBelow = 2.0
-
-    var restPosition = restPosition()
-    var targetPosition = locateGround()?.toVector() ?: restPosition.clone()
-    var endEffector = targetPosition.clone()
-
-    var uncomfortable = false
-    var onGround = true
-    var isMoving = false
-    var isStranded = false
-
-    var didStep = false
-
-    fun triggerDistance(): Double {
-        val isMoving = parent.velocity.x != 0.0 || parent.velocity.z != 0.0
-        return if (!isMoving && !parent.isRotating) parent.gait.legStationaryTriggerDistance else parent.gait.legMovingTriggerDistance
-    }
-
-    fun isGrounded(): Boolean {
-        return onGround && !isMoving
-    }
-
-    fun update() {
-        updateMovement()
-
-        chain.root.copy(parent.location.toVector())
-
-        if (!parent.gait.legNoStraighten) chain.straighten(endEffector, parent.gait.legStraightenHeight)
-        chain.fabrik(endEffector)
-    }
-
-    private fun updateMovement() {
-        val gait = parent.gait
-
-        didStep = false
-
-        restPosition = restPosition()
-
-        val ground = locateGround()
-        targetPosition = ground?.toVector() ?: restPosition.clone()
-        isStranded = ground == null
-
-        val distanceToTarget =  horizontalDistance(endEffector, targetPosition)
-        uncomfortable = !isMoving && distanceToTarget > triggerDistance() && horizontalDistance(restPosition, endEffector) > gait.legDiscomfortDistance
-        onGround = onGround()
-
-        // inherit parent velocity
-        if (!isGrounded()) {
-            endEffector.add(parent.velocity)
-        }
-
-        // resolve ground collision
-        if (!onGround) {
-            onGround = onGround()
-            didStep = onGround
-
-            val yCollision = resolveGroundCollision(endEffector.toLocation(parent.location.world))
-            endEffector.y += yCollision
-        }
-
-        if (isMoving) {
-            // move leg
-            val moveSpeed = gait.legSpeed
-
-            lerpVectorByConstant(endEffector, targetPosition, moveSpeed)
-
-            val targetY = targetPosition.y + gait.legLiftHeight
-            val hDistance = horizontalDistance(endEffector, targetPosition)
-            if (hDistance > gait.legDropDistance) {
-                endEffector.y = lerpNumberByConstant(endEffector.y, targetY, moveSpeed)
-            }
-
-            if (endEffector.distance(targetPosition) < 0.0001) {
-                isMoving = false
-
-                onGround = onGround()
-                didStep = onGround
-            }
-
-        } else {
-            // begin moving leg
-            val verticalDistance = verticalDistance(endEffector, targetPosition)
-            val canMove = isStranded || parent.adjacentLegs(this).all { !it.isMoving }
-            if (canMove && (distanceToTarget > triggerDistance() || verticalDistance >= 0.0001)) {
-                isMoving = true
-            }
-        }
-    }
-
-    private fun onGround(): Boolean {
-        return isOnGround(endEffector.toLocation(parent.location.world))
-    }
-
-    private fun restPosition(): Vector {
-        return parent.location.toVector().add(relativeRestPosition.clone().rotateAroundY(-Math.toRadians(parent.location.yaw.toDouble())))
-    }
-
-    private fun locateGround(): Location? {
-        val location = restPosition.toLocation(parent.location.world)
-
-        fun rayCast(x: Double, z: Double): Location? {
-            val y = location.y + scanGroundAbove
-            val startScan = Location(location.world, x, y, z)
-            val hit = startScan.world.rayTraceBlocks(startScan, Vector(0.0, -1.0, 0.0), scanGroundAbove + scanGroundBelow, FluidCollisionMode.NEVER, true)
-            return hit?.hitPosition?.toLocation(startScan.world)
-        }
-
-        val x = restPosition.x
-        val z = restPosition.z
-
-        val mainCandidate = rayCast(x, z)
-
-        if (!parent.gait.legScanAlternativeGround) return mainCandidate
-
-        if (mainCandidate != null) {
-            if (mainCandidate.y in location.y - .24 .. location.y + 1.5) {
-                return mainCandidate
-            }
-        }
-
-        val margin = 2 / 16.0
-        val nx = floor(x) - margin
-        val nz = floor(z) - margin
-        val pz = ceil(z) + margin
-        val px = ceil(x) + margin
-
-        val candidates = listOf(
-            rayCast(nx, nz), rayCast(nx, z), rayCast(nx, pz),
-            rayCast(x, nz),  mainCandidate,  rayCast(x, pz),
-            rayCast(px, nz), rayCast(px, z), rayCast(px, pz),
-        )
-
-         val preferredLocation = location.clone()
-
-         val frontBlock = location.clone().add(parent.location.direction.clone().multiply(1)).block
-         if (!frontBlock.isPassable) preferredLocation.y += parent.gait.legScanHeightBias
-
-        // return closest to preferred location
-         return candidates.minByOrNull { it?.distanceSquared(preferredLocation) ?: Double.MAX_VALUE }
-    }
-}
-
-fun isOnGround(location: Location): Boolean {
-    val adjustedLocation = location.add(0.0, -0.0001, 0.0)
-    val block = adjustedLocation.block
-
-    if (block.isPassable) return false
-
-    val boundingBox = block.boundingBox
-    return boundingBox.contains(location.toVector())
-}
-
-fun resolveGroundCollision(location: Location): Double {
-    val block = location.block
-    if (block.isPassable) return 0.0
-    val boundingBox = block.boundingBox
-    return if (boundingBox.contains(location.toVector())) boundingBox.maxY - location.y else 0.0
-}
-
-fun lerpNumberByFactor(current: Double, target: Double, factor: Double): Double {
-    return current + (target - current) * factor
-}
-
-fun lerpNumberByConstant(current: Double, target: Double, constant: Double): Double {
-    val distance = target - current
-    return if (abs(distance) < constant) target else current + constant * distance.sign
-}
-
-fun lerpVectorByConstant(current: Vector, target: Vector, constant: Double) {
-    val diff = target.clone().subtract(current)
-    val distance = diff.length()
-    if (distance <= constant) {
-        current.copy(target)
-    } else {
-        current.add(diff.multiply(constant / distance))
-    }
-}
-
-fun verticalDistance(a: Vector, b: Vector): Double {
-    return abs(a.y - b.y)
-}
-
-fun horizontalDistance(a: Vector, b: Vector): Double {
-    val x = a.x - b.x
-    val z = a.z - b.z
-    return sqrt(x * x + z * z)
-}
-
-fun horizontalDistance(a: Location, b: Location): Double {
-    val x = a.x - b.x
-    val z = a.z - b.z
-    return sqrt(x * x + z * z)
-}

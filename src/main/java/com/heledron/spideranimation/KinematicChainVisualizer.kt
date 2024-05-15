@@ -1,22 +1,57 @@
 package com.heledron.spideranimation
 
-import org.bukkit.World
+import org.bukkit.Location
+import org.bukkit.Material
+import org.bukkit.entity.BlockDisplay
 import org.bukkit.entity.Display
 import org.bukkit.util.Vector
+import java.io.Closeable
 
 
 class KinematicChainVisualizer(
-        val root: Vector,
-        val segments: List<ChainSegment>
-) {
+    val root: Location,
+    val segments: List<ChainSegment>
+): Closeable {
+    enum class Stage {
+        Backwards,
+        Forwards
+    }
+
+    val interruptions = mutableListOf<() -> Unit>()
     var iterator = 0
-    var prevIterator = 0
-    var stage = 0
-    var target: Vector? = null
+    var previous: Triple<Stage, Int, List<ChainSegment>>? = null
+    var stage = Stage.Forwards
+    var target: Location? = null
+
+    var detailed = true
+    set(value) {
+        field = value
+        interruptions.clear()
+        render()
+    }
+
+    val renderer = MultiEntityRenderer()
+    override fun close() {
+        renderer.close()
+    }
+
+    init {
+        reset()
+        render()
+    }
+
+    companion object {
+        fun create(segments: Int, length: Double, root: Location): KinematicChainVisualizer {
+            val segmentList = (0 until segments).map { ChainSegment(root.toVector(), length) }
+            return KinematicChainVisualizer(root.clone(), segmentList)
+        }
+    }
 
     fun resetIterator() {
+        interruptions.clear()
         iterator = segments.size - 1
-        stage = 0
+        previous = null
+        stage = Stage.Forwards
     }
 
     fun reset() {
@@ -27,61 +62,65 @@ class KinematicChainVisualizer(
         val direction = Vector(0, 1, 0)
         val rotAxis = Vector(1, 0, -1)
         val rotation = -0.2
-        val pos = root.clone()
+        val pos = root.toVector()
         for (segment in segments) {
             direction.rotateAroundAxis(rotAxis, rotation)
             pos.add(direction.clone().multiply(segment.length))
             segment.position.copy(pos)
         }
+
+        render()
     }
 
     fun step() {
-        val target = target ?: return
+        if (interruptions.isNotEmpty()) {
+            interruptions.removeAt(0)()
+            return
+        }
 
-        prevIterator = iterator
+        val target = target?.toVector() ?: return
 
-        if (stage == 0) {
-            val previousSegment = segments.getOrNull(iterator + 1)
+        previous = Triple(stage, iterator, segments.map { ChainSegment(it.position.clone(), it.length) })
+
+        if (stage == Stage.Forwards) {
             val segment = segments[iterator]
+            val nextSegment = segments.getOrNull(iterator + 1)
 
-            if (previousSegment == null) {
+            if (nextSegment == null) {
                 segment.position.copy(target)
             } else {
-                fabrik_moveSegment(segment.position, previousSegment.position, previousSegment.length)
+                fabrik_moveSegment(segment.position, nextSegment.position, nextSegment.length)
             }
 
-            if (iterator == 0) {
-                stage = 1
-            } else {
-                iterator--
-            }
+            if (iterator == 0) stage = Stage.Backwards
+            else iterator--
         } else {
-            // backward
-            val previousSegmentPos = segments.getOrNull(iterator - 1)?.position ?: root
             val segment = segments[iterator]
+            val prevPosition = segments.getOrNull(iterator - 1)?.position ?: root.toVector()
 
-            fabrik_moveSegment(segment.position, previousSegmentPos, segment.length)
+            fabrik_moveSegment(segment.position, prevPosition, segment.length)
 
-            if (iterator == segments.size - 1) {
-                stage = 0
-            } else {
-                iterator++
-            }
+            if (iterator == segments.size - 1) stage = Stage.Forwards
+            else iterator++
         }
+
+        render()
     }
 
     fun straighten(target: Vector) {
         resetIterator()
 
-        val direction = target.clone().subtract(root).normalize()
+        val direction = target.clone().subtract(root.toVector()).normalize()
         direction.y = 0.5
         direction.normalize()
 
-        val position = root.clone()
+        val position = root.toVector()
         for (segment in segments) {
             position.add(direction.clone().multiply(segment.length))
             segment.position.copy(position)
         }
+
+        render()
     }
 
     fun fabrik_moveSegment(point: Vector, pullTowards: Vector, segment: Double) {
@@ -89,46 +128,170 @@ class KinematicChainVisualizer(
         point.copy(pullTowards).subtract(direction.multiply(segment))
     }
 
+    fun render() {
+        if (detailed) {
+            renderDetailed()
+        } else {
+            renderNormal()
+        }
 
-    fun render(world: World, renderAll: Boolean) {
-        var root = this.root.toLocation(world)
+    }
 
-        // up vector is the cross product of the y-axis and the end-effector direction
-        val direction = this.segments.last().position.clone().subtract(root.toVector())
-        val upVector = direction.clone().crossProduct(Vector(0, 1, 0))
+    private fun renderNormal() {
+        renderer.beginRender()
 
-        for ((i, segment) in this.segments.withIndex()) {
-            val needsUpdate = renderAll || i == this.prevIterator
+        val previous = previous
 
-            if (needsUpdate) {
-                val thickness = (this.segments.size - i) * 1.5f/16f
+        for (i in segments.indices) {
+            val thickness = (segments.size - i) * 1.5f/16f
 
-                val vector = segment.position.clone().subtract(root.toVector())
-                if (!vector.isZero) vector.normalize().multiply(segment.length)
+            val list = if (previous == null || i == previous.second) segments else previous.third
 
-                val pos = segment.position.clone().subtract(vector.clone()).toLocation(world)
+            val segment = list[i]
+            val prev = list.getOrNull(i - 1)?.position ?: root.toVector()
+            val vector = segment.position.clone().subtract(prev)
+            if (!vector.isZero) vector.normalize().multiply(segment.length)
+            val location = segment.position.clone().subtract(vector.clone()).toLocation(root.world!!)
 
-                // val oldLocation = BlockDisplayRenderer.legSegments.displays[segment]?.location
-
-                BlockDisplayRenderer.renderSegment(pos, segment, thickness, upVector).apply {
-                    this.interpolationDuration = 4
-                    this.teleportDuration = 4
-                    this.brightness = Display.Brightness(0, 15)
+            renderer.render(i, lineTemplate(
+                location = location,
+                vector = vector,
+                thickness = thickness,
+                interpolation = 3,
+                update = {
+                    it.brightness = Display.Brightness(0, 15)
+                    it.block = Material.NETHERITE_BLOCK.createBlockData()
                 }
+            ))
+        }
+
+        renderer.finishRender()
+    }
+
+    private fun renderDetailed(subStage: Int = 0) {
+        renderer.beginRender()
+
+        val previous = previous
+
+        var renderedSegments = segments
+
+        if (previous != null) run arrow@{
+            val (stage, iterator, segments) = previous
+
+            val arrowStart = if (stage == Stage.Forwards)
+                segments.getOrNull(iterator + 1)?.position else
+                segments.getOrNull(iterator - 1)?.position ?: root.toVector()
+
+            if (arrowStart == null) return@arrow
+            renderedSegments = segments
+
+            if (subStage == 0) {
+                interruptions += { renderDetailed(1) }
+                interruptions += { renderDetailed(2) }
+                interruptions += { renderDetailed(3) }
+                interruptions += { renderDetailed(4) }
             }
 
-            root = segment.position.toLocation(world)
-        }
-    }
+            // stage 0: subtract vector
+            val arrow = segments[iterator].position.clone().subtract(arrowStart)
 
-    fun unRender() {
-        for (segment in this.segments) BlockDisplayRenderer.clear(BlockDisplayRenderer.Identifier.chainSegment(segment));
-    }
+            // stage 1: normalise vector
+            if (subStage >= 1) arrow.normalize()
 
-    companion object {
-        fun create(segments: Int, length: Double, root: Vector): KinematicChainVisualizer {
-            val segmentList = (0 until segments).map { ChainSegment(root.clone(), length) }
-            return KinematicChainVisualizer(root.clone(), segmentList).apply { reset() }
+            // stage 2: multiply by length
+            if (subStage >= 2) arrow.multiply(segments[iterator].length)
+
+            // stage 3: move segment
+            if (subStage >= 3) renderedSegments = this.segments
+
+            // stage 4: hide arrow
+            if (subStage >= 4) return@arrow
+
+            renderer.renderList("arrow", arrowTemplate(
+                location = arrowStart.toLocation(root.world!!),
+                vector = arrow,
+                thickness = .101f
+            ))
         }
+
+        renderer.render("root", pointTemplate(root, Material.DIAMOND_BLOCK))
+
+        for (i in renderedSegments.indices) {
+            val segment = renderedSegments[i]
+            renderer.render("p$i", pointTemplate(segment.position.toLocation(root.world!!), Material.EMERALD_BLOCK))
+
+            val prev = renderedSegments.getOrNull(i - 1)?.position ?: root.toVector()
+
+            val (a,b) = prev to segment.position
+
+            renderer.render(i, lineTemplate(
+                location = a.toLocation(root.world!!),
+                vector = b.clone().subtract(a),
+                thickness = .1f,
+                interpolation = 3,
+                update = {
+                    it.brightness = Display.Brightness(0, 15)
+                    it.block = Material.BLACK_STAINED_GLASS.createBlockData()
+                }
+            ))
+        }
+
+        renderer.finishRender()
     }
+}
+
+fun pointTemplate(location: Location, block: Material) = blockTemplate(
+    location = location,
+    init = {
+        it.block = block.createBlockData()
+        it.teleportDuration = 3
+        it.brightness = Display.Brightness(15, 15)
+        it.transformation = centredTransform(.26f, .26f, .26f)
+    }
+)
+
+fun arrowTemplate(location: Location, vector: Vector, thickness: Float): List<EntityRendererTemplate<BlockDisplay>> {
+    val line = lineTemplate(
+        location = location,
+        vector = vector,
+        thickness = thickness,
+        interpolation = 3,
+        init = {
+            it.block = Material.GOLD_BLOCK.createBlockData()
+            it.brightness = Display.Brightness(0, 15)
+        },
+    )
+
+    val tipLength = 0.5
+    val tip = location.clone().add(vector)
+    val crossProduct = if (vector == UP_VECTOR) Vector(0, 0, 1) else
+        vector.clone().crossProduct(UP_VECTOR).normalize().multiply(tipLength)
+
+    val tipDirection = vector.clone().normalize().multiply(-tipLength)
+    val tipRotation = 30.0
+
+
+    val top = lineTemplate(
+        location = tip,
+        vector = tipDirection.clone().rotateAroundAxis(crossProduct, Math.toRadians(tipRotation)),
+        thickness = thickness,
+        interpolation = 3,
+        init = {
+            it.block = Material.GOLD_BLOCK.createBlockData()
+            it.brightness = Display.Brightness(0, 15)
+        },
+    )
+
+    val bottom = lineTemplate(
+        location = tip,
+        vector = tipDirection.clone().rotateAroundAxis(crossProduct, Math.toRadians(-tipRotation)),
+        thickness = thickness,
+        interpolation = 3,
+        init = {
+            it.block = Material.GOLD_BLOCK.createBlockData()
+            it.brightness = Display.Brightness(0, 15)
+        },
+    )
+
+    return listOf(line, top, bottom)
 }

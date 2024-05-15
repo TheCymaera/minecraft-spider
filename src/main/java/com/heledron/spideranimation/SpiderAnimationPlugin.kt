@@ -1,84 +1,119 @@
 package com.heledron.spideranimation
 
-import net.kyori.adventure.text.Component
+import com.heledron.spideranimation.components.*
 import org.bukkit.*
+import org.bukkit.entity.BlockDisplay
 import org.bukkit.event.block.Action
-import org.bukkit.plugin.Plugin
 import org.bukkit.plugin.java.JavaPlugin
 import java.io.Closeable
 import kotlin.math.roundToInt
 
 @Suppress("unused")
 class SpiderAnimationPlugin : JavaPlugin() {
+    companion object {
+        lateinit var instance: SpiderAnimationPlugin
+    }
+
+    val closables = mutableListOf<Closeable>()
+
+    override fun onDisable() {
+        logger.info("Disabling Spider Animation plugin")
+        closables.forEach { it.close() }
+    }
+
     override fun onEnable() {
-        logger.info("SpiderAnimation plugin enabled")
-
-        val world = server.getWorld("world")!!
-
-
-        var renderer: Renderer = BlockDisplayRenderer
-        val debugGraphicsOptions = RenderDebugOptions.all()
-        var renderDebugGraphics = false
-
         var spider: Spider? = null
-        val gait = Gait()
-        var target: Location? = null
-        gaitFromMap(gait, loadMapFromConfig(this, "gait"))
-
         var chainVisualizer: KinematicChainVisualizer? = null
+        val targetRenderer = EntityRenderer<BlockDisplay>()
 
-        interval(this, 0, 1) {
-            spider?.apply {
-                update()
-                renderer.renderSpider(this, if (renderDebugGraphics) debugGraphicsOptions else RenderDebugOptions.none())
-            }
+        closables += Closeable {
+            spider?.close()
+            chainVisualizer?.close()
+            targetRenderer.close()
+        }
 
-            val targetVal = target ?: chainVisualizer?.target?.toLocation(world)
-            if (targetVal != null) {
-                renderer.renderTarget(targetVal, BlockDisplayRenderer.Identifier.target(0))
-            } else {
-                renderer.clear(BlockDisplayRenderer.Identifier.target(0))
+        logger.info("Enabling Spider Animation plugin")
+
+        instance = this
+
+        var gait = Gait.defaultWalk()
+        config.getConfigurationSection("gait")?.getValues(false)?.let { gaitFromMap(gait, it) }
+
+        var gallopGait = Gait.defaultGallop()
+        config.getConfigurationSection("gallop_gait")?.getValues(false)?.let { gaitFromMap(gallopGait, it) }
+
+
+        var bodyPlanBuilder =
+            config.getConfigurationSection("body_plan")?.getValues(true)?.let { bodyPlanFromMap(it) } ?:
+            quadripedBodyPlan(1.0, 3)
+
+        var target: Location? = null
+
+        interval(0, 1) {
+            spider?.update()
+
+            val targetVal = target ?: chainVisualizer?.target
+            if (targetVal != null) targetRenderer.render(targetTemplate(targetVal))
+            else targetRenderer.close()
+        }
+
+        fun getEndEffectorInLineOfSight(location: Location): Leg? {
+            val spiderVal = spider ?: return null
+            if (spiderVal.location.world != location.world) return null
+
+            val locationAsVector = location.toVector()
+            val direction = location.direction
+            for (leg in spiderVal.body.legs) {
+                val lookingAt = lookingAtPoint(locationAsVector, direction, leg.endEffector, spiderVal.gait.bodyHeight * .15)
+                if (lookingAt) return leg
             }
+            return null
         }
 
         server.scheduler.scheduleSyncRepeatingTask(this, {
-            val followPlayer = Bukkit.getOnlinePlayers().firstOrNull() ?: return@scheduleSyncRepeatingTask
+            val followPlayer = firstPlayer() ?: return@scheduleSyncRepeatingTask
 
             target = null
+
+            spider?.body?.legs?.forEach { leg -> leg.isSelected = false }
 
             when (followPlayer.inventory.itemInMainHand.type) {
                 Material.ARROW -> {
                     val location = followPlayer.eyeLocation
-                    val result = location.world.rayTraceBlocks(location, location.direction, 100.0, FluidCollisionMode.NEVER, true)
+                    val result = raycastGround(location, location.direction, 100.0)
 
                     if (result == null) {
                         val direction = followPlayer.eyeLocation.direction.setY(0.0).normalize()
-                        spider?.behaviour = DirectionBehaviour(direction)
+                        spider?.let { it.behaviour = DirectionBehaviour(it, direction, direction) }
 
-                        chainVisualizer?.apply {
-                            this.target = null
-                            this.resetIterator()
-                            this.render(world, false)
+                        chainVisualizer?.let {
+                            it.target = null
+                            it.resetIterator()
                         }
                     } else {
                         val targetVal = result.hitPosition.toLocation(followPlayer.world)
                         target = targetVal
 
-                        chainVisualizer?.apply {
-                            this.target = targetVal.toVector()
-                            this.resetIterator()
-                            this.render(world, false)
+                        chainVisualizer?.let {
+                            it.target = targetVal
+                            it.resetIterator()
                         }
 
-                        spider?.behaviour = TargetBehaviour(targetVal, 1.0)
+                        spider?.let { it.behaviour = TargetBehaviour(it, targetVal, it.gait.bodyHeight) }
                     }
                 }
 
                 Material.CARROT_ON_A_STICK -> {
-                    spider?.behaviour = TargetBehaviour(followPlayer.location, 5.0)
+                    spider?.let { it.behaviour = TargetBehaviour(it, followPlayer.eyeLocation, it.gait.bodyHeight * 5.0) }
                 }
+
+                Material.SHEARS -> {
+                    val selectedLeg = getEndEffectorInLineOfSight(followPlayer.eyeLocation)
+                    selectedLeg?.let { it.isSelected = true }
+                }
+
                 else -> {
-                    spider?.behaviour = StayStillBehaviour
+                    spider?.let { it.behaviour = StayStillBehaviour(it) }
                 }
             }
         }, 0, 1)
@@ -91,15 +126,8 @@ class SpiderAnimationPlugin : JavaPlugin() {
 
                 val location = event.entity.location
 
-                val chainVisVal = chainVisualizer
-                if (chainVisVal != null) {
-                    chainVisVal.unRender()
-                    chainVisualizer = null
-                } else {
-                    chainVisualizer = KinematicChainVisualizer.create(3, 1.5, location.toVector()).apply {
-                        render(world, true)
-                    }
-                }
+                chainVisualizer?.close()
+                chainVisualizer = if (chainVisualizer != null) null else KinematicChainVisualizer.create(3, 1.5, location)
 
                 event.entity.remove()
             }
@@ -115,19 +143,31 @@ class SpiderAnimationPlugin : JavaPlugin() {
 
                 when (event.item?.type) {
                     Material.BLAZE_ROD -> {
-                        event.player.location.world.playSound(event.player.location, Sound.BLOCK_DISPENSER_FAIL, 1.0f, if (renderDebugGraphics) 1.5f else 2.0f)
-                        renderDebugGraphics = !renderDebugGraphics
+                        val pitch = if (spider?.debugRenderer == null) 2.0f else 1.5f
+                        playSound(event.player.location, Sound.BLOCK_DISPENSER_FAIL, 1.0f, pitch)
+
+                        spider?.let {
+                            it.debugRenderer = if (it.debugRenderer == null) DebugRenderer(it) else null
+                        }
+
+                        chainVisualizer?.detailed = !chainVisualizer!!.detailed
                     }
+
                     Material.LIGHT_BLUE_DYE -> {
-                        spider?.apply { renderer.clearSpider(this) }
-                        renderer = if (renderer == BlockDisplayRenderer) {
-                            event.player.location.world.playSound(event.player.location, Sound.ENTITY_AXOLOTL_ATTACK, 1.0f, 1.0f)
-                            ParticleRenderer
+                        val spiderVal = spider ?: return
+                        spiderVal.renderer = if (spiderVal.renderer is SpiderEntityRenderer) {
+                            playSound(event.player.location, Sound.ENTITY_AXOLOTL_ATTACK, 1.0f, 1.0f)
+                            ParticleRenderer(spiderVal)
                         } else {
-                            event.player.location.world.playSound(event.player.location, Sound.ITEM_ARMOR_EQUIP_NETHERITE, 1.0f, 1.0f)
-                            BlockDisplayRenderer
+                            playSound(event.player.location, Sound.ITEM_ARMOR_EQUIP_NETHERITE, 1.0f, 1.0f)
+                            SpiderEntityRenderer(spiderVal)
                         }
                     }
+
+                    Material.GREEN_DYE -> {
+                        spider?.cloak?.toggleCloak()
+                    }
+
                     Material.NETHERITE_INGOT -> {
                         val spiderVal = spider
                         if (spiderVal == null) {
@@ -135,34 +175,59 @@ class SpiderAnimationPlugin : JavaPlugin() {
                             val yaw = event.player.location.yaw// + 180.0f;
                             val yawRounded = (yaw / yawIncrements).roundToInt() * yawIncrements
 
-                            val location = event.player.rayTraceBlocks(100.0, FluidCollisionMode.NEVER)?.hitPosition?.toLocation(world) ?: return
+                            val playerLocation = event.player.eyeLocation
+                            val hitLocation = raycastGround(playerLocation, playerLocation.direction, 100.0)?.hitPosition?.toLocation(playerLocation.world!!) ?: return
 
-                            location.yaw = yawRounded
-                            location.world.playSound(location, Sound.BLOCK_NETHERITE_BLOCK_PLACE, 1.0f, 1.0f)
-                            spider = Spider(location, gait)
-                            event.player.sendActionBar(Component.text("Spider created"))
+                            hitLocation.yaw = yawRounded
+                            playSound(hitLocation, Sound.BLOCK_NETHERITE_BLOCK_PLACE, 1.0f, 1.0f)
+                            spider = Spider(hitLocation, gait, bodyPlanBuilder.create())
+                            sendActionBar(event.player, "Spider created")
                         } else {
-                            event.player.location.world.playSound(event.player.location, Sound.ENTITY_ITEM_FRAME_REMOVE_ITEM, 1.0f, 0.0f)
-                            renderer.clearSpider(spiderVal)
+                            playSound(event.player.location, Sound.ENTITY_ITEM_FRAME_REMOVE_ITEM, 1.0f, 0.0f)
+                            spider?.close()
                             spider = null
-                            event.player.sendActionBar(Component.text("Spider removed"))
+                            sendActionBar(event.player, "Spider removed")
                         }
                     }
 
 
                     Material.PURPLE_DYE -> {
                         val chainVisVal = chainVisualizer ?: return
-                        event.player.location.world.playSound(event.player.location, Sound.BLOCK_DISPENSER_FAIL, 1.0f, 2.0f)
+                        playSound(event.player.location, Sound.BLOCK_DISPENSER_FAIL, 1.0f, 2.0f)
                         chainVisVal.step()
-                        chainVisVal.render(world, false)
                     }
+
                     Material.MAGENTA_DYE -> {
                         val chainVisVal = chainVisualizer ?: return
-                        val target = chainVisVal.target ?: return
-                        event.player.location.world.playSound(event.player.location, Sound.BLOCK_DISPENSER_FAIL, 1.0f, 2.0f)
-                        chainVisVal.straighten(target)
-                        chainVisVal.render(world, true)
+                        playSound(event.player.location, Sound.BLOCK_DISPENSER_FAIL, 1.0f, 2.0f)
+                        chainVisVal.straighten(chainVisVal.target?.toVector() ?: return)
                     }
+
+                    Material.SHEARS -> {
+                        val selectedLeg = getEndEffectorInLineOfSight(event.player.eyeLocation)
+                        if (selectedLeg == null) {
+                            playSound(event.player.location, Sound.BLOCK_DISPENSER_FAIL, 1.0f, 2.0f)
+                            return
+                        }
+
+
+                        selectedLeg.isDisabled = !selectedLeg.isDisabled
+
+                        playSound(event.player.location, Sound.BLOCK_LANTERN_PLACE, 1.0f, 1.0f)
+                    }
+
+                    Material.NETHER_STAR -> {
+                        playSound(event.player.location, Sound.BLOCK_DISPENSER_FAIL, 1.0f, 2.0f)
+                        val spiderVal = spider ?: return
+                        spiderVal.gait = if (spiderVal.gait == gait) {
+                            sendActionBar(event.player, "Gallop mode")
+                            gallopGait
+                        } else {
+                            sendActionBar(event.player, "Walk mode")
+                            gait
+                        }
+                    }
+
                     else -> return
                 }
             }
@@ -172,79 +237,57 @@ class SpiderAnimationPlugin : JavaPlugin() {
             setExecutor { sender, _, _, args ->
                 val option = args.getOrNull(0) ?: return@setExecutor false
 
-
                 if (option == "reset") {
-                    gaitFromMap(gait, gaitToMap(Gait()))
+                    gait = Gait.defaultWalk().apply { scale(bodyPlanBuilder.scale) }
+                    gallopGait = Gait.defaultGallop().apply { scale(bodyPlanBuilder.scale) }
+                    spider?.gait = gait
                     sender.sendMessage("Reset gait options")
                 } else {
-                    val valueUnParsed = args.getOrNull(1) ?: return@setExecutor false
+                    val valueUnParsed = args.getOrNull(1)
 
-                    val map = gaitToMap(gait)
-                    if (valueUnParsed == "reset") {
-                        val defaultOption = gaitToMap(Gait())[option]
-                        if (defaultOption != null) map[option] = defaultOption
+                    if (valueUnParsed == null) {
+                        val map = gaitToMap(spider?.gait ?: gait)
+                        val value = map[option]
+                        sender.sendMessage("Gait option $option is $value")
                     } else {
-                        val sample = map[option]
+                        val sample = gaitToMap(gait)[option]
                         val value = when (sample) {
                             is Double -> valueUnParsed.toDoubleOrNull()
                             is Int -> valueUnParsed.toIntOrNull()
                             is Boolean -> valueUnParsed.toBoolean()
                             else -> null
                         }
-                        if (value != null) map[option] = value
+                        if (value != null) {
+                            setGaitValue(spider?.gait ?: gait, option, value)
+                            sender.sendMessage("Set gait option $option to $value")
+                        } else {
+                            sender.sendMessage("Invalid value for $option")
+                            return@setExecutor false
+                        }
                     }
-                    gaitFromMap(gait, map)
-                    sender.sendMessage("Set gait option $option to ${map[option]}")
                 }
 
-                saveMapToConfig(this@SpiderAnimationPlugin, "gait", gaitToMap(gait))
+                instance.config.set("gait", gaitToMap(gait))
+                instance.config.set("gallop_gait", gaitToMap(gallopGait))
+                instance.saveConfig()
 
                 return@setExecutor true
             }
 
             setTabCompleter { _, _, _, args ->
-                val default = gaitToMap(Gait())
+                val map = gaitToMap(gait)
 
                 val options = if (args.size == 1) {
-                    listOf("reset", *default.keys.toTypedArray())
+                    listOf("reset", *map.keys.toTypedArray())
                 } else {
-                    val sample = default[args[0]]
-                    if (sample is Boolean) listOf("true", "false","reset")
-                    else listOf("reset")
+                    val sample = map[args[0]]
+                    if (sample is Boolean) listOf("true", "false")
+                    else listOf()
                 }
 
                 return@setTabCompleter options.filter { it.startsWith(args.last(), true) }
             }
         }
-
-        getCommand("debug")?.apply {
-            setExecutor { sender, _, _, args ->
-                val option = args.getOrNull(0)
-                val value = args.getOrNull(1)?.toBoolean()
-
-                when (option) {
-                    "legTarget" -> debugGraphicsOptions.legTarget = value ?: !debugGraphicsOptions.legTarget
-                    "legTriggerZone" -> debugGraphicsOptions.legTriggerZone = value ?: !debugGraphicsOptions.legTriggerZone
-                    "legRestPosition" -> debugGraphicsOptions.legRestPosition = value ?: !debugGraphicsOptions.legRestPosition
-                    "legEndEffector" -> debugGraphicsOptions.legEndEffector = value ?: !debugGraphicsOptions.legEndEffector
-                    "spiderDirection" -> debugGraphicsOptions.spiderDirection = value ?: !debugGraphicsOptions.spiderDirection
-                    else -> sender.sendMessage("Unknown option: $option")
-                }
-
-                return@setExecutor true
-            }
-
-            setTabCompleter { _, _, _, args ->
-                val options = if (args.size == 1) {
-                    listOf("legTarget", "legTriggerZone", "legRestPosition", "legEndEffector", "spiderDirection")
-                } else {
-                    listOf("true", "false")
-                }
-
-                return@setTabCompleter options.filter { it.startsWith(args.last(), true) }
-            }
-        }
-
 
         getCommand("fall")?.setExecutor { sender, _, _, args ->
             val spiderVal = spider ?: return@setExecutor true
@@ -261,28 +304,57 @@ class SpiderAnimationPlugin : JavaPlugin() {
 
             return@setExecutor true
         }
-    }
 
-    override fun onDisable() {
-        BlockDisplayRenderer.clearAll()
-    }
-}
+        getCommand("body_plan")?.apply {
+            val bodyPlanTypes = mapOf(
+                "quadriped" to ::quadripedBodyPlan,
+                "hexapod" to ::hexapodBodyPlan,
+                "octopod" to ::octopodBodyPlan
+            )
 
-fun runLater(plugin: Plugin, delay: Long, task: () -> Unit): Closeable {
-    val handler = plugin.server.scheduler.runTaskLater(plugin, task, delay)
-    return Closeable {
-        handler.cancel()
-    }
-}
+            setExecutor { sender, _, _, args ->
+                val option = args.getOrNull(0) ?: return@setExecutor false
 
-fun interval(plugin: Plugin, delay: Long, period: Long, task: () -> Unit): Closeable {
-    val handler = plugin.server.scheduler.runTaskTimer(plugin, task, delay, period)
-    return Closeable {
-        handler.cancel()
-    }
-}
+                val scale = args.getOrNull(1)?.toDoubleOrNull() ?: 1.0
+                val segmentLength = args.getOrNull(2)?.toDoubleOrNull() ?: 1.0
+                val segmentCount = args.getOrNull(3)?.toIntOrNull() ?: 3
 
-fun sendDebugMessage(message: String) {
-    val player = Bukkit.getOnlinePlayers().firstOrNull() ?: return
-    player.sendActionBar(message)
+                val builder = bodyPlanTypes[option]
+                if (builder == null) {
+                    sender.sendMessage("Invalid body plan: $option")
+                    return@setExecutor true
+                }
+
+                val oldScale = bodyPlanBuilder.scale
+
+                bodyPlanBuilder = builder(segmentLength, segmentCount).apply { scale(scale) }
+                instance.config.set("body_plan", mapFromBodyPlan(bodyPlanBuilder))
+
+                gait.scale(scale / oldScale)
+                gallopGait.scale(scale / oldScale)
+                instance.config.set("gait", gaitToMap(gait))
+                instance.config.set("gallop_gait", gaitToMap(gallopGait))
+
+                instance.saveConfig()
+
+                val spiderVal = spider
+                if (spiderVal != null) {
+                    spiderVal.close()
+                    spider = Spider(spiderVal.location, gait, bodyPlanBuilder.create())
+                }
+
+                sender.sendMessage("Set body plan to $option")
+
+                return@setExecutor true
+            }
+
+            setTabCompleter { _, _, _, args ->
+                if (args.size == 1) {
+                    val options = bodyPlanTypes.keys
+                    return@setTabCompleter options.filter { it.startsWith(args.last(), true) }
+                }
+                return@setTabCompleter emptyList()
+            }
+        }
+    }
 }
