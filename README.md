@@ -36,8 +36,8 @@ Change body plan (Version 2 Beta only). Autocomplete will show available options
 1. Clone or download the repo.
 2. Run Maven `package` to build the plugin. The resulting JAR will be in the `target` folder.
 3. For convenience, set up a symlink and add the link to the server `plugins` folder.
-   - Windows: mklink /D newFile.jar originalFile.jar
-   - Mac/Linux: ln -s originalFile.jar newFile.jar 
+   - Windows: `mklink /D newFile.jar originalFile.jar`
+   - Mac/Linux: `ln -s originalFile.jar newFile.jar `
 
 ## License
 You may use the plugin and source code for both commercial or non-commercial purposes.
