@@ -1,6 +1,6 @@
 # Spider
 ## Known issues in Version 1
-- I used a hard-coded world id. The plugin expects a world folder named `world` and crashes if it is not present.
+- I used a hard-coded world id. The plugin expects a world folder named `world` and crashes if it is not present. This is fixed in the Version 2 Beta.
 
 ## Installation
 1. Download the JAR from the [releases page](https://github.com/TheCymaera/minecraft-spider/releases/).
