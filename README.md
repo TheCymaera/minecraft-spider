@@ -22,7 +22,7 @@
 
 ## Commands
 Autocomplete will show available options.
-```mcfunction
+```
 # Set option
 /gait <option:string> <value:double>
 
