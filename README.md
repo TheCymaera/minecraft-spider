@@ -21,15 +21,19 @@
 
 
 ## Commands
-Change gait. Autocomplete will show available options.
-```
+Autocomplete will show available options.
+```mcfunction
+# Set option
 /gait <option:string> <value:double>
-```
 
-Change body plan (Version 2 Beta only). Autocomplete will show available options. 
+# Reset gait
+/gait reset
 
-```
-/body_plan <plan:string>
+# Get option (Version 2 Beta only)
+/gait <option:string>
+
+# Change body plan (Version 2 Beta only)
+/body_plan <plan:string> <scale:double?> <segment_length:double?> <segment_count:int?>
 ```
 
 ## Development
