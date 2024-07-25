@@ -24,7 +24,7 @@ class ParticleRenderer(val spider: Spider) : SpiderComponent {
             val current = point1.clone()
 
             for (i in 0..amount.toInt()) {
-                spawnParticle(Particle.WATER_BUBBLE, current, 1, thickness, thickness, thickness, 0.0)
+                spawnParticle(Particle.BUBBLE, current, 1, thickness, thickness, thickness, 0.0)
                 current.add(step)
             }
         }
@@ -41,7 +41,7 @@ class ParticleRenderer(val spider: Spider) : SpiderComponent {
         }
 
         fun renderTarget(location: Location) {
-            spawnParticle(Particle.REDSTONE, location, 1, 0.0, 0.0, 0.0, 0.0, Particle.DustOptions(Color.RED, 1f))
+            spawnParticle(Particle.DUST, location, 1, 0.0, 0.0, 0.0, 0.0, Particle.DustOptions(Color.RED, 1f))
         }
 
         fun renderSpider(spider: Spider) {

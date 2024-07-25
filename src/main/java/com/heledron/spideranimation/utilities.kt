@@ -135,11 +135,18 @@ fun horizontalDistance(a: Vector, b: Vector): Double {
     return sqrt(x * x + z * z)
 }
 
+fun horizontalLength(vector: Vector): Double {
+    return sqrt(vector.x * vector.x + vector.z * vector.z)
+}
+
 fun rotateYAbout(out: Vector, angle: Double, origin: Vector) {
     out.subtract(origin).rotateAroundY(angle).add(origin)
 }
 
 class SplitDistance(val horizontal: Double, val vertical: Double) {
+    fun contains(origin: Vector, point: Vector): Boolean {
+        return contains(distance(origin, point))
+    }
     fun contains(other: SplitDistance): Boolean {
         return horizontal > other.horizontal && vertical > other.vertical
     }

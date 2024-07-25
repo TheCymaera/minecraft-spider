@@ -2,14 +2,12 @@ package com.heledron.spideranimation
 
 import com.heledron.spideranimation.components.Leg
 import org.bukkit.util.Vector
+import org.joml.Vector2d
 
 interface SpiderBodyPlan {
-    val scale: Double
     val legs: List<LegPlan>
-    fun initialize(spider: Spider)
-    fun canMoveLeg(leg: Leg): Boolean
-    fun legsInPolygonalOrder(): List<Leg>
-    fun legsInUpdateOrder(): List<Leg>
+    fun canMoveLeg(spider: Spider, leg: Leg): Boolean
+    fun getNormal(spider: Spider): NormalInfo?
 }
 
 class LegPlan(
@@ -23,97 +21,170 @@ class SegmentPlan(
     val thickness: Double,
 )
 
-class SymmetricalBodyPlan(override val scale: Double, override val legs: List<LegPlan>): SpiderBodyPlan {
-    lateinit var spider: Spider
 
-    private var legsInPolygonalOrder = listOf<Leg>()
-    private var legsInUpdateOrder = listOf<Leg>()
+class NormalInfo(
+    val normal: Vector,
+    val origin: Vector? = null,
+    val contactPolygon: List<Vector>? = null,
+    val centreOfMass: Vector? = null
+)
 
-    override fun initialize(spider: Spider) {
-        this.spider = spider
+class SymmetricalBodyPlan(override val legs: List<LegPlan>): SpiderBodyPlan {
+    private var legsInPolygonalOrder = listOf<Int>()
 
-        val diagonals1 = arrayListOf<Leg>()
-        val diagonals2 = arrayListOf<Leg>()
+    init {
+        val diagonals1 = arrayListOf<Int>()
+        val diagonals2 = arrayListOf<Int>()
 
-        val lefts = arrayListOf<Leg>()
-        val rights = arrayListOf<Leg>()
-        for (i in spider.body.legs.indices step 2) {
-            val left = spider.body.legs[i]
-            val right = spider.body.legs[i + 1]
-            lefts.add(left)
+        val lefts = arrayListOf<Int>()
+        val rights = arrayListOf<Int>()
+        for (i in legs.indices step 2) {
+            val right = i + 1
+            lefts.add(i)
             rights.add(right)
 
             if (i % 4 == 0) {
-                diagonals1.add(left)
+                diagonals1.add(i)
                 diagonals2.add(right)
             } else {
-                diagonals2.add(left)
+                diagonals2.add(i)
                 diagonals1.add(right)
             }
         }
 
         legsInPolygonalOrder = lefts + rights.reversed()
-        legsInUpdateOrder = diagonals1 + diagonals2
     }
 
-    override fun legsInPolygonalOrder(): List<Leg> {
-        return legsInPolygonalOrder
+
+    override fun getNormal(spider: Spider): NormalInfo? {
+        if (spider.gait.useLegacyNormalForce) {
+            if (spider.body.legs.any { it.isGrounded() && diagonal(spider, it).all { it.isGrounded() } }) {
+                return NormalInfo(normal = Vector(0, 1, 0))
+            }
+
+            return null
+        }
+
+        val centreOfMass = averageVector(spider.body.legs.map { it.endEffector })
+        lerpVectorByFactor(centreOfMass, spider.location.toVector(), 0.5)
+        centreOfMass.y += 0.01
+
+        val groundedLegs = legsInPolygonalOrder.map { spider.body.legs[it] }.filter { it.isGrounded() }
+        if (groundedLegs.isEmpty()) return null
+
+        fun applyStabilization(normal: NormalInfo) {
+            if (normal.origin == null) return
+            if (normal.centreOfMass == null) return
+
+            if (horizontalDistance(normal.origin, normal.centreOfMass) < spider.gait.polygonLeeway) {
+                normal.origin.x = normal.centreOfMass.x
+                normal.origin.z = normal.centreOfMass.z
+            }
+
+            val stabilizationTarget = normal.origin.clone().setY(normal.centreOfMass.y)
+            lerpVectorByFactor(normal.centreOfMass, stabilizationTarget, spider.gait.stabilizationFactor)
+
+            normal.normal.copy(normal.centreOfMass).subtract(normal.origin).normalize()
+        }
+
+        val legsPolygon = groundedLegs.map { it.endEffector.clone() }
+        val polygonCenterY = legsPolygon.map { it.y }.average()
+
+        if (legsPolygon.size > 1) {
+            val polygon2D = legsPolygon.map { Vector2d(it.x, it.z) }
+
+            if (pointInPolygon(Vector2d(centreOfMass.x, centreOfMass.z), polygon2D)) {
+                // inside polygon. accelerate upwards towards centre of mass
+                return NormalInfo(
+                    normal = Vector(0, 1, 0),
+                    origin = Vector(centreOfMass.x, polygonCenterY, centreOfMass.z),
+                    centreOfMass = centreOfMass,
+                    contactPolygon = legsPolygon
+                )
+            } else {
+                // outside polygon, accelerate at an angle from within the polygon
+                val point = nearestPointInPolygon(Vector2d(centreOfMass.x, centreOfMass.z), polygon2D)
+                val origin = Vector(point.x, polygonCenterY, point.y)
+                return NormalInfo(
+                    normal = centreOfMass.clone().subtract(origin).normalize(),
+                    origin = origin,
+                    centreOfMass = centreOfMass,
+                    contactPolygon = legsPolygon
+                ).apply { applyStabilization(this )}
+            }
+        } else {
+            // only 1 leg on ground
+            val origin = groundedLegs.first().endEffector.clone()
+            return NormalInfo(
+                normal = centreOfMass.clone().subtract(origin).normalize(),
+                origin = origin,
+                centreOfMass = centreOfMass,
+                contactPolygon = legsPolygon
+            ).apply { applyStabilization(this )}
+        }
     }
 
-    override fun legsInUpdateOrder(): List<Leg> {
-        return legsInUpdateOrder
-    }
+    override fun canMoveLeg(spider: Spider, leg: Leg): Boolean {
+        fun hasCooldown(leg: Leg): Boolean {
+            return leg.isMoving && leg.target.isGrounded && leg.moveTime < spider.gait.legMoveCooldown
+        }
 
-    override fun canMoveLeg(leg: Leg): Boolean {
-        if (leg.target.isGrounded) return true
+        // always move if the target is not on ground
+        if (!leg.target.isGrounded) return true
 
-        val cooldownLegs: List<Leg>
         if (spider.isGalloping) {
             // always move if uncomfortable
-            if (leg.uncomfortable) return true
+//            if (leg.isUncomfortable) return true
 
-            cooldownLegs = listOf(horizontal(leg))
+            val index = spider.body.legs.indexOf(leg)
+            if (index % 2 == 1) {
+                val front = spider.body.legs.getOrNull(index - 2)
+                if (front != null && front.isMoving) return false
+                val behind = spider.body.legs.getOrNull(index + 2)
+                if (behind != null && behind.isMoving) return false
+
+                // cooldown
+                if (adjacent(spider, leg).any { hasCooldown(it) }) return false
+            } else {
+                val pair = horizontal(spider, leg)
+                return (pair.isMoving && !hasCooldown(pair))
+            }
+
         } else {
-            // only move when the adjacent legs are grounded
-            for (adjacent in adjacent(leg)) {
-                if (adjacent.isMoving) return false
-            }
+            // ensure adjacent legs are grounded
+            if (adjacent(spider, leg).any { it.isMoving }) return false
 
-            cooldownLegs = diagonal(leg)
+            // cooldown
+            if (diagonal(spider, leg).any { hasCooldown(it) }) return false
         }
 
-        // cooldown
-        for (opposite in cooldownLegs) {
-            if (opposite.isMoving && !opposite.target.isGrounded && opposite.moveTime < spider.gait.legMoveCooldown) {
-                return false
-            }
-        }
-
-        return true
+        return spider.body.legs.any { it.isGrounded() }
     }
 
     // x .
     // . x
     // x .
-    private fun horizontal(leg: Leg): Leg {
+    private fun horizontal(spider: Spider, leg: Leg): Leg {
         val index = spider.body.legs.indexOf(leg)
-        val out = spider.body.legs.getOrNull(index + if (index % 2 == 0)  1 else -1)
-        return out ?: leg
+        return spider.body.legs[index + if (index % 2 == 0)  1 else -1]
     }
 
-    private fun diagonal(leg: Leg): List<Leg> {
+    private fun diagonal(spider: Spider, leg: Leg): List<Leg> {
         val index = spider.body.legs.indexOf(leg)
         val (front, back) = if (index % 2 == 0)  -1 to 3 else -3 to 1
         return listOfNotNull(spider.body.legs.getOrNull(index + front), spider.body.legs.getOrNull(index + back))
     }
 
-    private fun adjacent(leg: Leg): List<Leg> {
-        val pair = horizontal(leg)
-        return diagonal(pair) + pair
+    private fun adjacent(spider: Spider, leg: Leg): List<Leg> {
+        val index = spider.body.legs.indexOf(leg)
+        val front = spider.body.legs.getOrNull(index - 2)
+        val back = spider.body.legs.getOrNull(index + 2)
+        val horizontal = spider.body.legs[if (index % 2 == 0) index + 1 else index - 1]
+        return listOfNotNull(front, back, horizontal)
     }
 }
 
-class SymmetricalBodyPlanBuilder(var scale: Double = 1.0, var legs: MutableList<LegPlan> = arrayListOf()) {
+class SymmetricalBodyPlanBuilder(var legs: MutableList<LegPlan> = arrayListOf()) {
     fun addPair(rootX: Double, rootZ: Double, restX: Double, restZ: Double, segmentLength: Double, segmentCount: Int) {
         val segmentPlan = SegmentPlan(segmentLength, .1)
         legs.add(LegPlan(Vector(rootX, 0.0, rootZ), Vector(restX, 0.0, restZ), List(segmentCount) { segmentPlan }))
@@ -135,7 +206,6 @@ class SymmetricalBodyPlanBuilder(var scale: Double = 1.0, var legs: MutableList<
     }
 
     fun scale(scale: Double) {
-        this.scale *= scale
         legs = legs.map { legPlan ->
             val attachmentPosition = legPlan.attachmentPosition.clone().multiply(scale)
             val restPosition = legPlan.restPosition.clone().multiply(scale)
@@ -160,12 +230,12 @@ class SymmetricalBodyPlanBuilder(var scale: Double = 1.0, var legs: MutableList<
 //        }
 //    }
 
-    fun create(): SpiderBodyPlan {
-        return SymmetricalBodyPlan(scale, legs)
+    fun create(): SymmetricalBodyPlan {
+        return SymmetricalBodyPlan(legs)
     }
 }
 
-fun quadripedBodyPlan(segmentLength: Double, segmentCount: Int): SymmetricalBodyPlanBuilder {
+fun quadrupedBodyPlan(segmentLength: Double, segmentCount: Int): SymmetricalBodyPlanBuilder {
     return SymmetricalBodyPlanBuilder().apply {
         addPair(.0, .0, 0.9, 0.9, 0.9 * segmentLength, segmentCount)
         addPair(.0, .0, 1.0, -1.1, 1.2 * segmentLength, segmentCount)

@@ -4,9 +4,9 @@ main: com.heledron.spideranimation.SpiderAnimationPlugin
 api-version: '1.20'
 
 commands:
-  gait:
+  options:
     description: Set gait options
-    usage: /gait <option:string> <value:double>
+    usage: /options <gait|galloping_gait|debug_renderer> <option:string> <value:double>
   fall:
     description: Teleport the spider up by the specified height
     usage: /fall <height:double>

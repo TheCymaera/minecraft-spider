@@ -36,16 +36,18 @@ class SpiderAnimationPlugin : JavaPlugin() {
 
         instance = this
 
-        var gait = Gait.defaultWalk()
-        config.getConfigurationSection("gait")?.getValues(false)?.let { gaitFromMap(gait, it) }
+        val gait = Gait.defaultWalk()
+        config.getConfigurationSection("gait")?.getValues(false)?.let { KVElements.copyMap(gait, it) }
 
-        var gallopGait = Gait.defaultGallop()
-        config.getConfigurationSection("gallop_gait")?.getValues(false)?.let { gaitFromMap(gallopGait, it) }
+        val gallopGait = Gait.defaultGallop()
+        config.getConfigurationSection("gallop_gait")?.getValues(false)?.let { KVElements.copyMap(gallopGait, it) }
 
-
-        var bodyPlanBuilder =
+        var bodyPlan =
             config.getConfigurationSection("body_plan")?.getValues(true)?.let { bodyPlanFromMap(it) } ?:
-            quadripedBodyPlan(1.0, 3)
+            quadrupedBodyPlan(1.0, 3).create()
+
+        val debugOptions = DebugRendererOptions()
+        config.getConfigurationSection("debug_renderer")?.getValues(false)?.let { KVElements.copyMap(debugOptions, it) }
 
         var target: Location? = null
 
@@ -57,25 +59,11 @@ class SpiderAnimationPlugin : JavaPlugin() {
             else targetRenderer.close()
         }
 
-        fun getEndEffectorInLineOfSight(location: Location): Leg? {
-            val spiderVal = spider ?: return null
-            if (spiderVal.location.world != location.world) return null
-
-            val locationAsVector = location.toVector()
-            val direction = location.direction
-            for (leg in spiderVal.body.legs) {
-                val lookingAt = lookingAtPoint(locationAsVector, direction, leg.endEffector, spiderVal.gait.bodyHeight * .15)
-                if (lookingAt) return leg
-            }
-            return null
-        }
-
         server.scheduler.scheduleSyncRepeatingTask(this, {
             val followPlayer = firstPlayer() ?: return@scheduleSyncRepeatingTask
 
             target = null
-
-            spider?.body?.legs?.forEach { leg -> leg.isSelected = false }
+            spider?.pointerDetector?.player = null
 
             when (followPlayer.inventory.itemInMainHand.type) {
                 Material.ARROW -> {
@@ -108,8 +96,7 @@ class SpiderAnimationPlugin : JavaPlugin() {
                 }
 
                 Material.SHEARS -> {
-                    val selectedLeg = getEndEffectorInLineOfSight(followPlayer.eyeLocation)
-                    selectedLeg?.let { it.isSelected = true }
+                    spider?.pointerDetector?.player = followPlayer
                 }
 
                 else -> {
@@ -147,7 +134,7 @@ class SpiderAnimationPlugin : JavaPlugin() {
                         playSound(event.player.location, Sound.BLOCK_DISPENSER_FAIL, 1.0f, pitch)
 
                         spider?.let {
-                            it.debugRenderer = if (it.debugRenderer == null) DebugRenderer(it) else null
+                            it.debugRenderer = if (it.debugRenderer == null) DebugRenderer(it, debugOptions) else null
                         }
 
                         chainVisualizer?.detailed = !chainVisualizer!!.detailed
@@ -180,7 +167,7 @@ class SpiderAnimationPlugin : JavaPlugin() {
 
                             hitLocation.yaw = yawRounded
                             playSound(hitLocation, Sound.BLOCK_NETHERITE_BLOCK_PLACE, 1.0f, 1.0f)
-                            spider = Spider(hitLocation, gait, bodyPlanBuilder.create())
+                            spider = Spider(hitLocation, gait, bodyPlan)
                             sendActionBar(event.player, "Spider created")
                         } else {
                             playSound(event.player.location, Sound.ENTITY_ITEM_FRAME_REMOVE_ITEM, 1.0f, 0.0f)
@@ -204,7 +191,7 @@ class SpiderAnimationPlugin : JavaPlugin() {
                     }
 
                     Material.SHEARS -> {
-                        val selectedLeg = getEndEffectorInLineOfSight(event.player.eyeLocation)
+                        val selectedLeg = spider?.pointerDetector?.selectedLeg
                         if (selectedLeg == null) {
                             playSound(event.player.location, Sound.BLOCK_DISPENSER_FAIL, 1.0f, 2.0f)
                             return
@@ -216,7 +203,7 @@ class SpiderAnimationPlugin : JavaPlugin() {
                         playSound(event.player.location, Sound.BLOCK_LANTERN_PLACE, 1.0f, 1.0f)
                     }
 
-                    Material.NETHER_STAR -> {
+                    Material.BREEZE_ROD -> {
                         playSound(event.player.location, Sound.BLOCK_DISPENSER_FAIL, 1.0f, 2.0f)
                         val spiderVal = spider ?: return
                         spiderVal.gait = if (spiderVal.gait == gait) {
@@ -233,58 +220,83 @@ class SpiderAnimationPlugin : JavaPlugin() {
             }
         }, this)
 
-        getCommand("gait")?.apply {
+        fun parseValue(obj: Any, option: String, value: String): Any? {
+            val sample = KVElements.toMap(obj)[option]
+            val valueParsed = when (sample) {
+                is Double -> value.toDoubleOrNull()
+                is Int -> value.toIntOrNull()
+                is Boolean -> value.toBoolean()
+                else -> null
+            }
+            return valueParsed
+        }
+
+        getCommand("options")?.apply {
+            val objects = mapOf(
+                "gait" to { gait },
+                "gallop_gait" to { gallopGait },
+                "debug_renderer" to { debugOptions }
+            )
+
+            val defaultObjects = mapOf(
+                "gait" to { Gait.defaultWalk().apply { scale(gait.getScale()) } },
+                "gallop_gait" to { Gait.defaultGallop().apply { scale(gait.getScale()) } },
+                "debug_renderer" to { DebugRendererOptions() }
+            )
+
             setExecutor { sender, _, _, args ->
-                val option = args.getOrNull(0) ?: return@setExecutor false
+                val obj = objects[args.getOrNull(0)]?.invoke() ?: return@setExecutor false
+                val default = defaultObjects[args.getOrNull(0)]?.invoke() ?: return@setExecutor false
+                val option = args.getOrNull(1) ?: return@setExecutor false
+                val valueUnParsed = args.getOrNull(2)
 
                 if (option == "reset") {
-                    gait = Gait.defaultWalk().apply { scale(bodyPlanBuilder.scale) }
-                    gallopGait = Gait.defaultGallop().apply { scale(bodyPlanBuilder.scale) }
-                    spider?.gait = gait
-                    sender.sendMessage("Reset gait options")
+                    val map = KVElements.toMap(default)
+                    KVElements.copyMap(obj, map)
+                    sender.sendMessage("Reset all options")
+                } else if (valueUnParsed == null) {
+                    val map = KVElements.toMap(obj)
+                    val value = map[option]
+                    sender.sendMessage("Option $option is $value")
+                } else if (valueUnParsed == "reset") {
+                    val value = KVElements.get(default, option)
+                    KVElements.set(obj, option, value)
+                    sender.sendMessage("Reset option $option to $value")
                 } else {
-                    val valueUnParsed = args.getOrNull(1)
-
-                    if (valueUnParsed == null) {
-                        val map = gaitToMap(spider?.gait ?: gait)
-                        val value = map[option]
-                        sender.sendMessage("Gait option $option is $value")
+                    val value = parseValue(obj, option, valueUnParsed)
+                    if (value != null) {
+                        KVElements.set(obj, option, value)
+                        sender.sendMessage("Set option $option to $value")
                     } else {
-                        val sample = gaitToMap(gait)[option]
-                        val value = when (sample) {
-                            is Double -> valueUnParsed.toDoubleOrNull()
-                            is Int -> valueUnParsed.toIntOrNull()
-                            is Boolean -> valueUnParsed.toBoolean()
-                            else -> null
-                        }
-                        if (value != null) {
-                            setGaitValue(spider?.gait ?: gait, option, value)
-                            sender.sendMessage("Set gait option $option to $value")
-                        } else {
-                            sender.sendMessage("Invalid value for $option")
-                            return@setExecutor false
-                        }
+                        sender.sendMessage("Invalid value for $option")
+                        return@setExecutor false
                     }
                 }
 
-                instance.config.set("gait", gaitToMap(gait))
-                instance.config.set("gallop_gait", gaitToMap(gallopGait))
+                instance.config.set("gait", KVElements.toMap(gait))
+                instance.config.set("gallop_gait", KVElements.toMap(gallopGait))
+                instance.config.set("debug_renderer", KVElements.toMap(debugOptions))
                 instance.saveConfig()
 
                 return@setExecutor true
             }
 
             setTabCompleter { _, _, _, args ->
-                val map = gaitToMap(gait)
-
-                val options = if (args.size == 1) {
-                    listOf("reset", *map.keys.toTypedArray())
-                } else {
-                    val sample = map[args[0]]
-                    if (sample is Boolean) listOf("true", "false")
-                    else listOf()
+                if (args.size == 1) {
+                    val options = objects.keys
+                    return@setTabCompleter options.filter { it.startsWith(args.last(), true) }
                 }
 
+                if (args.size == 2) {
+                    val obj = objects[args[0]]?.invoke() ?: return@setTabCompleter emptyList()
+                    val options = KVElements.toMap(obj).keys + "reset"
+                    return@setTabCompleter options.filter { it.startsWith(args.last(), true) }
+                }
+
+                val obj = objects[args[0]]?.invoke() ?: return@setTabCompleter emptyList()
+                val map = KVElements.toMap(obj)
+                val sample = map[args[1]]
+                val options = (if (sample is Boolean) listOf("true", "false") else emptyList()) + "reset"
                 return@setTabCompleter options.filter { it.startsWith(args.last(), true) }
             }
         }
@@ -307,7 +319,7 @@ class SpiderAnimationPlugin : JavaPlugin() {
 
         getCommand("body_plan")?.apply {
             val bodyPlanTypes = mapOf(
-                "quadriped" to ::quadripedBodyPlan,
+                "quadruped" to ::quadrupedBodyPlan,
                 "hexapod" to ::hexapodBodyPlan,
                 "octopod" to ::octopodBodyPlan
             )
@@ -325,22 +337,21 @@ class SpiderAnimationPlugin : JavaPlugin() {
                     return@setExecutor true
                 }
 
-                val oldScale = bodyPlanBuilder.scale
+                bodyPlan = builder(segmentLength, segmentCount).apply { scale(scale) }.create()
 
-                bodyPlanBuilder = builder(segmentLength, segmentCount).apply { scale(scale) }
-                instance.config.set("body_plan", mapFromBodyPlan(bodyPlanBuilder))
-
+                val oldScale = gait.getScale()
                 gait.scale(scale / oldScale)
                 gallopGait.scale(scale / oldScale)
-                instance.config.set("gait", gaitToMap(gait))
-                instance.config.set("gallop_gait", gaitToMap(gallopGait))
 
+                instance.config.set("gait", KVElements.toMap(gait))
+                instance.config.set("gallop_gait", KVElements.toMap(gallopGait))
+                instance.config.set("body_plan", mapFromBodyPlan(bodyPlan))
                 instance.saveConfig()
 
                 val spiderVal = spider
                 if (spiderVal != null) {
                     spiderVal.close()
-                    spider = Spider(spiderVal.location, gait, bodyPlanBuilder.create())
+                    spider = Spider(spiderVal.location, gait, bodyPlan)
                 }
 
                 sender.sendMessage("Set body plan to $option")

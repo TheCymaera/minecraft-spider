@@ -17,7 +17,7 @@ object EmptyComponent : SpiderComponent
 
 class Gait(
     walkSpeed: Double,
-    var gallopBreakpoint: Double,
+    gallopBreakpoint: Double,
 ) {
     companion object {
         fun defaultWalk(): Gait {
@@ -25,11 +25,18 @@ class Gait(
         }
 
         fun defaultGallop(): Gait {
-            return Gait(.4, .7)
+            return Gait(.4, .3).apply {
+                legMoveCooldown = 1
+                legMoveSpeed = .6
+            }
         }
     }
 
+    fun getScale() = zzzStoredScale
+
     fun scale(scale: Double) {
+        this.zzzStoredScale *= scale
+
         walkSpeed *= scale
         walkAcceleration *= scale
         legMoveSpeed *= scale
@@ -44,47 +51,57 @@ class Gait(
         legScanHeightBias *= scale
     }
 
-    var walkSpeed = walkSpeed
-    var walkAcceleration = .15 / 4
 
-    var rotateSpeed = .15
+    /** Used for tracking the scale. It's prefixed with zzz so that it appears last in auto-completion */
+    @KVElement var zzzStoredScale = 1.0
 
-    var legMoveSpeed = walkSpeed * 3
+    @KVElement var gallopBreakpoint = gallopBreakpoint
 
-    var legLiftHeight = .35
-    var legDropDistance = legLiftHeight
+    @KVElement var walkSpeed = walkSpeed
+    @KVElement var walkAcceleration = .15 / 4
 
-    var legStationaryTriggerDistance = .25
-    var legWalkingTriggerDistance = .8
-    var legDiscomfortDistance = 1.2
+    @KVElement var rotateSpeed = .15
 
-    var legVerticalTriggerDistance = 1.5
-    var legVerticalDiscomfortDistance = 1.6
+    @KVElement var legMoveSpeed = walkSpeed * 3
 
-    var gravityAcceleration = .08
-    var airDragCoefficient = .02
-    var bounceFactor = .5
+    @KVElement var legLiftHeight = .35
+    @KVElement var legDropDistance = legLiftHeight
 
-    var bodyHeight = 1.1
+    @KVElement var legStationaryTriggerDistance = .25
+    @KVElement var legWalkingTriggerDistance = .8
+    @KVElement var legDiscomfortDistance = 1.2
 
-    var bodyHeightCorrectionAcceleration = gravityAcceleration * 4
-    var bodyHeightCorrectionFactor = .25
+    @KVElement var legVerticalTriggerDistance = 1.5
+    @KVElement var legVerticalDiscomfortDistance = 1.6
 
-    var legStraightenRotation = -60.0
-    var legStraightenMinRotation = -90.0
-    var legStraightenMaxRotation = -20.0
-    var legNoStraighten = false
+    @KVElement var gravityAcceleration = .08
+    @KVElement var airDragCoefficient = .02
+    @KVElement var bounceFactor = .5
 
-    var legScanAlternativeGround = true
-    var legScanHeightBias = .5
+    @KVElement var bodyHeight = 1.1
 
-    var tridentKnockBack = .3
-    var legLookAheadFraction = .6
-    var groundDragCoefficient = .2
+    @KVElement var bodyHeightCorrectionAcceleration = gravityAcceleration * 4
+    @KVElement var bodyHeightCorrectionFactor = .25
 
-    var legMoveCooldown = 2
+    @KVElement var legStraightenRotation = -60.0
+    @KVElement var legStraightenMinRotation = -90.0
+    @KVElement var legStraightenMaxRotation = -20.0
+    @KVElement var legNoStraighten = false
 
-    var stabilizationFactor = .1
+    @KVElement var legScanAlternativeGround = true
+    @KVElement var legScanHeightBias = .5
+
+    @KVElement var tridentKnockBack = .3
+    @KVElement var legLookAheadFraction = .6
+    @KVElement var groundDragCoefficient = .2
+
+    @KVElement var legMoveCooldown = 2
+
+    @KVElement var adjustLookAheadDistance = true
+
+    @KVElement var useLegacyNormalForce = false
+    @KVElement var polygonLeeway = .0
+    @KVElement var stabilizationFactor = 0.7
 }
 
 
@@ -98,7 +115,6 @@ class Spider(val location: Location, var gait: Gait, val bodyPlan: SpiderBodyPla
     init { location.y += gait.bodyHeight }
 
     val body = SpiderBody(this)
-    init { bodyPlan.initialize(this) }
 
     val cloak = Cloak(this)
     val sound = SoundEffects(this)
@@ -123,6 +139,8 @@ class Spider(val location: Location, var gait: Gait, val bodyPlan: SpiderBodyPla
 
     val isGalloping get() = velocity.length() > gait.gallopBreakpoint * gait.walkSpeed && isWalking
 
+    val pointerDetector = PointDetector(this)
+
     override fun close() {
         getComponents().forEach { it.close() }
     }
@@ -140,7 +158,7 @@ class Spider(val location: Location, var gait: Gait, val bodyPlan: SpiderBodyPla
 
     fun rotateTowards(targetDirection: Vector) {
         // pitch
-        val targetPitch = -Math.toDegrees(atan2(targetDirection.y, targetDirection.clone().setY(0).length())).coerceIn(-30.0, 30.0)
+        val targetPitch = -Math.toDegrees(atan2(targetDirection.y, horizontalLength(targetDirection))).coerceIn(-30.0, 30.0)
         val oldPitch = location.pitch
         location.pitch = lerpNumberByConstant(oldPitch.toDouble(), targetPitch, Math.toDegrees(gait.rotateSpeed)).toFloat()//.coerceIn(minPitch, maxPitch)
         isRotatingPitch = abs(targetPitch - oldPitch) > 0.0001
@@ -160,7 +178,7 @@ class Spider(val location: Location, var gait: Gait, val bodyPlan: SpiderBodyPla
         isRotatingYaw = abs(optimizedTargetYaw - oldYaw) > 0.0001
 
         rotateVelocity = 0.0
-        if (!isRotatingYaw || body.legs.any { it.uncomfortable && !it.isMoving }) return
+        if (!isRotatingYaw || body.legs.any { it.isUncomfortable && !it.isMoving }) return
 
         val newYaw = lerpNumberByConstant(oldYaw, optimizedTargetYaw, maxSpeed)
         location.yaw = Math.toDegrees(newYaw).toFloat()
@@ -171,7 +189,7 @@ class Spider(val location: Location, var gait: Gait, val bodyPlan: SpiderBodyPla
     fun walkAt(targetVelocity: Vector) {
         val acceleration = gait.walkAcceleration// * body.legs.filter { it.isGrounded() }.size / body.legs.size
         val target = targetVelocity.clone()
-        if (body.legs.any { it.uncomfortable && !it.isMoving }) {
+        if (body.legs.any { it.isUncomfortable && !it.isMoving } && !isGalloping) {
             lerpVectorByConstant(velocity, Vector(0, 0, 0), acceleration)
             isWalking = true
         } else {
@@ -188,6 +206,7 @@ class Spider(val location: Location, var gait: Gait, val bodyPlan: SpiderBodyPla
         yield(debugRenderer ?: EmptyComponent)
         yield(sound)
         yield(mount)
+        yield(pointerDetector)
     }
 
     fun update() {

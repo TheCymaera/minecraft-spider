@@ -207,10 +207,25 @@ class KinematicChainVisualizer(
             // stage 4: hide arrow
             if (subStage >= 4) return@arrow
 
+
+            val crossProduct = if (arrow == UP_VECTOR) Vector(0, 0, 1) else
+                arrow.clone().crossProduct(UP_VECTOR).normalize()
+
+            val arrowCenter = arrowStart.clone()
+                .add(arrow.clone().multiply(0.5))
+                .add(crossProduct.rotateAroundAxis(arrow, Math.toRadians(-90.0)).multiply(.5))
+
+            renderer.render("arrow_length", textTemplate(
+                location = arrowCenter.toLocation(root.world!!),
+                text = String.format("%.2f", arrow.length()),
+                interpolation = 3,
+            ))
+
             renderer.renderList("arrow", arrowTemplate(
                 location = arrowStart.toLocation(root.world!!),
                 vector = arrow,
-                thickness = .101f
+                thickness = .101f,
+                interpolation = 3,
             ))
         }
 
@@ -250,12 +265,17 @@ fun pointTemplate(location: Location, block: Material) = blockTemplate(
     }
 )
 
-fun arrowTemplate(location: Location, vector: Vector, thickness: Float): List<EntityRendererTemplate<BlockDisplay>> {
+fun arrowTemplate(
+    location: Location,
+    vector: Vector,
+    thickness: Float,
+    interpolation: Int
+): List<EntityRendererTemplate<BlockDisplay>> {
     val line = lineTemplate(
         location = location,
         vector = vector,
         thickness = thickness,
-        interpolation = 3,
+        interpolation = interpolation,
         init = {
             it.block = Material.GOLD_BLOCK.createBlockData()
             it.brightness = Display.Brightness(0, 15)
@@ -275,7 +295,7 @@ fun arrowTemplate(location: Location, vector: Vector, thickness: Float): List<En
         location = tip,
         vector = tipDirection.clone().rotateAroundAxis(crossProduct, Math.toRadians(tipRotation)),
         thickness = thickness,
-        interpolation = 3,
+        interpolation = interpolation,
         init = {
             it.block = Material.GOLD_BLOCK.createBlockData()
             it.brightness = Display.Brightness(0, 15)
@@ -286,7 +306,7 @@ fun arrowTemplate(location: Location, vector: Vector, thickness: Float): List<En
         location = tip,
         vector = tipDirection.clone().rotateAroundAxis(crossProduct, Math.toRadians(-tipRotation)),
         thickness = thickness,
-        interpolation = 3,
+        interpolation = interpolation,
         init = {
             it.block = Material.GOLD_BLOCK.createBlockData()
             it.brightness = Display.Brightness(0, 15)

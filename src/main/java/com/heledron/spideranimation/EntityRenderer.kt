@@ -2,7 +2,9 @@ package com.heledron.spideranimation
 
 import org.bukkit.Location
 import org.bukkit.entity.BlockDisplay
+import org.bukkit.entity.Display
 import org.bukkit.entity.Entity
+import org.bukkit.entity.TextDisplay
 import org.bukkit.util.Vector
 import org.joml.Matrix4f
 import java.io.Closeable
@@ -58,6 +60,26 @@ fun lineTemplate(
             .scale(thickness, thickness, vector.length().toFloat())
 
         applyTransformationWithInterpolation(it, matrix)
+        update(it)
+    }
+)
+
+fun textTemplate(
+    location: Location,
+    text: String,
+    interpolation: Int,
+    init: (TextDisplay) -> Unit = {},
+    update: (TextDisplay) -> Unit = {},
+) = EntityRendererTemplate(
+    clazz = TextDisplay::class.java,
+    location = location,
+    init = {
+        it.teleportDuration = interpolation
+        it.billboard = Display.Billboard.CENTER
+        init(it)
+    },
+    update = {
+        it.text = text
         update(it)
     }
 )

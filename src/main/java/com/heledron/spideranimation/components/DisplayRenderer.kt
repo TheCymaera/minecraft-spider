@@ -107,7 +107,7 @@ class SpiderEntityRenderer(val spider: Spider): SpiderComponent {
                 scheduler.run {
                     segment.block = transitionBlock.createBlockData()
                     if (Math.random() < .5) {
-                        spawnParticle(Particle.WATER_WAKE, segment.location, (1 * Math.random()).toInt(), .3, .3, .3, 0.0)
+                        spawnParticle(Particle.FISHING, segment.location, (1 * Math.random()).toInt(), .3, .3, .3, 0.0)
                     }
                 }
 
