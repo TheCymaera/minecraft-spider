@@ -25,9 +25,11 @@ class Gait(
         }
 
         fun defaultGallop(): Gait {
-            return Gait(.4, .3).apply {
-                legMoveCooldown = 1
+            return Gait(.4, .4).apply {
+                legWalkCooldown = 1
                 legMoveSpeed = .6
+                rotateSpeed = .25
+                uncomfortableSpeedMultiplier = .6
             }
         }
     }
@@ -95,13 +97,18 @@ class Gait(
     @KVElement var legLookAheadFraction = .6
     @KVElement var groundDragCoefficient = .2
 
-    @KVElement var legMoveCooldown = 2
+    @KVElement var legWalkCooldown = 2
+    @KVElement var legGallopHorizontalCooldown = 1
+    @KVElement var legGallopVerticalCooldown = 4
 
     @KVElement var adjustLookAheadDistance = true
 
     @KVElement var useLegacyNormalForce = false
     @KVElement var polygonLeeway = .0
     @KVElement var stabilizationFactor = 0.7
+
+//    @KVElement var legStrandedIfUncomfortable = true
+    @KVElement var uncomfortableSpeedMultiplier = 0.0
 }
 
 
@@ -139,7 +146,7 @@ class Spider(val location: Location, var gait: Gait, val bodyPlan: SpiderBodyPla
 
     val isGalloping get() = velocity.length() > gait.gallopBreakpoint * gait.walkSpeed && isWalking
 
-    val pointerDetector = PointDetector(this)
+    val pointDetector = PointDetector(this)
 
     override fun close() {
         getComponents().forEach { it.close() }
@@ -189,9 +196,12 @@ class Spider(val location: Location, var gait: Gait, val bodyPlan: SpiderBodyPla
     fun walkAt(targetVelocity: Vector) {
         val acceleration = gait.walkAcceleration// * body.legs.filter { it.isGrounded() }.size / body.legs.size
         val target = targetVelocity.clone()
-        if (body.legs.any { it.isUncomfortable && !it.isMoving } && !isGalloping) {
-            lerpVectorByConstant(velocity, Vector(0, 0, 0), acceleration)
-            isWalking = true
+
+        isWalking = true
+
+        if (body.legs.any { it.isUncomfortable && !it.isMoving }) { //  && !it.targetOutsideComfortZone
+            val scaled = target.setY(velocity.y).multiply(gait.uncomfortableSpeedMultiplier)
+            lerpVectorByConstant(velocity, scaled, acceleration)
         } else {
             lerpVectorByConstant(velocity, target.setY(velocity.y), acceleration)
             isWalking = velocity.x != 0.0 && velocity.z != 0.0
@@ -206,7 +216,7 @@ class Spider(val location: Location, var gait: Gait, val bodyPlan: SpiderBodyPla
         yield(debugRenderer ?: EmptyComponent)
         yield(sound)
         yield(mount)
-        yield(pointerDetector)
+        yield(pointDetector)
     }
 
     fun update() {

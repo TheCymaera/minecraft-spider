@@ -145,10 +145,8 @@ fun rotateYAbout(out: Vector, angle: Double, origin: Vector) {
 
 class SplitDistance(val horizontal: Double, val vertical: Double) {
     fun contains(origin: Vector, point: Vector): Boolean {
-        return contains(distance(origin, point))
-    }
-    fun contains(other: SplitDistance): Boolean {
-        return horizontal > other.horizontal && vertical > other.vertical
+        return horizontalDistance(origin, point) <= horizontal && verticalDistance(origin, point) <= vertical
+
     }
     companion object {
         fun distance(a: Vector, b: Vector): SplitDistance {

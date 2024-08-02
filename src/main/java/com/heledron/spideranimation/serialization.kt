@@ -1,5 +1,8 @@
 package com.heledron.spideranimation
 
+import com.heledron.spideranimation.components.LegPlan
+import com.heledron.spideranimation.components.SegmentPlan
+import com.heledron.spideranimation.components.SymmetricalBodyPlan
 import org.bukkit.util.Vector
 
 //fun gaitToMap(gait: Gait): Map<String, Any?> {

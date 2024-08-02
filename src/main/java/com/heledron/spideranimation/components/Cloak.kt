@@ -37,11 +37,18 @@ class Cloak(var  spider: Spider) : SpiderComponent {
 
 
 fun getCloakPalette(material: Material): List<Material> {
-    if (material == Material.GRASS_BLOCK || material == Material.OAK_LEAVES || material == Material.AZALEA_LEAVES || material == Material.MOSS_CARPET) {
+    val mossLike = listOf(
+        Material.GRASS_BLOCK,
+        Material.OAK_LEAVES,
+        Material.AZALEA_LEAVES,
+        Material.MOSS_BLOCK, Material.MOSS_CARPET
+    )
+
+    if (mossLike.contains(material)) {
         return listOf(Material.MOSS_BLOCK, Material.MOSS_BLOCK, Material.MOSS_BLOCK, Material.MOSS_BLOCK, Material.GREEN_SHULKER_BOX)
     }
-    if (material == Material.DIRT || material == Material.COARSE_DIRT) {
-        return listOf(Material.COARSE_DIRT, Material.DIRT)
+    if (material == Material.DIRT || material == Material.COARSE_DIRT || material == Material.ROOTED_DIRT) {
+        return listOf(Material.COARSE_DIRT, Material.ROOTED_DIRT)
     }
 
     if (material == Material.STONE_BRICKS || material == Material.STONE_BRICK_SLAB || material == Material.STONE_BRICK_STAIRS) {
@@ -52,7 +59,13 @@ fun getCloakPalette(material: Material): List<Material> {
         return listOf(Material.OAK_WOOD)
     }
 
-    if (material == Material.SPRUCE_TRAPDOOR || material == Material.SPRUCE_DOOR || material == Material.COMPOSTER || material == Material.BARREL) {
+    val spruceLike = listOf(
+        Material.SPRUCE_LOG, Material.SPRUCE_WOOD, Material.STRIPPED_SPRUCE_LOG, Material.STRIPPED_SPRUCE_WOOD,
+        Material.SPRUCE_PLANKS, Material.SPRUCE_SLAB, Material.SPRUCE_STAIRS, // Material.SPRUCE_FENCE, Material.SPRUCE_FENCE_GATE,
+        Material.SPRUCE_TRAPDOOR, Material.SPRUCE_DOOR, Material.COMPOSTER, Material.BARREL
+    )
+
+    if (spruceLike.contains(material)) {
         return listOf(Material.SPRUCE_PLANKS, Material.SPRUCE_PLANKS, Material.SPRUCE_PLANKS, Material.STRIPPED_SPRUCE_WOOD)
     }
 
@@ -65,7 +78,7 @@ fun getCloakPalette(material: Material): List<Material> {
         return listOf(Material.STRIPPED_OAK_WOOD)
     }
 
-    if (material == Material.DEEPSLATE_TILES || material == Material.DEEPSLATE_BRICKS || material == Material.DEEPSLATE) {
+    if (material == Material.DEEPSLATE_TILES || material == Material.DEEPSLATE_BRICKS || material == Material.DEEPSLATE || material == Material.POLISHED_DEEPSLATE_SLAB) {
         return listOf(Material.DEEPSLATE, Material.DEEPSLATE_BRICKS, Material.DEEPSLATE_TILES)
     }
 
@@ -77,7 +90,8 @@ fun getCloakPalette(material: Material): List<Material> {
         Material.POLISHED_DEEPSLATE, Material.POLISHED_DEEPSLATE_SLAB, Material.POLISHED_DEEPSLATE_STAIRS, // Material.POLISHED_DEEPSLATE_WALL,
         Material.DEEPSLATE_TILES, Material.DEEPSLATE_TILE_SLAB, Material.DEEPSLATE_TILE_STAIRS, // Material.DEEPSLATE_TILE_WALL,
         Material.DEEPSLATE_BRICKS, Material.DEEPSLATE_BRICK_SLAB, Material.DEEPSLATE_BRICK_STAIRS, // Material.DEEPSLATE_BRICK_WALL,
-        Material.ANVIL
+        Material.ANVIL,
+        Material.POLISHED_BASALT, Material.BASALT
     )
 
     if (deepSlateLike.contains(material)) {
@@ -86,6 +100,7 @@ fun getCloakPalette(material: Material): List<Material> {
 
     val stoneLike = listOf(
         Material.ANDESITE, Material.ANDESITE_SLAB, Material.ANDESITE_STAIRS, // Material.ANDESITE_WALL,
+        Material.POLISHED_ANDESITE, Material.POLISHED_ANDESITE_SLAB, Material.POLISHED_ANDESITE_STAIRS,
         Material.COBBLESTONE, Material.COBBLESTONE_SLAB, Material.COBBLESTONE_STAIRS, // Material.COBBLESTONE_WALL,
         Material.STONE, Material.STONE_SLAB, Material.STONE_STAIRS,
         Material.GRAVEL,
@@ -109,6 +124,31 @@ fun getCloakPalette(material: Material): List<Material> {
 
     if (material == Material.RED_CONCRETE) {
         return listOf(material)
+    }
+
+    val copper = listOf(
+        Material.WAXED_EXPOSED_COPPER, Material.WAXED_EXPOSED_CUT_COPPER,
+        Material.WAXED_EXPOSED_COPPER_BULB, Material.WAXED_EXPOSED_CHISELED_COPPER,
+        Material.WAXED_EXPOSED_CUT_COPPER_SLAB, Material.WAXED_EXPOSED_CUT_COPPER_STAIRS,
+        Material.WAXED_EXPOSED_COPPER_TRAPDOOR, Material.LIGHTNING_ROD
+    )
+
+    if (copper.contains(material)) {
+        return listOf(Material.WAXED_EXPOSED_COPPER, Material.WAXED_EXPOSED_CUT_COPPER)
+    }
+
+    if (material == Material.YELLOW_CONCRETE || material == Material.YELLOW_TERRACOTTA) {
+        return listOf(Material.YELLOW_TERRACOTTA, Material.YELLOW_CONCRETE, Material.YELLOW_SHULKER_BOX)
+    }
+
+    val tuffLike = listOf(
+        Material.TUFF, Material.TUFF_SLAB, Material.TUFF_STAIRS, Material.CHISELED_TUFF,
+        Material.TUFF_BRICKS, Material.TUFF_BRICK_SLAB, Material.TUFF_BRICK_STAIRS,
+        Material.POLISHED_TUFF, Material.POLISHED_TUFF_SLAB, Material.POLISHED_TUFF_STAIRS
+    );
+
+    if (tuffLike.contains(material)) {
+        return listOf(Material.POLISHED_TUFF, Material.POLISHED_TUFF, Material.GRAY_SHULKER_BOX)
     }
 
     return listOf()

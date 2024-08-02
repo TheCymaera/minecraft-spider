@@ -3,7 +3,6 @@ package com.heledron.spideranimation.components
 import com.heledron.spideranimation.*
 import org.bukkit.entity.ArmorStand
 import org.bukkit.entity.Pig
-import org.bukkit.event.player.PlayerTeleportEvent
 import org.bukkit.util.Vector
 import java.io.Closeable
 
@@ -81,6 +80,10 @@ class Mountable(val spider: Spider): SpiderComponent {
             },
             update = update@{
                 if (getRider() == null) return@update
+
+                // This is the only way to preserve passengers when teleporting.
+                // Paper has a TeleportFlag, but it is not supported by Spigot.
+                // https://jd.papermc.io/paper/1.21/io/papermc/paper/entity/TeleportFlag.EntityState.html
                 runCommandSilently("execute as ${it.uniqueId} at @s run tp ${markerLocation.x} ${markerLocation.y} ${markerLocation.z}")
             }
         ))

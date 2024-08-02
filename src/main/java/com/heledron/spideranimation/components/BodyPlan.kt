@@ -1,11 +1,12 @@
-package com.heledron.spideranimation
+package com.heledron.spideranimation.components
 
-import com.heledron.spideranimation.components.Leg
+import com.heledron.spideranimation.*
 import org.bukkit.util.Vector
 import org.joml.Vector2d
 
 interface SpiderBodyPlan {
     val legs: List<LegPlan>
+    fun getLegsInUpdateOrder(spider: Spider): List<Leg>
     fun canMoveLeg(spider: Spider, leg: Leg): Boolean
     fun getNormal(spider: Spider): NormalInfo?
 }
@@ -31,30 +32,49 @@ class NormalInfo(
 
 class SymmetricalBodyPlan(override val legs: List<LegPlan>): SpiderBodyPlan {
     private var legsInPolygonalOrder = listOf<Int>()
+    private var legsInUpdateOrder = listOf<Int>()
 
     init {
-        val diagonals1 = arrayListOf<Int>()
-        val diagonals2 = arrayListOf<Int>()
-
-        val lefts = arrayListOf<Int>()
-        val rights = arrayListOf<Int>()
-        for (i in legs.indices step 2) {
-            val right = i + 1
-            lefts.add(i)
-            rights.add(right)
-
-            if (i % 4 == 0) {
-                diagonals1.add(i)
-                diagonals2.add(right)
-            } else {
-                diagonals2.add(i)
-                diagonals1.add(right)
-            }
-        }
-
+        val lefts = legs.indices.filter { isLeftLeg(it) }
+        val rights = legs.indices.filter { isRightLeg(it) }
         legsInPolygonalOrder = lefts + rights.reversed()
+
+        val diagonal1 = legs.indices.filter { isDiagonal1(it) }
+        val diagonal2 = legs.indices.filter { isDiagonal2(it) }
+        legsInUpdateOrder = diagonal1 + diagonal2
     }
 
+    override fun getLegsInUpdateOrder(spider: Spider): List<Leg> {
+        return legsInUpdateOrder.map { spider.body.legs[it] }
+    }
+
+    fun isLeftLeg(leg: Int): Boolean {
+        return leg % 2 == 0
+    }
+
+    fun isRightLeg(leg: Int): Boolean {
+        return !isLeftLeg(leg)
+    }
+
+    fun getPairIndex(leg: Int): Int {
+        return leg / 2
+    }
+
+    fun isDiagonal1(leg: Int): Boolean {
+        return if (getPairIndex(leg) % 2 == 0) isLeftLeg(leg) else isRightLeg(leg)
+    }
+
+    fun isDiagonal2(leg: Int): Boolean {
+        return !isDiagonal1(leg)
+    }
+
+    fun diagonalFront(leg: Int): Int {
+        return if (isLeftLeg(leg)) leg - 1 else leg - 3
+    }
+
+    fun diagonalBack(leg: Int): Int {
+        return if (isLeftLeg(leg)) leg + 3 else leg + 1
+    }
 
     override fun getNormal(spider: Spider): NormalInfo? {
         if (spider.gait.useLegacyNormalForce) {
@@ -125,40 +145,45 @@ class SymmetricalBodyPlan(override val legs: List<LegPlan>): SpiderBodyPlan {
     }
 
     override fun canMoveLeg(spider: Spider, leg: Leg): Boolean {
-        fun hasCooldown(leg: Leg): Boolean {
-            return leg.isMoving && leg.target.isGrounded && leg.moveTime < spider.gait.legMoveCooldown
+        fun hasCooldown(leg: Leg, cooldown: Int): Boolean {
+            return leg.isMoving && leg.target.isGrounded && leg.timeSinceBeginMove < cooldown
         }
+
 
         // always move if the target is not on ground
         if (!leg.target.isGrounded) return true
 
         if (spider.isGalloping) {
-            // always move if uncomfortable
-//            if (leg.isUncomfortable) return true
-
             val index = spider.body.legs.indexOf(leg)
-            if (index % 2 == 1) {
-                val front = spider.body.legs.getOrNull(index - 2)
-                if (front != null && front.isMoving) return false
-                val behind = spider.body.legs.getOrNull(index + 2)
-                if (behind != null && behind.isMoving) return false
-
+            val pair = horizontal(spider, leg)
+            leg.isPrimary = isDiagonal1(index) || pair.isDisabled || !pair.target.isGrounded
+            if (leg.isPrimary) {
                 // cooldown
-                if (adjacent(spider, leg).any { hasCooldown(it) }) return false
+                val front = spider.body.legs.getOrNull(diagonalFront(index))
+                val back = spider.body.legs.getOrNull(diagonalBack(index))
+                if (listOfNotNull(front, back).any { hasCooldown(it, spider.gait.legGallopVerticalCooldown) }) return false
+
+                return leg.isOutsideTriggerZone || !leg.touchingGround
             } else {
-                val pair = horizontal(spider, leg)
-                return (pair.isMoving && !hasCooldown(pair))
+                return pair.isMoving && !hasCooldown(pair, spider.gait.legGallopHorizontalCooldown)
             }
-
-        } else {
-            // ensure adjacent legs are grounded
-            if (adjacent(spider, leg).any { it.isMoving }) return false
-
-            // cooldown
-            if (diagonal(spider, leg).any { hasCooldown(it) }) return false
         }
 
-        return spider.body.legs.any { it.isGrounded() }
+        leg.isPrimary = true
+
+        // ensure adjacent legs are grounded
+        // ignore if disabled
+        // ignore if target is not grounded
+        if (adjacent(spider, leg).any { !it.isGrounded() && !it.isDisabled && it.target.isGrounded }) return false
+
+        // cooldown
+        if (diagonal(spider, leg).any { hasCooldown(it, spider.gait.legWalkCooldown) }) return false
+
+        val wantsToMove = leg.isOutsideTriggerZone || !leg.touchingGround
+        val alreadyAtTarget = leg.endEffector.distanceSquared(leg.target.position) < 0.01
+        val atLeastOneLegOnGround = spider.body.legs.any { it.isGrounded() }
+
+        return wantsToMove && !alreadyAtTarget && atLeastOneLegOnGround
     }
 
     // x .

@@ -51,7 +51,10 @@ class SpiderAnimationPlugin : JavaPlugin() {
 
         var target: Location? = null
 
+        var useGallop = false
+
         interval(0, 1) {
+            spider?.gait = if (useGallop) gallopGait else gait
             spider?.update()
 
             val targetVal = target ?: chainVisualizer?.target
@@ -63,7 +66,7 @@ class SpiderAnimationPlugin : JavaPlugin() {
             val followPlayer = firstPlayer() ?: return@scheduleSyncRepeatingTask
 
             target = null
-            spider?.pointerDetector?.player = null
+            spider?.pointDetector?.player = null
 
             when (followPlayer.inventory.itemInMainHand.type) {
                 Material.ARROW -> {
@@ -92,11 +95,14 @@ class SpiderAnimationPlugin : JavaPlugin() {
                 }
 
                 Material.CARROT_ON_A_STICK -> {
-                    spider?.let { it.behaviour = TargetBehaviour(it, followPlayer.eyeLocation, it.gait.bodyHeight * 5.0) }
+                    spider?.let { it.behaviour = TargetBehaviour(it, followPlayer.eyeLocation, run {
+                        if (it.gait.legNoStraighten) 2.0
+                        else it.gait.bodyHeight * 5.0
+                    }) }
                 }
 
                 Material.SHEARS -> {
-                    spider?.pointerDetector?.player = followPlayer
+                    spider?.pointDetector?.player = followPlayer
                 }
 
                 else -> {
@@ -191,7 +197,7 @@ class SpiderAnimationPlugin : JavaPlugin() {
                     }
 
                     Material.SHEARS -> {
-                        val selectedLeg = spider?.pointerDetector?.selectedLeg
+                        val selectedLeg = spider?.pointDetector?.selectedLeg
                         if (selectedLeg == null) {
                             playSound(event.player.location, Sound.BLOCK_DISPENSER_FAIL, 1.0f, 2.0f)
                             return
@@ -205,14 +211,8 @@ class SpiderAnimationPlugin : JavaPlugin() {
 
                     Material.BREEZE_ROD -> {
                         playSound(event.player.location, Sound.BLOCK_DISPENSER_FAIL, 1.0f, 2.0f)
-                        val spiderVal = spider ?: return
-                        spiderVal.gait = if (spiderVal.gait == gait) {
-                            sendActionBar(event.player, "Gallop mode")
-                            gallopGait
-                        } else {
-                            sendActionBar(event.player, "Walk mode")
-                            gait
-                        }
+                        useGallop = !useGallop
+                        sendActionBar(event.player, if (!useGallop) "Walk mode" else "Gallop mode")
                     }
 
                     else -> return

@@ -3,11 +3,7 @@ package com.heledron.spideranimation.components
 import com.heledron.spideranimation.*
 import org.bukkit.Location
 import org.bukkit.util.Vector
-import org.joml.Vector2d
-import kotlin.math.abs
-import kotlin.math.ceil
-import kotlin.math.floor
-import kotlin.math.min
+import kotlin.math.*
 
 
 class LegTarget(
@@ -39,16 +35,21 @@ class Leg(
 
     var isOutsideTriggerZone = false; private set
     var isUncomfortable = false; private set
+    var targetOutsideComfortZone = false; private set
     var touchingGround = true; private set
     var isMoving = false; private set
-    var moveTime = 0; private set
+    var timeSinceBeginMove = 0; private set
+
+    var isPrimary = false
+    var canMove = false
 
 
     private fun triggerDistance(): Double {
+//        if (spider.isWalking || spider.isRotatingPitch || spider.isRotatingYaw) return spider.gait.legWalkingTriggerDistance
+//        return spider.gait.legStationaryTriggerDistance
         val maxSpeed = spider.gait.walkSpeed * spider.gait.gallopBreakpoint.coerceAtMost(1.0)
         val walkFraction = min(spider.velocity.length() / maxSpeed, 1.0)
         val fraction = if (spider.isRotatingYaw || spider.isRotatingPitch) 1.0 else walkFraction
-
 
         val diff = spider.gait.legWalkingTriggerDistance - spider.gait.legStationaryTriggerDistance
         return spider.gait.legStationaryTriggerDistance + diff * fraction
@@ -68,6 +69,7 @@ class Leg(
         scanVector = scanVector()
 
         isOutsideTriggerZone = !triggerZone.contains(restPosition, endEffector)
+        targetOutsideComfortZone = !comfortZone.contains(restPosition, target.position)
         isUncomfortable = !comfortZone.contains(restPosition, endEffector)
     }
 
@@ -100,25 +102,17 @@ class Leg(
         val gait = spider.gait
         var didStep = false
 
-        // update move time
-        if (isMoving) {
-            moveTime += 1
-        } else {
-            moveTime = 0
-        }
+        timeSinceBeginMove += 1
 
         // update target
         if (isDisabled) {
             target = disabledTarget()
         } else {
             val ground = locateGround()
-            if (ground != null) {
-                target = ground
-            } else {
-                val targetDistance = SplitDistance.distance(endEffector, target.position)
-                if (!target.isGrounded || isUncomfortable || !comfortZone.contains(targetDistance)) {
-                    target = strandedTarget()
-                }
+            if (ground != null) target = ground
+
+            if (!target.isGrounded || !comfortZone.contains(restPosition, target.position)) {
+                target = strandedTarget()
             }
         }
 
@@ -157,12 +151,11 @@ class Leg(
             }
 
         } else {
-            val canMove = spider.bodyPlan.canMoveLeg(spider, this)
-            val wantsToMove = !target.isGrounded || isUncomfortable || isOutsideTriggerZone || !touchingGround
-            val alreadyAtTarget = endEffector.distanceSquared(target.position) < 0.01
+            canMove = spider.bodyPlan.canMoveLeg(spider, this)
 
-            if (canMove && wantsToMove && !alreadyAtTarget) {
+            if (canMove) {
                 isMoving = true
+                timeSinceBeginMove = 0
             }
         }
 
@@ -226,9 +219,10 @@ class Leg(
         val scanLength = scanVector.length()
 
         fun candidateAllowed(id: Int): Boolean {
-            if (!target.isGrounded) return true
-            if (!isMoving) return true
-            return id == target.id
+            return true
+//            if (!target.isGrounded) return true
+//            if (!isMoving) return true
+//            return id == target.id
         }
 
         var id = 0
@@ -278,7 +272,7 @@ class Leg(
 //            .filter { comfortZone.contains(SplitDistance.distance(it.position, restPosition)) }
             .minByOrNull { it.position.distanceSquared(preferredPosition) }
 
-        if (best != null && !comfortZone.contains(SplitDistance.distance(best.position, restPosition))) {
+        if (best != null && !comfortZone.contains(restPosition, best.position)) {
             return null
         }
 
@@ -364,8 +358,9 @@ class SpiderBody(val spider: Spider): SpiderComponent {
             onGround = isOnGround(spider.location)
         }
 
-        for (leg in spider.body.legs) leg.updateMemo()
-        for (leg in spider.body.legs) leg.update()
+        val updateOrder = spider.bodyPlan.getLegsInUpdateOrder(spider)
+        for (leg in updateOrder) leg.updateMemo()
+        for (leg in updateOrder) leg.update()
     }
 
     fun getPreferredY(): Double {

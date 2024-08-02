@@ -40,7 +40,10 @@ class DebugRenderer(val spider: Spider, val options: DebugRendererOptions): Spid
                 thickness = .05f * scale,
                 init = {
                     it.brightness = Display.Brightness(15, 15)
-                    it.block = Material.GOLD_BLOCK.createBlockData()
+                },
+                update = {
+                    val material = if (leg.isPrimary) Material.GOLD_BLOCK else Material.IRON_BLOCK
+                    it.block = material.createBlockData()
                 }
             ))
 
@@ -87,7 +90,7 @@ class DebugRenderer(val spider: Spider, val options: DebugRendererOptions): Spid
                     it.brightness = Display.Brightness(15, 15)
                 },
                 update = {
-                    val size = (if (leg == spider.pointerDetector.selectedLeg) .2f else .15f) * scale
+                    val size = (if (leg == spider.pointDetector.selectedLeg) .2f else .15f) * scale
                     it.transformation = centredTransform(size, size, size)
                     it.block = when {
                         leg.isDisabled -> Material.BLACK_CONCRETE.createBlockData()

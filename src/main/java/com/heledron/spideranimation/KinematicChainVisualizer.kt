@@ -23,7 +23,7 @@ class KinematicChainVisualizer(
     var stage = Stage.Forwards
     var target: Location? = null
 
-    var detailed = true
+    var detailed = false
     set(value) {
         field = value
         interruptions.clear()
