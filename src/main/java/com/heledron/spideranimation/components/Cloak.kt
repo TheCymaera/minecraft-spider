@@ -37,6 +37,15 @@ class Cloak(var  spider: Spider) : SpiderComponent {
 
 
 fun getCloakPalette(material: Material): List<Material> {
+
+    fun weighted(vararg pairs: Pair<Material, Int>): List<Material> {
+        val list = mutableListOf<Material>()
+        for ((option, weight) in pairs) {
+            for (i in 0 until weight) list.add(option)
+        }
+        return list
+    }
+
     val mossLike = listOf(
         Material.GRASS_BLOCK,
         Material.OAK_LEAVES,
@@ -45,14 +54,14 @@ fun getCloakPalette(material: Material): List<Material> {
     )
 
     if (mossLike.contains(material)) {
-        return listOf(Material.MOSS_BLOCK, Material.MOSS_BLOCK, Material.MOSS_BLOCK, Material.MOSS_BLOCK, Material.GREEN_SHULKER_BOX)
+        return weighted(Material.MOSS_BLOCK to 4, Material.GREEN_SHULKER_BOX to 1)
     }
     if (material == Material.DIRT || material == Material.COARSE_DIRT || material == Material.ROOTED_DIRT) {
         return listOf(Material.COARSE_DIRT, Material.ROOTED_DIRT)
     }
 
     if (material == Material.STONE_BRICKS || material == Material.STONE_BRICK_SLAB || material == Material.STONE_BRICK_STAIRS) {
-        return listOf(Material.STONE_BRICKS, Material.STONE_BRICKS, Material.STONE_BRICKS, Material.CRACKED_STONE_BRICKS, Material.LIGHT_GRAY_SHULKER_BOX)
+        return weighted(Material.STONE_BRICKS to 3, Material.CRACKED_STONE_BRICKS to 1, Material.LIGHT_GRAY_SHULKER_BOX to 1)
     }
 
     if (material == Material.OAK_LOG) {
@@ -66,13 +75,8 @@ fun getCloakPalette(material: Material): List<Material> {
     )
 
     if (spruceLike.contains(material)) {
-        return listOf(Material.SPRUCE_PLANKS, Material.SPRUCE_PLANKS, Material.SPRUCE_PLANKS, Material.STRIPPED_SPRUCE_WOOD)
+        return weighted(Material.SPRUCE_PLANKS to 3, Material.STRIPPED_SPRUCE_WOOD to 1)
     }
-
-
-//    if (material == Material.DARK_OAK_FENCE) {
-//        return listOf(Material.DARK_OAK_PLANKS)
-//    }
 
     if (material === Material.DIRT_PATH) {
         return listOf(Material.STRIPPED_OAK_WOOD)
@@ -83,7 +87,7 @@ fun getCloakPalette(material: Material): List<Material> {
     }
 
     if (material === Material.SAND) {
-        return listOf(Material.SAND, Material.SAND, Material.SAND, Material.SAND, Material.SANDSTONE)
+        return weighted(Material.SAND to 4, Material.SANDSTONE to 1)
     }
 
     val deepSlateLike = listOf(
@@ -95,7 +99,7 @@ fun getCloakPalette(material: Material): List<Material> {
     )
 
     if (deepSlateLike.contains(material)) {
-        return listOf(Material.POLISHED_DEEPSLATE, Material.POLISHED_DEEPSLATE, Material.POLISHED_DEEPSLATE, Material.DEEPSLATE_TILES)
+        return weighted(Material.POLISHED_DEEPSLATE to 3, Material.DEEPSLATE_TILES to 1)
     }
 
     val stoneLike = listOf(
@@ -148,7 +152,7 @@ fun getCloakPalette(material: Material): List<Material> {
     );
 
     if (tuffLike.contains(material)) {
-        return listOf(Material.POLISHED_TUFF, Material.POLISHED_TUFF, Material.GRAY_SHULKER_BOX)
+        return weighted(Material.POLISHED_TUFF to 2, Material.GRAY_SHULKER_BOX to 1)
     }
 
     return listOf()

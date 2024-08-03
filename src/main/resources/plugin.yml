@@ -6,10 +6,10 @@ api-version: '1.20'
 commands:
   options:
     description: Set gait options
-    usage: /options <gait|galloping_gait|debug_renderer> <option:string> <value:double>
+    usage: /options <gait|galloping_gait|debug_renderer> <option:string> <value:double?>
   fall:
     description: Teleport the spider up by the specified height
     usage: /fall <height:double>
   body_plan:
     description: Set the body plan of the spider
-    usage: /body_plan <plan:string>
+    usage: /body_plan <quadruped|hexapod|octopod> <scale:double?> <segment_length:double?> <segment_count:int?>

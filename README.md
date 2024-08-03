@@ -10,8 +10,6 @@
 1. Download a 1.21 server JAR from [Paper](https://papermc.io/downloads) or [Spigot](https://getbukkit.org/download/spigot).
 2. Run the following command `java -Xmx1024M -Xms1024M -jar server.jar nogui`.
 3. I typically use the Java runtime bundled with my Minecraft installation so as to avoid version conflicts.
-   - Windows: `C:\Users\%USERNAME%\AppData\Local\Packages\Microsoft.4297127D64EC6_8wekyb3d8bbwe\LocalCache\Local\runtime\java-runtime-gamma\windows-x64\java-runtime-gamma\bin\javaw.exe`
-   - MacOS: `~/Library/Application\ Support/minecraft/runtime/java-runtime-gamma/mac-os/java-runtime-gamma/jre.bundle/Contents/Home/bin/java`
    - In Modrinth, you can find the Java runtime location inside the profile options menu.
 4. Accept the EULA by changing `eula=false` to `eula=true` in the `eula.txt` file.
 5. Join the server with `localhost` as the IP address.
@@ -26,10 +24,10 @@ Autocomplete will show available options.
 # Reset options
 /options gait reset
 
-# Get option (Version 2 Beta only)
+# Get option
 /options gait <option:string>
 
-# Change body plan (Version 2 Beta only)
+# Change body plan (quadruped, hexapod, octopod)
 /body_plan <plan:string> <scale:double?> <segment_length:double?> <segment_count:int?>
 ```
 

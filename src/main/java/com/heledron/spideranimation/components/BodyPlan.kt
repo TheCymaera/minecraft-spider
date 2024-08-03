@@ -181,9 +181,9 @@ class SymmetricalBodyPlan(override val legs: List<LegPlan>): SpiderBodyPlan {
 
         val wantsToMove = leg.isOutsideTriggerZone || !leg.touchingGround
         val alreadyAtTarget = leg.endEffector.distanceSquared(leg.target.position) < 0.01
-        val atLeastOneLegOnGround = spider.body.legs.any { it.isGrounded() }
+        val onGround = spider.body.legs.any { it.isGrounded() } || spider.body.onGround
 
-        return wantsToMove && !alreadyAtTarget && atLeastOneLegOnGround
+        return wantsToMove && !alreadyAtTarget && onGround
     }
 
     // x .

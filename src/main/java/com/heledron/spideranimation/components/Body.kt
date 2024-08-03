@@ -45,8 +45,6 @@ class Leg(
 
 
     private fun triggerDistance(): Double {
-//        if (spider.isWalking || spider.isRotatingPitch || spider.isRotatingYaw) return spider.gait.legWalkingTriggerDistance
-//        return spider.gait.legStationaryTriggerDistance
         val maxSpeed = spider.gait.walkSpeed * spider.gait.gallopBreakpoint.coerceAtMost(1.0)
         val walkFraction = min(spider.velocity.length() / maxSpeed, 1.0)
         val fraction = if (spider.isRotatingYaw || spider.isRotatingPitch) 1.0 else walkFraction
@@ -269,7 +267,6 @@ class Leg(
 
         val best = candidates
             .filterNotNull()
-//            .filter { comfortZone.contains(SplitDistance.distance(it.position, restPosition)) }
             .minByOrNull { it.position.distanceSquared(preferredPosition) }
 
         if (best != null && !comfortZone.contains(restPosition, best.position)) {
