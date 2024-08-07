@@ -1,8 +1,9 @@
-package com.heledron.spideranimation
+package com.heledron.spideranimation.spider
 
-import com.heledron.spideranimation.components.*
+import com.heledron.spideranimation.*
 import org.bukkit.Location
 import org.bukkit.util.Vector
+import sun.security.util.Debug
 import java.io.Closeable
 import kotlin.math.*
 
@@ -15,17 +16,36 @@ interface SpiderComponent : Closeable {
 
 object EmptyComponent : SpiderComponent
 
+class SpiderOptions {
+    var gallop = false
+
+    var renderStraightenLegs = true
+    var renderSegmentLength = 1.0
+    var renderSegmentCount = 3
+    var renderSegmentThickness = 1.0
+    var renderStraightenRotation = -60.0
+
+    var debugScanBars = true
+    var debugTriggerZones = true
+    var debugEndEffectors = true
+    var debugTargetPositions = true
+    var debugLegPolygons = true
+    var debugCentreOfMass = true
+    var debugBodyAcceleration = true
+    var debugDirection = true
+}
+
 class Gait(
     walkSpeed: Double,
-    gallopBreakpoint: Double,
+    gallop: Boolean,
 ) {
     companion object {
         fun defaultWalk(): Gait {
-            return Gait(.15, 10000.0)
+            return Gait(.15, false)
         }
 
         fun defaultGallop(): Gait {
-            return Gait(.4, .4).apply {
+            return Gait(.4, true).apply {
                 legWalkCooldown = 1
                 legMoveSpeed = .6
                 rotateSpeed = .25
@@ -55,71 +75,75 @@ class Gait(
 
 
     /** Used for tracking the scale. It's prefixed with zzz so that it appears last in auto-completion */
-    @KVElement var zzzStoredScale = 1.0
+    var zzzStoredScale = 1.0
 
-    @KVElement var gallopBreakpoint = gallopBreakpoint
+    var gallop = gallop
 
-    @KVElement var walkSpeed = walkSpeed
-    @KVElement var walkAcceleration = .15 / 4
+    var walkSpeed = walkSpeed
+    var walkAcceleration = .15 / 4
 
-    @KVElement var rotateSpeed = .15
+    var rotateSpeed = .15
 
-    @KVElement var legMoveSpeed = walkSpeed * 3
+    var legMoveSpeed = walkSpeed * 3
 
-    @KVElement var legLiftHeight = .35
-    @KVElement var legDropDistance = legLiftHeight
+    var legLiftHeight = .35
+    var legDropDistance = legLiftHeight
 
-    @KVElement var legStationaryTriggerDistance = .25
-    @KVElement var legWalkingTriggerDistance = .8
-    @KVElement var legDiscomfortDistance = 1.2
+    var legStationaryTriggerDistance = .25
+    var legWalkingTriggerDistance = .8
+    var legDiscomfortDistance = 1.2
 
-    @KVElement var legVerticalTriggerDistance = 1.5
-    @KVElement var legVerticalDiscomfortDistance = 1.6
+    var legVerticalTriggerDistance = 1.5
+    var legVerticalDiscomfortDistance = 1.6
 
-    @KVElement var gravityAcceleration = .08
-    @KVElement var airDragCoefficient = .02
-    @KVElement var bounceFactor = .5
+    var gravityAcceleration = .08
+    var airDragCoefficient = .02
+    var bounceFactor = .5
 
-    @KVElement var bodyHeight = 1.1
+    var bodyHeight = 1.1
 
-    @KVElement var bodyHeightCorrectionAcceleration = gravityAcceleration * 4
-    @KVElement var bodyHeightCorrectionFactor = .25
+    var bodyHeightCorrectionAcceleration = gravityAcceleration * 4
+    var bodyHeightCorrectionFactor = .25
 
-    @KVElement var legStraightenRotation = -60.0
-    @KVElement var legStraightenMinRotation = -90.0
-    @KVElement var legStraightenMaxRotation = -20.0
-    @KVElement var legNoStraighten = false
+    var legStraightenMinRotation = -90.0
+    var legStraightenMaxRotation = -20.0
+    var legNoStraighten = false
 
-    @KVElement var legScanAlternativeGround = true
-    @KVElement var legScanHeightBias = .5
+    var legScanAlternativeGround = true
+    var legScanHeightBias = .5
 
-    @KVElement var tridentKnockBack = .3
-    @KVElement var legLookAheadFraction = .6
-    @KVElement var groundDragCoefficient = .2
+    var tridentKnockBack = .3
+    var legLookAheadFraction = .6
+    var groundDragCoefficient = .2
 
-    @KVElement var legWalkCooldown = 2
-    @KVElement var legGallopHorizontalCooldown = 1
-    @KVElement var legGallopVerticalCooldown = 4
+    var legWalkCooldown = 2
+    var legGallopHorizontalCooldown = 1
+    var legGallopVerticalCooldown = 4
 
-    @KVElement var adjustLookAheadDistance = true
+    var adjustLookAheadDistance = true
 
-    @KVElement var useLegacyNormalForce = false
-    @KVElement var polygonLeeway = .0
-    @KVElement var stabilizationFactor = 0.7
+    var useLegacyNormalForce = false
+    var polygonLeeway = .0
+    var stabilizationFactor = 0.7
 
-//    @KVElement var legStrandedIfUncomfortable = true
-    @KVElement var uncomfortableSpeedMultiplier = 0.0
+    var uncomfortableSpeedMultiplier = 0.0
 }
 
 
-class Spider(val location: Location, var gait: Gait, val bodyPlan: SpiderBodyPlan): Closeable {
+class Spider(val location: Location, val bodyPlan: SpiderBodyPlan): Closeable {
+    var options = SpiderOptions()
+
+    var walkGait = Gait.defaultWalk()
+    var gallopGait = Gait.defaultGallop()
+
+    val gait get() = if (options.gallop) gallopGait else walkGait
+
     var isWalking = false; private set
     var isRotatingYaw = false; private set
     var isRotatingPitch = false; private set
     var rotateVelocity = 0.0; private set
 
     val velocity = Vector(0.0, 0.0, 0.0)
-    init { location.y += gait.bodyHeight }
 
     val body = SpiderBody(this)
 
@@ -138,13 +162,13 @@ class Spider(val location: Location, var gait: Gait, val bodyPlan: SpiderBodyPla
         field = value
     }
 
-    var debugRenderer: SpiderComponent? = null
+    var debugRenderer: DebugRenderer? = DebugRenderer(this)
     set (value) {
         field?.close()
         field = value
     }
 
-    val isGalloping get() = velocity.length() > gait.gallopBreakpoint * gait.walkSpeed && isWalking
+//    val isGalloping get() = velocity.length() > gait.gallopBreakpoint * gait.walkSpeed && isWalking
 
     val pointDetector = PointDetector(this)
 
@@ -159,7 +183,7 @@ class Spider(val location: Location, var gait: Gait, val bodyPlan: SpiderBodyPla
 
         for (leg in body.legs) {
             leg.endEffector.add(diff)
-            for (segment in leg.chain.segments) segment.position.add(diff)
+//            for (segment in leg.chain.segments) segment.position.add(diff)
         }
     }
 

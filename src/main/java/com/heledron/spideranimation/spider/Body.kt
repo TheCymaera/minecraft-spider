@@ -1,4 +1,4 @@
-package com.heledron.spideranimation.components
+package com.heledron.spideranimation.spider
 
 import com.heledron.spideranimation.*
 import org.bukkit.Location
@@ -23,10 +23,10 @@ class Leg(
 
     var isDisabled = false
 
-    val chain = createChain()
     var restPosition = restPosition(); private set
     var lookAheadPosition = lookAheadPosition(); private set
     var scanStartPosition = scanStartPosition(); private set
+    var attachmentPosition = attachmentPosition(); private set
     var scanVector = scanVector(); private set
     var target = strandedTarget(); private set
     init { target = locateGround() ?: target }
@@ -45,7 +45,7 @@ class Leg(
 
 
     private fun triggerDistance(): Double {
-        val maxSpeed = spider.gait.walkSpeed * spider.gait.gallopBreakpoint.coerceAtMost(1.0)
+        val maxSpeed = spider.gait.walkSpeed
         val walkFraction = min(spider.velocity.length() / maxSpeed, 1.0)
         val fraction = if (spider.isRotatingYaw || spider.isRotatingPitch) 1.0 else walkFraction
 
@@ -62,6 +62,7 @@ class Leg(
         comfortZone = comfortZone()
         restPosition = restPosition()
         lookAheadPosition = lookAheadPosition()
+        attachmentPosition = attachmentPosition()
         touchingGround = touchingGround()
         scanStartPosition = scanStartPosition()
         scanVector = scanVector()
@@ -73,27 +74,10 @@ class Leg(
 
     fun update() {
         updateMovement()
-        updateChain()
     }
 
-    private fun updateChain() {
-        val attachmentPoint = spider.relativePosition(legPlan.attachmentPosition)
-
-        chain.root.copy(attachmentPoint)
-
-        if (!spider.gait.legNoStraighten) {
-            val direction = endEffector.clone().subtract(attachmentPoint)
-            direction.y = 0.0
-
-            val crossAxis = Vector(0.0, 1.0, 0.0).crossProduct(direction).normalize()
-
-            val angle = spider.gait.legStraightenRotation
-            direction.rotateAroundAxis(crossAxis, Math.toRadians(angle))
-
-            chain.straightenDirection(direction)
-        }
-
-        chain.fabrik(endEffector)
+    private fun attachmentPosition(): Vector {
+        return spider.relativePosition(legPlan.attachmentPosition)
     }
 
     private fun updateMovement() {
@@ -149,7 +133,8 @@ class Leg(
             }
 
         } else {
-            canMove = spider.bodyPlan.canMoveLeg(spider, this)
+//            canMove = spider.bodyPlan.canMoveLeg(spider, this)
+            canMove = if (spider.gait.gallop) GallopGaitType.canMoveLeg(this) else WalkGaitType.canMoveLeg(this)
 
             if (canMove) {
                 isMoving = true
@@ -189,18 +174,6 @@ class Leg(
         val lookAhead = direction.clone().normalize().multiply(mag).add(restPosition)
         rotateYAbout(lookAhead, spider.rotateVelocity, spider.location.toVector())
         return lookAhead
-    }
-
-    private fun createChain(): KinematicChain {
-        val segments = arrayListOf<ChainSegment>()
-
-        for (i in 0 until legPlan.segments.size) {
-            val length = legPlan.segments[i].length
-            val position = spider.location.toVector().add(legPlan.restPosition.clone().normalize().multiply(length * (i + 1)))
-            segments.add(ChainSegment(position, length))
-        }
-
-        return KinematicChain(spider.location.toVector(), segments)
     }
 
     private fun scanStartPosition(): Vector {
@@ -345,6 +318,8 @@ class SpiderBody(val spider: Spider): SpiderComponent {
         val collision = resolveCollision(spider.location, Vector(0.0, min(-1.0, -abs(spider.velocity.y)), 0.0))
         if (collision != null) {
             onGround = true
+            sendDebugMessage("COLLISION: onGround: $onGround, velocity: ${spider.velocity.y}")
+
             val didHit = collision.offset.length() > (spider.gait.gravityAcceleration * 2) * (1 - spider.gait.airDragCoefficient)
             if (didHit) onHitGround.emit()
 

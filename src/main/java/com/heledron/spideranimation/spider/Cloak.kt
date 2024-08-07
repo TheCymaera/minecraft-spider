@@ -1,4 +1,4 @@
-package com.heledron.spideranimation.components
+package com.heledron.spideranimation.spider
 
 import com.heledron.spideranimation.*
 import org.bukkit.Material

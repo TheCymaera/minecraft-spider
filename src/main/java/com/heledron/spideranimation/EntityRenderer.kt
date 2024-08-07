@@ -34,7 +34,7 @@ fun targetTemplate(
     init = {
         it.block = org.bukkit.Material.REDSTONE_BLOCK.createBlockData()
         it.teleportDuration = 1
-        it.brightness = org.bukkit.entity.Display.Brightness(15, 15)
+        it.brightness = Display.Brightness(15, 15)
         it.transformation = centredTransform(.25f, .25f, .25f)
     }
 )

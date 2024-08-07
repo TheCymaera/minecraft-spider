@@ -1,7 +1,6 @@
-package com.heledron.spideranimation.components
+package com.heledron.spideranimation.spider
 
-import com.heledron.spideranimation.Spider
-import com.heledron.spideranimation.SpiderComponent
+import com.heledron.spideranimation.equalSegmentChain
 import com.heledron.spideranimation.spawnParticle
 import org.bukkit.Color
 import org.bukkit.Location
@@ -30,11 +29,19 @@ class ParticleRenderer(val spider: Spider) : SpiderComponent {
         }
 
         fun renderLeg(leg: Leg) {
+            val spider = leg.spider
             val world = leg.spider.location.world!!
-            var current = leg.chain.root.toLocation(world)
+            val chain = equalSegmentChain(
+                root = leg.attachmentPosition,
+                end = leg.endEffector,
+                count = spider.options.renderSegmentCount,
+                length = spider.options.renderSegmentLength * leg.legPlan.segmentLength,
+                straightenRotation = if (spider.options.renderStraightenLegs) spider.options.renderStraightenRotation else null
+            )
+            var current = chain.root.toLocation(world)
 
-            for ((i, segment) in leg.chain.segments.withIndex()) {
-                val thickness = (leg.chain.segments.size - i - 1) * 0.025
+            for ((i, segment) in chain.segments.withIndex()) {
+                val thickness = (chain.segments.size - i - 1) * 0.025
                 renderLine(current, segment.position, thickness)
                 current = segment.position.toLocation(world)
             }

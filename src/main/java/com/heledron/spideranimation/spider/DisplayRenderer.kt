@@ -1,4 +1,4 @@
-package com.heledron.spideranimation.components
+package com.heledron.spideranimation.spider
 
 import com.heledron.spideranimation.*
 import org.bukkit.*
@@ -31,25 +31,39 @@ class SpiderEntityRenderer(val spider: Spider): SpiderComponent {
     override fun render() {
         renderer.beginRender()
 
+        val scale = spider.gait.getScale()
+
         for ((legIndex, leg) in spider.body.legs.withIndex()) {
+            val chain = equalSegmentChain(
+                root = leg.attachmentPosition,
+                end = leg.endEffector,
+                count = spider.options.renderSegmentCount,
+                length = spider.options.renderSegmentLength * leg.legPlan.segmentLength,
+                straightenRotation = if (spider.options.renderStraightenLegs) spider.options.renderStraightenRotation else null
+            )
+            val maxThickness = 1.5/16 * 4 * scale * spider.options.renderSegmentThickness
+            val minThickness = 1.5/16 * 1 * scale * spider.options.renderSegmentThickness
+
             // up vector is the cross product of the y-axis and the end-effector direction
             fun segmentUpVector(): Vector {
-                val direction = leg.chain.getEndEffector().clone().subtract(leg.chain.root)
+                val direction = chain.getEndEffector().clone().subtract(chain.root)
                 return direction.clone().crossProduct(Vector(0, 1, 0))
             }
 
             val segmentUpVector = segmentUpVector()
 
             // Render leg segment
-            for ((segmentIndex, segment) in leg.chain.segments.withIndex()) {
-                val parent = leg.chain.segments.getOrNull(segmentIndex - 1)?.position ?: leg.chain.root
+            for ((segmentIndex, segment) in chain.segments.withIndex()) {
+                val parent = chain.segments.getOrNull(segmentIndex - 1)?.position ?: chain.root
                 val vector = segment.position.clone().subtract(parent).normalize().multiply(segment.length)
                 val location = parent.toLocation(spider.location.world!!)
+
+                val thickness = (chain.segments.size - segmentIndex - 1) * (maxThickness - minThickness) / chain.segments.size + minThickness
 
                 renderer.render(Pair(legIndex, segmentIndex), lineTemplate(
                     location = location,
                     vector = vector,
-                    thickness = leg.legPlan.segments[segmentIndex].thickness.toFloat(),
+                    thickness = thickness.toFloat(),
                     upVector = segmentUpVector,
                     init = { it.block = defaultMaterial.createBlockData() },
                     update = {

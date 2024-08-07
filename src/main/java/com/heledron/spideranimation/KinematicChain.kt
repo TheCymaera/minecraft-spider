@@ -67,3 +67,30 @@ class ChainSegment(
         var position: Vector,
         var length: Double
 )
+
+fun equalSegmentChain(
+    root: Vector,
+    end: Vector,
+    count: Int,
+    length: Double,
+    straightenRotation: Double?
+): KinematicChain {
+    val chain = KinematicChain(root, (0 until count).map {
+        ChainSegment(Vector(0, 0, 0), length)
+    })
+
+    if (straightenRotation != null) {
+        val direction = end.clone().subtract(root)
+        direction.y = 0.0
+
+        val crossAxis = Vector(0.0, 1.0, 0.0).crossProduct(direction).normalize()
+
+        direction.rotateAroundAxis(crossAxis, Math.toRadians(straightenRotation))
+
+        chain.straightenDirection(direction)
+    }
+
+    chain.fabrik(end)
+
+    return chain
+}

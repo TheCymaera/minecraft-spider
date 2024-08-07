@@ -2,11 +2,13 @@ package com.heledron.spideranimation
 
 import net.md_5.bungee.api.ChatMessageType
 import org.bukkit.Bukkit
+import org.bukkit.ChatColor
 import org.bukkit.FluidCollisionMode
 import org.bukkit.Location
 import org.bukkit.entity.BlockDisplay
 import org.bukkit.entity.Entity
 import org.bukkit.event.Listener
+import org.bukkit.inventory.ItemStack
 import org.bukkit.util.RayTraceResult
 import org.bukkit.util.Transformation
 import org.bukkit.util.Vector
@@ -64,6 +66,15 @@ class EventEmitter {
     fun emit() {
         for (listener in listeners) listener()
     }
+}
+
+
+fun createNamedItem(material: org.bukkit.Material, name: String): ItemStack {
+    val item = ItemStack(material)
+    val itemMeta = item.itemMeta ?: throw Exception("ItemMeta is null")
+    itemMeta.setItemName(ChatColor.RESET.toString() + name)
+    item.itemMeta = itemMeta
+    return item
 }
 
 fun firstPlayer(): org.bukkit.entity.Player? {

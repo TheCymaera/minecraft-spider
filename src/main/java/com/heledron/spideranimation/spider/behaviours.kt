@@ -1,7 +1,5 @@
-package com.heledron.spideranimation.components
+package com.heledron.spideranimation.spider
 
-import com.heledron.spideranimation.Spider
-import com.heledron.spideranimation.SpiderComponent
 import com.heledron.spideranimation.horizontalDistance
 import org.bukkit.Location
 import org.bukkit.util.Vector

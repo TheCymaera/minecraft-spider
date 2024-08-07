@@ -4,6 +4,9 @@ main: com.heledron.spideranimation.SpiderAnimationPlugin
 api-version: '1.20'
 
 commands:
+  items:
+    description: Open the items menu
+    usage: /items
   options:
     description: Set gait options
     usage: /options <gait|galloping_gait|debug_renderer> <option:string> <value:double?>

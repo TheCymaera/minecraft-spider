@@ -1,22 +1,11 @@
-package com.heledron.spideranimation.components
+package com.heledron.spideranimation.spider
 
 import com.heledron.spideranimation.*
 import org.bukkit.Material
 import org.bukkit.entity.Display
 import org.bukkit.util.Vector
 
-class DebugRendererOptions {
-    @KVElement var scanBars = true
-    @KVElement var triggerZones = true
-    @KVElement var endEffectors = true
-    @KVElement var targetPositions = true
-    @KVElement var legPolygons = true
-    @KVElement var centreOfMass = true
-    @KVElement var bodyAcceleration = true
-    @KVElement var direction = true
-}
-
-class DebugRenderer(val spider: Spider, val options: DebugRendererOptions): SpiderComponent {
+class DebugRenderer(val spider: Spider): SpiderComponent {
     private val renderer = MultiEntityRenderer()
 
     override fun close() {
@@ -34,7 +23,7 @@ class DebugRenderer(val spider: Spider, val options: DebugRendererOptions): Spid
 
         for ((legIndex, leg) in spider.body.legs.withIndex()) {
             // Render scan bars
-            if (options.scanBars) renderer.render(Pair("scanBar", legIndex), lineTemplate(
+            if (spider.options.debugScanBars) renderer.render(Pair("scanBar", legIndex), lineTemplate(
                 location = leg.scanStartPosition.toLocation(spider.location.world!!),
                 vector = leg.scanVector,
                 thickness = .05f * scale,
@@ -49,7 +38,7 @@ class DebugRenderer(val spider: Spider, val options: DebugRendererOptions): Spid
 
             // Render trigger zone
             val vector = Vector(0,1,0).multiply(leg.triggerZone.vertical)
-            if (options.triggerZones) renderer.render(Pair("triggerZoneVertical", legIndex), lineTemplate(
+            if (spider.options.debugTriggerZones) renderer.render(Pair("triggerZoneVertical", legIndex), lineTemplate(
                 location = leg.restPosition.toLocation(spider.location.world!!).subtract(vector.clone().multiply(.5)),
                 vector = vector,
                 thickness = .07f * scale,
@@ -61,7 +50,7 @@ class DebugRenderer(val spider: Spider, val options: DebugRendererOptions): Spid
             ))
 
             // Render trigger zone
-            if (options.triggerZones) renderer.render(Pair("triggerZoneHorizontal", legIndex), blockTemplate(
+            if (spider.options.debugTriggerZones) renderer.render(Pair("triggerZoneHorizontal", legIndex), blockTemplate(
                 location = run {
                     val location = leg.restPosition.toLocation(leg.spider.location.world!!)
                     location.y = leg.target.position.y.coerceIn(location.y - leg.triggerZone.vertical, location.y + leg.triggerZone.vertical)
@@ -83,7 +72,7 @@ class DebugRenderer(val spider: Spider, val options: DebugRendererOptions): Spid
             ))
 
             // Render end effector
-            if (options.endEffectors) renderer.render(Pair("endEffector", legIndex), blockTemplate(
+            if (spider.options.debugEndEffectors) renderer.render(Pair("endEffector", legIndex), blockTemplate(
                 location = leg.endEffector.toLocation(spider.location.world!!),
                 init = {
                     it.teleportDuration = 1
@@ -102,7 +91,7 @@ class DebugRenderer(val spider: Spider, val options: DebugRendererOptions): Spid
             ))
 
             // Render target position
-            if (options.targetPositions) renderer.render(Pair("targetPosition", legIndex), blockTemplate(
+            if (spider.options.debugTargetPositions) renderer.render(Pair("targetPosition", legIndex), blockTemplate(
                 location = leg.target.position.toLocation(spider.location.world!!),
                 init = {
                     it.teleportDuration = 1
@@ -121,7 +110,7 @@ class DebugRenderer(val spider: Spider, val options: DebugRendererOptions): Spid
 
 
         // Render spider direction
-        if (options.direction) renderer.render("direction", blockTemplate(
+        if (spider.options.debugDirection) renderer.render("direction", blockTemplate(
             location = spider.location.clone().add(spider.location.direction.clone().multiply(scale)),
             init = {
                 it.teleportDuration = 1
@@ -131,19 +120,19 @@ class DebugRenderer(val spider: Spider, val options: DebugRendererOptions): Spid
                 it.transformation = centredTransform(size, size, size)
             },
             update = {
-                it.block = if (spider.isGalloping) Material.REDSTONE_BLOCK.createBlockData() else Material.EMERALD_BLOCK.createBlockData()
+                it.block = if (spider.gait.gallop) Material.REDSTONE_BLOCK.createBlockData() else Material.EMERALD_BLOCK.createBlockData()
             }
         ))
 
 
         val normal = spider.body.normal ?: return
-        if (options.legPolygons && normal.contactPolygon != null) {
+        if (spider.options.debugLegPolygons && normal.contactPolygon != null) {
             val points = normal.contactPolygon.map { it.toLocation(spider.location.world!!)}
             for (i in points.indices) {
                 val a = points[i]
                 val b = points[(i + 1) % points.size]
 
-                if (options.legPolygons) renderer.render(Pair("polygon",i), lineTemplate(
+                renderer.render(Pair("polygon",i), lineTemplate(
                     location = a,
                     vector = b.toVector().subtract(a.toVector()),
                     thickness = .05f * scale,
@@ -154,7 +143,7 @@ class DebugRenderer(val spider: Spider, val options: DebugRendererOptions): Spid
             }
         }
 
-        if (options.centreOfMass && normal.centreOfMass != null) renderer.render("centreOfMass", blockTemplate(
+        if (spider.options.debugCentreOfMass && normal.centreOfMass != null) renderer.render("centreOfMass", blockTemplate(
             location = normal.centreOfMass.toLocation(spider.location.world!!),
             init = {
                 it.teleportDuration = 1
@@ -170,7 +159,7 @@ class DebugRenderer(val spider: Spider, val options: DebugRendererOptions): Spid
         ))
 
 
-        if (options.bodyAcceleration && normal.centreOfMass != null && normal.origin !== null) renderer.render("acceleration", lineTemplate(
+        if (spider.options.debugBodyAcceleration && normal.centreOfMass != null && normal.origin !== null) renderer.render("acceleration", lineTemplate(
             location = normal.origin.toLocation(spider.location.world!!),
             vector = normal.centreOfMass.clone().subtract(normal.origin),
             thickness = .02f * scale,
