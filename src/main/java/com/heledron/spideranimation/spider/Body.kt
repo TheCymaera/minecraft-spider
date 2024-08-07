@@ -318,7 +318,6 @@ class SpiderBody(val spider: Spider): SpiderComponent {
         val collision = resolveCollision(spider.location, Vector(0.0, min(-1.0, -abs(spider.velocity.y)), 0.0))
         if (collision != null) {
             onGround = true
-            sendDebugMessage("COLLISION: onGround: $onGround, velocity: ${spider.velocity.y}")
 
             val didHit = collision.offset.length() > (spider.gait.gravityAcceleration * 2) * (1 - spider.gait.airDragCoefficient)
             if (didHit) onHitGround.emit()

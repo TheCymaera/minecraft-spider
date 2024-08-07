@@ -2,14 +2,14 @@ package com.heledron.spideranimation
 
 import com.google.gson.Gson
 
-object ObjectMapper {
+object Serializer {
     val gson = Gson()
 
-    fun toMap(obj: Any?): Map<*, *> {
-        return gson.fromJson(gson.toJson(obj), Map::class.java)
+    fun toMap(obj: Any): Any {
+        return gson.fromJson(gson.toJson(obj), Any::class.java)
     }
 
-    fun <T> fromMap(map: Map<*, *>, clazz: Class<T>): T {
+    fun <T> fromMap(map: Any, clazz: Class<T>): T {
         return gson.fromJson(gson.toJson(map), clazz)
     }
 
@@ -25,33 +25,30 @@ object ObjectMapper {
 
     private fun get(obj: Any, path: List<String>): Any? {
         var current: Any? = obj
-        for (key in path) current = getShallow(current, key)
+        for (key in path) current = getShallow(current ?: return null, key)
         return current
     }
 
-    fun setJSON(obj: Any, path: String, jsonString: String) {
+    fun setMap(obj: Any, path: String, map: Any?) {
         val pathList = parsePath(path)
-        val newObj = withSetJSON(obj, pathList, jsonString)
+        val newObj = withSetMap(obj, pathList, map)
         set(obj, path, get(newObj, path))
     }
 
     fun set(obj: Any, path: String, value: Any?) {
         val pathList = parsePath(path)
-        val parent = get(obj, pathList.dropLast(1))
+        val parent = get(obj, pathList.dropLast(1)) ?: return
         setShallow(parent, pathList.last(), value)
     }
 
-    private fun<T : Any> withSetJSON(obj: T, path: List<String>, jsonString: String): T {
+    private fun<T : Any> withSetMap(obj: T, path: List<String>, value: Any?): T {
         val map = toMap(obj)
-        val newValue = gson.fromJson(jsonString, Any::class.java)
-        setShallow(get(map, path.dropLast(1)), path.last(), newValue)
-
+        val mapParent = get(map, path.dropLast(1)) ?: return obj
+        setShallow(mapParent, path.last(), value)
         return fromMap(map, obj.javaClass)
     }
 
-    private fun getShallow(current: Any?, key: String): Any? {
-        if (current == null) return null
-
+    private fun getShallow(current: Any, key: String): Any? {
         if (current is Map<*, *>) return current[key]
 
         if (current is List<*>) return current[key.toInt()]
@@ -65,10 +62,8 @@ object ObjectMapper {
         }
     }
 
-    private fun setShallow(current: Any?, key: String, value: Any?) {
+    private fun setShallow(current: Any, key: String, value: Any?) {
         try {
-            if (current == null) return
-
             if (current is MutableMap<*, *>) {
                 (current as MutableMap<String, Any?>)[key] = value
                 return

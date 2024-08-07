@@ -1,5 +1,6 @@
 package com.heledron.spideranimation
 
+import com.google.gson.Gson
 import com.heledron.spideranimation.spider.*
 import com.heledron.spideranimation.items.CustomItemRegistry
 import com.heledron.spideranimation.items.registerItems
@@ -45,10 +46,10 @@ class SpiderAnimationPlugin : JavaPlugin() {
             "options" to { SpiderOptions() },
         )
 
-        config.getConfigurationSection("walk_gait")?.getValues(true)?.let { AppState.walkGait = ObjectMapper.fromMap(it, Gait::class.java) }
-        config.getConfigurationSection("gallop_gait")?.getValues(true)?.let { AppState.gallopGait = ObjectMapper.fromMap(it, Gait::class.java) }
-        config.getConfigurationSection("options")?.getValues(true)?.let { AppState.spiderOptions = ObjectMapper.fromMap(it, SpiderOptions::class.java) }
-        config.getConfigurationSection("body_plan")?.getValues(true)?.let { AppState.bodyPlan = ObjectMapper.fromMap(it, SymmetricalBodyPlan::class.java) }
+        config.getConfigurationSection("walk_gait")?.getValues(true)?.let { AppState.walkGait = Serializer.fromMap(it, Gait::class.java) }
+        config.getConfigurationSection("gallop_gait")?.getValues(true)?.let { AppState.gallopGait = Serializer.fromMap(it, Gait::class.java) }
+        config.getConfigurationSection("options")?.getValues(true)?.let { AppState.spiderOptions = Serializer.fromMap(it, SpiderOptions::class.java) }
+        config.getConfigurationSection("body_plan")?.getValues(true)?.let { AppState.bodyPlan = Serializer.fromMap(it, SymmetricalBodyPlan::class.java) }
 
         registerItems()
 
@@ -90,24 +91,24 @@ class SpiderAnimationPlugin : JavaPlugin() {
                 val valueUnParsed = args.getOrNull(2)
 
                 if (option == "reset") {
-                    val map = ObjectMapper.toMap(default)
-                    ObjectMapper.writeFromMap(obj, map)
+                    val map = Serializer.toMap(default) as Map<*, *>
+                    Serializer.writeFromMap(obj, map)
                     sender.sendMessage("Reset all options")
                 } else if (valueUnParsed == null) {
-                    val value = ObjectMapper.get(obj, option)
+                    val value = Serializer.get(obj, option)
                     sender.sendMessage("Option $option is $value")
                 } else if (valueUnParsed == "reset") {
-                    val value = ObjectMapper.get(default, option)
-                    ObjectMapper.set(obj, option, value)
+                    val value = Serializer.get(default, option)
+                    Serializer.set(obj, option, value)
                     sender.sendMessage("Reset option $option to $value")
                 } else {
-                    ObjectMapper.setJSON(obj, option, valueUnParsed)
-                    val value = ObjectMapper.get(obj, option)
+                    Serializer.setMap(obj, option, Gson().fromJson(valueUnParsed, Any::class.java))
+                    val value = Serializer.get(obj, option)
                     sender.sendMessage("Set option $option to $value")
                 }
 
                 for ((key, value) in options) {
-                    instance.config.set(key, ObjectMapper.toMap(value()))
+                    instance.config.set(key, Serializer.toMap(value()))
                 }
                 instance.saveConfig()
 
@@ -121,12 +122,13 @@ class SpiderAnimationPlugin : JavaPlugin() {
 
                 if (args.size == 2) {
                     val obj = options[args[0]]?.invoke() ?: return@setTabCompleter emptyList()
-                    val keys = ObjectMapper.toMap(obj).keys.map { it.toString() } + "reset"
+                    val map = Serializer.toMap(obj) as Map<*, *>
+                    val keys = map.keys.map { it.toString() } + "reset"
                     return@setTabCompleter keys.filter { it.contains(args.last(), true) }
                 }
 
                 val obj = options[args[0]]?.invoke() ?: return@setTabCompleter emptyList()
-                val map = ObjectMapper.toMap(obj)
+                val map = Serializer.toMap(obj) as Map<*, *>
                 val sample = map[args[1]]
                 val keys = (if (sample is Boolean) listOf("true", "false") else emptyList()) + "reset"
                 return@setTabCompleter keys.filter { it.contains(args.last(), true) }
@@ -173,9 +175,9 @@ class SpiderAnimationPlugin : JavaPlugin() {
                 AppState.walkGait.scale(scale / oldScale)
                 AppState.gallopGait.scale(scale / oldScale)
 
-                instance.config.set("body_plan", ObjectMapper.toMap(AppState.bodyPlan))
+                instance.config.set("body_plan", Serializer.toMap(AppState.bodyPlan))
                 for ((key, value) in options) {
-                    instance.config.set(key, ObjectMapper.toMap(value()))
+                    instance.config.set(key, Serializer.toMap(value()))
                 }
                 instance.saveConfig()
 

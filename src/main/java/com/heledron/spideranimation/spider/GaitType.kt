@@ -1,7 +1,5 @@
 package com.heledron.spideranimation.spider
 
-import com.heledron.spideranimation.sendDebugMessage
-
 object GallopGaitType {
     fun canMoveLeg(leg: Leg): Boolean {
         val spider = leg.spider
