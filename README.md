@@ -1,8 +1,8 @@
 # Spider
 ## Introduction
 This plugin was developed for a video series about procedural animations.
-- Procedural Walking Animation: https://youtu.be/Hc9x1e85L0w
-- Procedural Galloping Animation: https://youtu.be/r70xJytj0sw
+1. Procedural Walking Animation: https://youtu.be/Hc9x1e85L0w
+2. Procedural Galloping Animation: https://youtu.be/r70xJytj0sw
 
 ## Installation
 1. Download the JAR from the [releases page](https://github.com/TheCymaera/minecraft-spider/releases/).
