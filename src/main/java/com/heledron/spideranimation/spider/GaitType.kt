@@ -31,16 +31,16 @@ object WalkGaitType {
 object GallopGaitType {
     fun canMoveLeg(leg: Leg): Boolean {
         val spider = leg.spider
+        val index = spider.body.legs.indexOf(leg)
 
         if (!spider.isWalking) return WalkGaitType.canMoveLeg(leg)
 
-        val onGround = spider.body.legs.any { it.isGrounded() } || spider.body.onGround
-        if (!onGround) return false
-
-        val index = spider.body.legs.indexOf(leg)
-
         // always move if the target is not on ground
         if (!leg.target.isGrounded) return true
+
+        // only move when at least one leg is on the ground
+        val onGround = spider.body.legs.any { it.isGrounded() } || spider.body.onGround
+        if (!onGround) return false
 
         val pair = spider.body.legs[LegLookUp.horizontal(index)]
 
