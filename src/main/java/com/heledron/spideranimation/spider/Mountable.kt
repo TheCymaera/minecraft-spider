@@ -1,30 +1,41 @@
 package com.heledron.spideranimation.spider
 
-import com.heledron.spideranimation.*
+import com.heledron.spideranimation.utilities.*
+import org.bukkit.Material
+import org.bukkit.Sound
 import org.bukkit.entity.ArmorStand
 import org.bukkit.entity.Pig
+import org.bukkit.entity.minecart.CommandMinecart
+import org.bukkit.event.EventHandler
+import org.bukkit.event.Listener
+import org.bukkit.event.player.PlayerInteractEntityEvent
+import org.bukkit.event.vehicle.VehicleEnterEvent
+import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.util.Vector
 import java.io.Closeable
 
 class Mountable(val spider: Spider): SpiderComponent {
-    val pig = EntityRenderer<Pig>()
-    var marker = EntityRenderer<ArmorStand>()
+    val pig = ModelPartRenderer<Pig>()
+    var marker = ModelPartRenderer<ArmorStand>()
 
     var closable = mutableListOf<Closeable>()
 
     fun getRider() = marker.entity?.passengers?.firstOrNull()
 
     init {
-        closable += addEventListener(object : org.bukkit.event.Listener {
-            @org.bukkit.event.EventHandler
-            fun onInteract(event: org.bukkit.event.player.PlayerInteractEntityEvent) {
+        closable += pig
+        closable += marker
+
+        closable += addEventListener(object : Listener {
+            @EventHandler
+            fun onInteract(event: PlayerInteractEntityEvent) {
                 val pigEntity = pig.entity
                 if (event.rightClicked != pigEntity) return
-                if (event.hand != org.bukkit.inventory.EquipmentSlot.HAND) return
+                if (event.hand != EquipmentSlot.HAND) return
 
                 // if right click with saddle, add saddle (automatic)
-                if (event.player.inventory.itemInMainHand.type == org.bukkit.Material.SADDLE && !pigEntity.hasSaddle()) {
-                    playSound(pigEntity.location, org.bukkit.Sound.ENTITY_PIG_SADDLE, 1.0f, 1.0f)
+                if (event.player.inventory.itemInMainHand.type == Material.SADDLE && !pigEntity.hasSaddle()) {
+                    playSound(pigEntity.location, Sound.ENTITY_PIG_SADDLE, 1.0f, 1.0f)
                 }
 
                 // if right click with empty hand, remove saddle
@@ -35,9 +46,9 @@ class Mountable(val spider: Spider): SpiderComponent {
         })
 
         // when player mounts the pig, switch them to the marker entity
-        closable += addEventListener(object : org.bukkit.event.Listener {
-            @org.bukkit.event.EventHandler
-            fun onMount(event: org.bukkit.event.vehicle.VehicleEnterEvent) {
+        closable += addEventListener(object : Listener {
+            @EventHandler
+            fun onMount(event: VehicleEnterEvent) {
                 if (event.vehicle != pig.entity) return
                 val player = event.entered
                 val marker = marker.entity ?: return
@@ -54,7 +65,7 @@ class Mountable(val spider: Spider): SpiderComponent {
         val pigLocation = location.clone().add(Vector(.0, -.4, .0))
         val markerLocation = location.clone().add(Vector(.0, .5, .0))
 
-        pig.render(EntityRendererTemplate(
+        pig.render(ModelPart(
             clazz = Pig::class.java,
             location = pigLocation,
             init = {
@@ -67,7 +78,7 @@ class Mountable(val spider: Spider): SpiderComponent {
             }
         ))
 
-        marker.render(EntityRendererTemplate(
+        marker.render(ModelPart(
             clazz = ArmorStand::class.java,
             location = markerLocation,
             init = {
@@ -91,15 +102,13 @@ class Mountable(val spider: Spider): SpiderComponent {
 
     override fun close() {
         closable.forEach { it.close() }
-        pig.close()
-        marker.close()
     }
 }
 
 fun runCommandSilently(command: String) {
     val server = org.bukkit.Bukkit.getServer()
     val location = org.bukkit.Bukkit.getWorlds().first().spawnLocation
-    spawnEntity(location, org.bukkit.entity.minecart.CommandMinecart::class.java) {
+    spawnEntity(location, CommandMinecart::class.java) {
         it.setCommand(command)
         server.dispatchCommand(it, command)
         it.remove()

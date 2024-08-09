@@ -2,10 +2,11 @@ package com.heledron.spideranimation
 
 import com.google.gson.Gson
 import com.heledron.spideranimation.spider.*
-import com.heledron.spideranimation.items.CustomItemRegistry
-import com.heledron.spideranimation.items.registerItems
+import com.heledron.spideranimation.utilities.CustomItemRegistry
+import com.heledron.spideranimation.utilities.MultiModelRenderer
+import com.heledron.spideranimation.utilities.Serializer
+import com.heledron.spideranimation.utilities.interval
 import org.bukkit.*
-import org.bukkit.entity.BlockDisplay
 import org.bukkit.plugin.java.JavaPlugin
 import java.io.Closeable
 
@@ -25,12 +26,12 @@ class SpiderAnimationPlugin : JavaPlugin() {
     override fun onEnable() {
         instance = this
 
-        val targetRenderer = EntityRenderer<BlockDisplay>()
+        val renderer = MultiModelRenderer()
 
         closables += Closeable {
             AppState.spider?.close()
             AppState.chainVisualizer?.close()
-            targetRenderer.close()
+            renderer.close()
         }
 
         logger.info("Enabling Spider Animation plugin")
@@ -38,18 +39,20 @@ class SpiderAnimationPlugin : JavaPlugin() {
         val options = mapOf(
             "walk_gait" to { AppState.walkGait },
             "gallop_gait" to { AppState.gallopGait },
-            "options" to { AppState.spiderOptions },
+            "debug_options" to { AppState.debugOptions },
+            "body_plan" to { AppState.bodyPlan }
         )
         val defaultObjects = mapOf(
-            "walk_gait" to { Gait.defaultWalk().apply { scale(AppState.walkGait.getScale()) } },
-            "gallop_gait" to { Gait.defaultGallop().apply { scale(AppState.walkGait.getScale()) } },
-            "options" to { SpiderOptions() },
+            "walk_gait" to { Gait.defaultWalk().apply { scale(AppState.bodyPlan.storedScale) } },
+            "gallop_gait" to { Gait.defaultGallop().apply { scale(AppState.bodyPlan.storedScale) } },
+            "debug_options" to { SpiderDebugOptions() },
+            "body_plan" to { quadrupedBodyPlan(segmentCount = 3, segmentLength = 1.0) }
         )
 
         config.getConfigurationSection("walk_gait")?.getValues(true)?.let { AppState.walkGait = Serializer.fromMap(it, Gait::class.java) }
         config.getConfigurationSection("gallop_gait")?.getValues(true)?.let { AppState.gallopGait = Serializer.fromMap(it, Gait::class.java) }
-        config.getConfigurationSection("options")?.getValues(true)?.let { AppState.spiderOptions = Serializer.fromMap(it, SpiderOptions::class.java) }
-        config.getConfigurationSection("body_plan")?.getValues(true)?.let { AppState.bodyPlan = Serializer.fromMap(it, SymmetricalBodyPlan::class.java) }
+        config.getConfigurationSection("options")?.getValues(true)?.let { AppState.debugOptions = Serializer.fromMap(it, SpiderDebugOptions::class.java) }
+        config.getConfigurationSection("body_plan")?.getValues(true)?.let { AppState.bodyPlan = Serializer.fromMap(it, BodyPlan::class.java) }
 
         registerItems()
 
@@ -61,9 +64,12 @@ class SpiderAnimationPlugin : JavaPlugin() {
                 if (spider.mount.getRider() == null) spider.behaviour = StayStillBehaviour(spider)
             }
 
-            val targetVal = AppState.target ?: AppState.chainVisualizer?.target
-            if (targetVal != null) targetRenderer.render(targetTemplate(targetVal))
-            else targetRenderer.close()
+            (AppState.target ?: AppState.chainVisualizer?.target)?.let { target ->
+                renderer.render("target", targetModel(target))
+            }
+
+
+            renderer.flush()
 
             AppState.target = null
         }
@@ -90,21 +96,29 @@ class SpiderAnimationPlugin : JavaPlugin() {
                 val option = args.getOrNull(1) ?: return@setExecutor false
                 val valueUnParsed = args.getOrNull(2)
 
+                fun printable(obj: Any?) = Gson().toJson(obj)
+
                 if (option == "reset") {
                     val map = Serializer.toMap(default) as Map<*, *>
                     Serializer.writeFromMap(obj, map)
                     sender.sendMessage("Reset all options")
                 } else if (valueUnParsed == null) {
                     val value = Serializer.get(obj, option)
-                    sender.sendMessage("Option $option is $value")
+                    sender.sendMessage("Option $option is ${printable(value)}")
                 } else if (valueUnParsed == "reset") {
                     val value = Serializer.get(default, option)
                     Serializer.set(obj, option, value)
-                    sender.sendMessage("Reset option $option to $value")
+                    sender.sendMessage("Reset option $option to ${printable(value)}")
                 } else {
-                    Serializer.setMap(obj, option, Gson().fromJson(valueUnParsed, Any::class.java))
+                    val parsed = try {
+                        Gson().fromJson(valueUnParsed, Any::class.java)
+                    } catch (e: Exception) {
+                        sender.sendMessage("Could not parse: $valueUnParsed")
+                        return@setExecutor true
+                    }
+                    Serializer.setMap(obj, option, parsed)
                     val value = Serializer.get(obj, option)
-                    sender.sendMessage("Set option $option to $value")
+                    sender.sendMessage("Set option $option to ${printable(value)}")
                 }
 
                 for ((key, value) in options) {
@@ -122,9 +136,29 @@ class SpiderAnimationPlugin : JavaPlugin() {
 
                 if (args.size == 2) {
                     val obj = options[args[0]]?.invoke() ?: return@setTabCompleter emptyList()
-                    val map = Serializer.toMap(obj) as Map<*, *>
-                    val keys = map.keys.map { it.toString() } + "reset"
-                    return@setTabCompleter keys.filter { it.contains(args.last(), true) }
+                    val map = Serializer.toMap(obj)
+
+                    // get keys recursively
+                    val current = args.last()
+                    fun getKeys(obj: Any?, output: MutableList<String>, prefix: String = "") {
+                        // hide items on the next "layer"
+                        val suffix = prefix.slice(current.length + 1 until prefix.length)
+                        if (suffix.contains(".") || suffix.contains("[")) return
+
+                        if (prefix.isNotEmpty()) output.add(prefix)
+
+                        if (obj is Map<*, *>) {
+                            for ((key, value) in obj) getKeys(value, output, if (prefix.isNotEmpty()) "$prefix.$key" else key.toString())
+                        }
+                        if (obj is List<*>) {
+                            for ((index, value) in obj.withIndex()) getKeys(value, output, "$prefix[$index]")
+                        }
+                    }
+
+                    val keys = mutableListOf<String>()
+                    getKeys(map, keys)
+
+                    return@setTabCompleter keys.filter { it.startsWith(current, true) }
                 }
 
                 val obj = options[args[0]]?.invoke() ?: return@setTabCompleter emptyList()
@@ -153,6 +187,7 @@ class SpiderAnimationPlugin : JavaPlugin() {
 
         getCommand("body_plan")?.apply {
             val bodyPlanTypes = mapOf(
+                "biped" to ::bipedBodyPlan,
                 "quadruped" to ::quadrupedBodyPlan,
                 "hexapod" to ::hexapodBodyPlan,
                 "octopod" to ::octopodBodyPlan
@@ -162,16 +197,18 @@ class SpiderAnimationPlugin : JavaPlugin() {
                 val option = args.getOrNull(0) ?: return@setExecutor false
 
                 val scale = args.getOrNull(1)?.toDoubleOrNull() ?: 1.0
+                val segmentCount = args.getOrNull(2)?.toIntOrNull() ?: 3
+                val segmentLength = args.getOrNull(3)?.toDoubleOrNull() ?: 1.0
 
-                val builder = bodyPlanTypes[option]
-                if (builder == null) {
+                val bodyPlan = bodyPlanTypes[option]
+                if (bodyPlan == null) {
                     sender.sendMessage("Invalid body plan: $option")
                     return@setExecutor true
                 }
 
-                AppState.bodyPlan = builder().apply { scale(scale) }.create()
+                val oldScale = AppState.bodyPlan.storedScale
+                AppState.bodyPlan = bodyPlan(segmentCount, segmentLength).apply { scale(scale) }
 
-                val oldScale = AppState.walkGait.getScale()
                 AppState.walkGait.scale(scale / oldScale)
                 AppState.gallopGait.scale(scale / oldScale)
 
@@ -208,7 +245,6 @@ class SpiderAnimationPlugin : JavaPlugin() {
             }
 
             player.openInventory(inventory)
-
 
             return@setExecutor true
         }

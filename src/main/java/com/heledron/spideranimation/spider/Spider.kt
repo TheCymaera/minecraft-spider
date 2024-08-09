@@ -1,12 +1,11 @@
 package com.heledron.spideranimation.spider
 
-import com.heledron.spideranimation.*
+import com.heledron.spideranimation.utilities.horizontalLength
+import com.heledron.spideranimation.utilities.moveTowards
 import org.bukkit.Location
 import org.bukkit.util.Vector
-import sun.security.util.Debug
 import java.io.Closeable
 import kotlin.math.*
-
 
 interface SpiderComponent : Closeable {
     fun update() {}
@@ -14,25 +13,15 @@ interface SpiderComponent : Closeable {
     override fun close() {}
 }
 
-object EmptyComponent : SpiderComponent
-
-class SpiderOptions {
-    var gallop = false
-
-    var renderStraightenLegs = true
-    var renderSegmentLength = 1.0
-    var renderSegmentCount = 3
-    var renderSegmentThickness = 1.0
-    var renderStraightenRotation = -60.0
-
-    var debugScanBars = true
-    var debugTriggerZones = true
-    var debugEndEffectors = true
-    var debugTargetPositions = true
-    var debugLegPolygons = true
-    var debugCentreOfMass = true
-    var debugBodyAcceleration = true
-    var debugDirection = true
+class SpiderDebugOptions {
+    var scanBars = true
+    var triggerZones = true
+    var endEffectors = true
+    var targetPositions = true
+    var legPolygons = true
+    var centreOfMass = true
+    var normalForce = true
+    var direction = true
 }
 
 class Gait(
@@ -54,11 +43,7 @@ class Gait(
         }
     }
 
-    fun getScale() = zzzStoredScale
-
     fun scale(scale: Double) {
-        this.zzzStoredScale *= scale
-
         walkSpeed *= scale
         walkAcceleration *= scale
         legMoveSpeed *= scale
@@ -73,16 +58,12 @@ class Gait(
         legScanHeightBias *= scale
     }
 
-
-    /** Used for tracking the scale. It's prefixed with zzz so that it appears last in auto-completion */
-    var zzzStoredScale = 1.0
-
     var gallop = gallop
 
     var walkSpeed = walkSpeed
     var walkAcceleration = .15 / 4
 
-    var rotateSpeed = .15
+    var rotateSpeed = .15; private set
 
     var legMoveSpeed = walkSpeed * 3
 
@@ -105,10 +86,6 @@ class Gait(
     var bodyHeightCorrectionAcceleration = gravityAcceleration * 4
     var bodyHeightCorrectionFactor = .25
 
-    var legStraightenMinRotation = -90.0
-    var legStraightenMaxRotation = -20.0
-    var legNoStraighten = false
-
     var legScanAlternativeGround = true
     var legScanHeightBias = .5
 
@@ -120,8 +97,6 @@ class Gait(
     var legGallopHorizontalCooldown = 1
     var legGallopVerticalCooldown = 4
 
-    var adjustLookAheadDistance = true
-
     var useLegacyNormalForce = false
     var polygonLeeway = .0
     var stabilizationFactor = 0.7
@@ -130,13 +105,16 @@ class Gait(
 }
 
 
-class Spider(val location: Location, val bodyPlan: SpiderBodyPlan): Closeable {
-    var options = SpiderOptions()
+class Spider(var location: Location, val bodyPlan: BodyPlan): Closeable {
+    var gallop = false
+    var showDebugVisuals = false
+
+    var debugOptions = SpiderDebugOptions()
 
     var walkGait = Gait.defaultWalk()
     var gallopGait = Gait.defaultGallop()
 
-    val gait get() = if (options.gallop) gallopGait else walkGait
+    val gait get() = if (gallop) gallopGait else walkGait
 
     var isWalking = false; private set
     var isRotatingYaw = false; private set
@@ -149,28 +127,17 @@ class Spider(val location: Location, val bodyPlan: SpiderBodyPlan): Closeable {
 
     val cloak = Cloak(this)
     val sound = SoundEffects(this)
-    var mount = Mountable(this)
-
-    var behaviour: SpiderComponent = StayStillBehaviour(this)
-    set (value) {
-        field.close()
-        field = value
-    }
-    var renderer: SpiderComponent = SpiderEntityRenderer(this)
-    set (value) {
-        field.close()
-        field = value
-    }
-
-    var debugRenderer: DebugRenderer? = DebugRenderer(this)
-    set (value) {
-        field?.close()
-        field = value
-    }
-
-//    val isGalloping get() = velocity.length() > gait.gallopBreakpoint * gait.walkSpeed && isWalking
-
+    val mount = Mountable(this)
     val pointDetector = PointDetector(this)
+
+    var behaviour: Behaviour = StayStillBehaviour(this)
+
+    var renderer: SpiderComponent = SpiderRenderer(this)
+    set (value) {
+        field.close()
+        field = value
+    }
+
 
     override fun close() {
         getComponents().forEach { it.close() }
@@ -179,19 +146,46 @@ class Spider(val location: Location, val bodyPlan: SpiderBodyPlan): Closeable {
     fun teleport(newLocation: Location) {
         val diff = newLocation.toVector().subtract(location.toVector())
 
-        copyLocation(location, newLocation)
-
-        for (leg in body.legs) {
-            leg.endEffector.add(diff)
-//            for (segment in leg.chain.segments) segment.position.add(diff)
-        }
+        location = newLocation
+        for (leg in body.legs) leg.endEffector.add(diff)
     }
 
-    fun rotateTowards(targetDirection: Vector) {
+    fun getComponents() = iterator<SpiderComponent> {
+        yield(cloak)
+        yield(body)
+        yield(sound)
+        yield(mount)
+        yield(pointDetector)
+        yield(renderer)
+    }
+
+    fun update() {
+        // update behaviour
+        behaviour.update()
+        walkAt(behaviour.targetVelocity)
+        rotateTowards(behaviour.targetDirection)
+
+
+        for (component in getComponents()) component.update()
+        for (component in getComponents()) component.render()
+    }
+
+    fun relativePosition(point: Vector, pitch: Float = location.pitch): Vector {
+        return location.toVector().add(relativeVector(point, pitch))
+    }
+
+    fun relativeVector(point: Vector, pitch: Float = location.pitch): Vector {
+        val out = point.clone()
+        out.rotateAroundX(Math.toRadians(pitch.toDouble()))
+        out.rotateAroundY(-Math.toRadians(location.yaw.toDouble()))
+        return out
+    }
+
+    private fun rotateTowards(targetDirection: Vector) {
         // pitch
         val targetPitch = -Math.toDegrees(atan2(targetDirection.y, horizontalLength(targetDirection))).coerceIn(-30.0, 30.0)
         val oldPitch = location.pitch
-        location.pitch = lerpNumberByConstant(oldPitch.toDouble(), targetPitch, Math.toDegrees(gait.rotateSpeed)).toFloat()//.coerceIn(minPitch, maxPitch)
+        location.pitch = oldPitch.toDouble().moveTowards(targetPitch, Math.toDegrees(gait.rotateSpeed)).toFloat()//.coerceIn(minPitch, maxPitch)
         isRotatingPitch = abs(targetPitch - oldPitch) > 0.0001
 
         // yaw
@@ -211,13 +205,13 @@ class Spider(val location: Location, val bodyPlan: SpiderBodyPlan): Closeable {
         rotateVelocity = 0.0
         if (!isRotatingYaw || body.legs.any { it.isUncomfortable && !it.isMoving }) return
 
-        val newYaw = lerpNumberByConstant(oldYaw, optimizedTargetYaw, maxSpeed)
+        val newYaw = oldYaw.moveTowards(optimizedTargetYaw, maxSpeed)
         location.yaw = Math.toDegrees(newYaw).toFloat()
 
         rotateVelocity = -(newYaw - oldYaw)
     }
 
-    fun walkAt(targetVelocity: Vector) {
+    private fun walkAt(targetVelocity: Vector) {
         val acceleration = gait.walkAcceleration// * body.legs.filter { it.isGrounded() }.size / body.legs.size
         val target = targetVelocity.clone()
 
@@ -225,44 +219,11 @@ class Spider(val location: Location, val bodyPlan: SpiderBodyPlan): Closeable {
 
         if (body.legs.any { it.isUncomfortable && !it.isMoving }) { //  && !it.targetOutsideComfortZone
             val scaled = target.setY(velocity.y).multiply(gait.uncomfortableSpeedMultiplier)
-            lerpVectorByConstant(velocity, scaled, acceleration)
+            velocity.moveTowards(scaled, acceleration)
         } else {
-            lerpVectorByConstant(velocity, target.setY(velocity.y), acceleration)
+            velocity.moveTowards(target.setY(velocity.y), acceleration)
             isWalking = velocity.x != 0.0 && velocity.z != 0.0
         }
-    }
-
-    fun getComponents() = iterator<SpiderComponent> {
-        yield(cloak)
-        yield(behaviour)
-        yield(body)
-        yield(renderer)
-        yield(debugRenderer ?: EmptyComponent)
-        yield(sound)
-        yield(mount)
-        yield(pointDetector)
-    }
-
-    fun update() {
-        // update behaviour
-        isRotatingYaw = false
-        rotateVelocity = 0.0
-        isWalking = false
-
-        for (component in getComponents()) component.update()
-
-        for (component in getComponents()) component.render()
-    }
-
-    fun relativePosition(point: Vector, pitch: Float = location.pitch): Vector {
-        return location.toVector().add(relativeVector(point, pitch))
-    }
-
-    fun relativeVector(point: Vector, pitch: Float = location.pitch): Vector {
-        val out = point.clone()
-        out.rotateAroundX(Math.toRadians(pitch.toDouble()))
-        out.rotateAroundY(-Math.toRadians(location.yaw.toDouble()))
-        return out
     }
 }
 

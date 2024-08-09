@@ -1,6 +1,6 @@
 package com.heledron.spideranimation.spider
 
-import com.heledron.spideranimation.lookingAtPoint
+import com.heledron.spideranimation.utilities.lookingAtPoint
 import org.bukkit.Location
 import org.bukkit.entity.Player
 

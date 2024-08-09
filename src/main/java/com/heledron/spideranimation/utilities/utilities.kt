@@ -1,5 +1,6 @@
-package com.heledron.spideranimation
+package com.heledron.spideranimation.utilities
 
+import com.heledron.spideranimation.SpiderAnimationPlugin
 import net.md_5.bungee.api.ChatMessageType
 import org.bukkit.Bukkit
 import org.bukkit.ChatColor
@@ -14,9 +15,6 @@ import org.bukkit.util.Transformation
 import org.bukkit.util.Vector
 import org.joml.*
 import java.io.Closeable
-import kotlin.math.abs
-import kotlin.math.sign
-import kotlin.math.sqrt
 
 
 fun runLater(delay: Long, task: () -> Unit): Closeable {
@@ -98,9 +96,6 @@ fun isOnGround(location: Location): Boolean {
     return raycastGround(location, DOWN_VECTOR, 0.001) != null
 }
 
-val DOWN_VECTOR; get () = Vector(0, -1, 0)
-val UP_VECTOR; get () = Vector(0, 1, 0)
-
 data class CollisionResult(val position: Vector, val offset: Vector)
 
 fun resolveCollision(location: Location, direction: Vector): CollisionResult? {
@@ -111,75 +106,6 @@ fun resolveCollision(location: Location, direction: Vector): CollisionResult? {
     }
 
     return null
-}
-
-fun lerpNumberByFactor(current: Double, target: Double, factor: Double): Double {
-    return current + (target - current) * factor
-}
-
-fun lerpNumberByConstant(current: Double, target: Double, constant: Double): Double {
-    val distance = target - current
-    return if (abs(distance) < constant) target else current + constant * distance.sign
-}
-
-fun lerpVectorByConstant(current: Vector, target: Vector, constant: Double) {
-    val diff = target.clone().subtract(current)
-    val distance = diff.length()
-    if (distance <= constant) {
-        current.copy(target)
-    } else {
-        current.add(diff.multiply(constant / distance))
-    }
-}
-
-fun lerpVectorByFactor(current: Vector, target: Vector, factor: Double) {
-    current.add(target.clone().subtract(current).multiply(factor))
-}
-
-fun verticalDistance(a: Vector, b: Vector): Double {
-    return abs(a.y - b.y)
-}
-
-fun horizontalDistance(a: Vector, b: Vector): Double {
-    val x = a.x - b.x
-    val z = a.z - b.z
-    return sqrt(x * x + z * z)
-}
-
-fun horizontalLength(vector: Vector): Double {
-    return sqrt(vector.x * vector.x + vector.z * vector.z)
-}
-
-fun rotateYAbout(out: Vector, angle: Double, origin: Vector) {
-    out.subtract(origin).rotateAroundY(angle).add(origin)
-}
-
-class SplitDistance(val horizontal: Double, val vertical: Double) {
-    fun contains(origin: Vector, point: Vector): Boolean {
-        return horizontalDistance(origin, point) <= horizontal && verticalDistance(origin, point) <= vertical
-
-    }
-    companion object {
-        fun distance(a: Vector, b: Vector): SplitDistance {
-            return SplitDistance(horizontalDistance(a, b), verticalDistance(a, b))
-        }
-    }
-}
-
-fun averageVector(vectors: List<Vector>): Vector {
-    val out = Vector(0, 0, 0)
-    for (vector in vectors) out.add(vector)
-    out.multiply(1.0 / vectors.size)
-    return out
-}
-
-fun copyLocation(location: Location, from: Location) {
-    location.world = from.world
-    location.x = from.x
-    location.y = from.y
-    location.z = from.z
-    location.pitch = from.pitch
-    location.yaw = from.yaw
 }
 
 fun playSound(location: Location, sound: org.bukkit.Sound, volume: Float, pitch: Float) {
@@ -198,60 +124,6 @@ fun <T> spawnParticle(particle: org.bukkit.Particle, location: Location, count: 
     location.world!!.spawnParticle(particle, location, count, offsetX, offsetY, offsetZ, extra, data)
 }
 
-fun pointInPolygon(point: Vector2d, polygon: List<Vector2d>): Boolean {
-    // count intersections
-    var count = 0
-    for (i in polygon.indices) {
-        val a = polygon[i]
-        val b = polygon[(i + 1) % polygon.size]
-
-        if (a.y <= point.y && b.y > point.y || b.y <= point.y && a.y > point.y) {
-            val slope = (b.x - a.x) / (b.y - a.y)
-            val intersect = a.x + (point.y - a.y) * slope
-            if (intersect < point.x) count++
-        }
-    }
-
-    return count % 2 == 1
-}
-
-fun nearestPointInPolygon(point: Vector2d, polygon: List<Vector2d>): Vector2d {
-    var closest = polygon[0]
-    var closestDistance = point.distance(closest)
-
-    for (i in polygon.indices) {
-        val a = polygon[i]
-        val b = polygon[(i + 1) % polygon.size]
-
-        val closestOnLine = nearestPointOnClampedLine(point, a, b) ?: continue
-        val distance = point.distance(closestOnLine)
-
-        if (distance < closestDistance) {
-            closest = closestOnLine
-            closestDistance = distance
-        }
-    }
-
-    return closest
-}
-
-fun nearestPointOnClampedLine(point: Vector2d, a: Vector2d, b: Vector2d): Vector2d {
-    val ap = Vector2d(point.x - a.x, point.y - a.y)
-    val ab = Vector2d(b.x - a.x, b.y - a.y)
-
-    val dotProduct = ap.dot(ab)
-    val lengthAB = a.distance(b)
-
-    val t = dotProduct / (lengthAB * lengthAB)
-
-    // Ensure the nearest point lies within the line segment
-    val tClamped = t.coerceIn(0.0, 1.0)
-
-    val nearestX = a.x + tClamped * ab.x
-    val nearestY = a.y + tClamped * ab.y
-
-    return Vector2d(nearestX, nearestY)
-}
 
 fun lookingAtPoint(eye: Vector, direction: Vector, point: Vector, tolerance: Double): Boolean {
     val pointDistance = eye.distance(point)

@@ -1,31 +1,5 @@
 package com.heledron.spideranimation.spider
 
-object GallopGaitType {
-    fun canMoveLeg(leg: Leg): Boolean {
-        val spider = leg.spider
-        val index = spider.body.legs.indexOf(leg)
-
-        // always move if the target is not on ground
-        if (!leg.target.isGrounded) return true
-
-        val pair = spider.body.legs[LegLookUp.horizontal(index)]
-
-        leg.isPrimary = LegLookUp.isDiagonal1(index) || pair.isDisabled || !pair.target.isGrounded
-
-        if (leg.isPrimary) {
-            // cooldown
-            val front = spider.body.legs.getOrNull(LegLookUp.diagonalFront(index))
-            val back = spider.body.legs.getOrNull(LegLookUp.diagonalBack(index))
-            if (listOfNotNull(front, back).any { hasCooldown(it, spider.gait.legGallopVerticalCooldown) }) return false
-
-            return leg.isOutsideTriggerZone || !leg.touchingGround
-        } else {
-            return pair.isMoving && !hasCooldown(pair, spider.gait.legGallopHorizontalCooldown)
-        }
-    }
-}
-
-
 object WalkGaitType {
     fun canMoveLeg(leg: Leg): Boolean {
         val spider = leg.spider
@@ -51,6 +25,37 @@ object WalkGaitType {
         val onGround = spider.body.legs.any { it.isGrounded() } || spider.body.onGround
 
         return wantsToMove && !alreadyAtTarget && onGround
+    }
+}
+
+object GallopGaitType {
+    fun canMoveLeg(leg: Leg): Boolean {
+        val spider = leg.spider
+
+        if (!spider.isWalking) return WalkGaitType.canMoveLeg(leg)
+
+        val onGround = spider.body.legs.any { it.isGrounded() } || spider.body.onGround
+        if (!onGround) return false
+
+        val index = spider.body.legs.indexOf(leg)
+
+        // always move if the target is not on ground
+        if (!leg.target.isGrounded) return true
+
+        val pair = spider.body.legs[LegLookUp.horizontal(index)]
+
+        leg.isPrimary = LegLookUp.isDiagonal1(index) || pair.isDisabled || !pair.target.isGrounded
+
+        if (leg.isPrimary) {
+            // cooldown
+            val front = spider.body.legs.getOrNull(LegLookUp.diagonalFront(index))
+            val back = spider.body.legs.getOrNull(LegLookUp.diagonalBack(index))
+            if (listOfNotNull(front, back).any { hasCooldown(it, spider.gait.legGallopVerticalCooldown) }) return false
+
+            return leg.isOutsideTriggerZone || !leg.touchingGround
+        } else {
+            return pair.isMoving && !hasCooldown(pair, spider.gait.legGallopHorizontalCooldown)
+        }
     }
 }
 

@@ -1,36 +1,208 @@
 package com.heledron.spideranimation.spider
 
-import com.heledron.spideranimation.*
-import org.bukkit.Material
-import org.bukkit.World
+import com.heledron.spideranimation.utilities.*
+import org.bukkit.*
+import org.bukkit.block.data.BlockData
 import org.bukkit.entity.Trident
+import org.bukkit.util.RayTraceResult
+import java.util.WeakHashMap
+import kotlin.math.abs
 
 class Cloak(var  spider: Spider) : SpiderComponent {
     var active = false
-    var onGetHitByTrident = EventEmitter()
-    var onCloakDamaged = EventEmitter()
-    var onToggle = EventEmitter()
+    val onCloakDamaged = EventEmitter()
+    val onToggle = EventEmitter()
+
+    private var cloakMaterial = WeakHashMap<Pair<Int, Int>, Material>()
+    private var cloakGlitching = false
+
+    init {
+        spider.body.onGetHitByTrident.listen {
+            if (active) onCloakDamaged.emit()
+            active = false
+        }
+
+        onCloakDamaged.listen {
+            breakCloak()
+        }
+    }
+
+    override fun update() {
+        for ((legIndex, leg) in spider.body.legs.withIndex()) {
+            val chain = leg.chain
+            for ((segmentIndex, _) in chain.segments.withIndex()) {
+                val segment = legIndex to segmentIndex
+
+                val location = (chain.segments.getOrNull(segmentIndex - 1)?.position ?: chain.root).toLocation(spider.location.world!!)
+                val vector = chain.segments[segmentIndex].position.clone().subtract(location.toVector())
+
+                if (!cloakGlitching) {
+                    val otherSegments = (0 until chain.segments.size).map { Pair(legIndex, it) }.filter { it != segment }
+
+                    val centre = location.clone().add(vector.clone().multiply(0.5))
+                    applyCloak(segment, centre, otherSegments)
+                }
+
+            }
+        }
+    }
 
     fun toggleCloak() {
         active = !active
         onToggle.emit()
     }
 
-    override fun update() {
-        val tridents = spider.location.world!!.getNearbyEntities(spider.location, 1.5, 1.5, 1.5) {
-            it is Trident && it.shooter != spider.mount.getRider()
-        }
-        for (trident in tridents) {
-            if (trident != null && trident.velocity.length() > 2.0) {
-                val tridentDirection = trident.velocity.normalize()
+    fun getSegment(segment: Pair<Int, Int>): BlockData? {
+        return cloakMaterial[segment]?.createBlockData()
+    }
 
-                trident.velocity = tridentDirection.clone().multiply(-.3)
-                onGetHitByTrident.emit()
-                if (active) onCloakDamaged.emit()
-                active = false
 
-                spider.velocity.add(tridentDirection.multiply(spider.gait.tridentKnockBack))
+    private fun breakCloak() {
+        cloakGlitching = true
+
+        val originalMaterials = cloakMaterial.toList()
+
+        var maxTime = 0
+        for ((segment, originalBlock) in originalMaterials) {
+            val scheduler = SeriesScheduler()
+
+            fun randomSleep(min: Int, max: Int) {
+                scheduler.sleep((min + Math.random() * (max - min)).toLong())
             }
+
+            val glitchBlocks = listOf(
+                Material.LIGHT_BLUE_GLAZED_TERRACOTTA,
+//                Material.BLUE_GLAZED_TERRACOTTA,
+                Material.CYAN_GLAZED_TERRACOTTA,
+                Material.WHITE_GLAZED_TERRACOTTA,
+                Material.GRAY_GLAZED_TERRACOTTA,
+                null,
+                originalBlock
+            )
+
+            randomSleep(0, 3)
+            for (i in 0 until (Math.random() * 4).toInt()) {
+                val transitionBlock = glitchBlocks[(Math.random() * glitchBlocks.size).toInt()]
+
+                scheduler.run {
+                    cloakMaterial[segment] = transitionBlock
+                    if (Math.random() < .5) {
+                        val (legIndex, segmentIndex) = segment
+                        val chain = spider.body.legs[legIndex].chain
+                        val location = (chain.segments.getOrNull(segmentIndex - 1)?.position ?: chain.root).toLocation(spider.location.world!!)
+                        spawnParticle(Particle.FISHING, location, (1 * Math.random()).toInt(), .3, .3, .3, 0.0)
+                    }
+                }
+
+                scheduler.sleep(2L)
+            }
+
+            scheduler.run { cloakMaterial[segment] = null }
+
+            if (Math.random() < 1.0 / 6) continue
+
+            randomSleep(0, 3)
+
+            for (i in 0 until  (Math.random() * 3).toInt()) {
+                scheduler.run {
+                    val randomBlock = originalMaterials[(Math.random() * originalMaterials.size).toInt()].second
+                    cloakMaterial[segment] = randomBlock
+                }
+
+                randomSleep(5, 15)
+
+                scheduler.run { cloakMaterial[segment] = null }
+                scheduler.sleep(2L)
+            }
+
+            if (scheduler.time > maxTime) maxTime = scheduler.time.toInt()
+        }
+
+        runLater(maxTime.toLong()) {
+            cloakGlitching = false
+        }
+    }
+
+    private fun applyCloak(segment: Pair<Int, Int>, centre: Location, otherSegments: List<Pair<Int, Int>>) {
+        val currentMaterial = cloakMaterial[segment]
+
+        if (!spider.cloak.active) {
+            if (currentMaterial != null) {
+                transitionSegmentBlock(
+                    segment,
+                    (Math.random() * 3).toInt(),
+                    (Math.random() * 3).toInt(),
+                    null
+                )
+            }
+            return
+        }
+
+        fun groundCast(): RayTraceResult? {
+            return raycastGround(centre, DOWN_VECTOR, 5.0)
+        }
+        fun cast(): RayTraceResult? {
+            val targetPlayer = Bukkit.getOnlinePlayers().firstOrNull()
+            if (targetPlayer != null) {
+                val direction = centre.toVector().subtract(targetPlayer.eyeLocation.toVector())
+                val rayCast = raycastGround(centre, direction, 30.0)
+                if (rayCast != null) return rayCast
+            }
+            return groundCast()
+        }
+
+        val rayTrace = cast()
+        if (rayTrace != null) {
+            val palette = getCloakPalette(rayTrace.hitBlock!!.blockData.material)
+            if (palette.isNotEmpty()) {
+                val hash = abs(centre.x.toInt() + centre.z.toInt())
+                val choice = palette[hash % palette.size]
+
+                if (currentMaterial !== choice) {
+                    val alreadyInPalette = palette.contains(currentMaterial)
+                    val doGlitch = Math.random() < 1.0 / 2 || currentMaterial == null
+
+                    val waitTime = if (alreadyInPalette || !doGlitch) 0 else (Math.random() * 3).toInt()
+                    val glitchTime = if (alreadyInPalette || !doGlitch) 0 else (Math.random() * 3).toInt()
+
+                    transitionSegmentBlock(segment, waitTime, glitchTime, choice)
+                }
+            } else {
+                // take block from another segment
+                val other = otherSegments
+                    .firstOrNull { cloakMaterial[it] != null }
+                    ?: otherSegments.firstOrNull()
+
+                val otherMaterial = cloakMaterial[other]
+
+                if (other != null && currentMaterial != otherMaterial) {
+                    transitionSegmentBlock(
+                        segment,
+                        (Math.random() * 3).toInt(),
+                        (Math.random() * 3).toInt(),
+                        otherMaterial
+                    )
+                }
+            }
+        }
+    }
+
+
+    val transitioningSegments = ArrayList<Pair<Int, Int>>()
+    fun transitionSegmentBlock(segment: Pair<Int, Int>, waitTime: Int, glitchTime: Int, newBlock: Material?) {
+        if (transitioningSegments.contains(segment)) return
+        transitioningSegments.add(segment)
+
+        val scheduler = SeriesScheduler()
+        scheduler.sleep(waitTime.toLong())
+        scheduler.run {
+            cloakMaterial[segment] = Material.GRAY_GLAZED_TERRACOTTA
+        }
+
+        scheduler.sleep(glitchTime.toLong())
+        scheduler.run {
+            cloakMaterial[segment] = newBlock
+            transitioningSegments.remove(segment)
         }
     }
 }

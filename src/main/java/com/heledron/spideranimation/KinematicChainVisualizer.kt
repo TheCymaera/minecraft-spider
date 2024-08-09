@@ -1,8 +1,8 @@
 package com.heledron.spideranimation
 
+import com.heledron.spideranimation.utilities.*
 import org.bukkit.Location
 import org.bukkit.Material
-import org.bukkit.entity.BlockDisplay
 import org.bukkit.entity.Display
 import org.bukkit.util.Vector
 import java.io.Closeable
@@ -30,7 +30,7 @@ class KinematicChainVisualizer(
         render()
     }
 
-    val renderer = MultiEntityRenderer()
+    val renderer = ModelRenderer()
     override fun close() {
         renderer.close()
     }
@@ -130,18 +130,17 @@ class KinematicChainVisualizer(
 
     fun render() {
         if (detailed) {
-            renderDetailed()
+            renderer.render(renderDetailed())
         } else {
-            renderNormal()
+            renderer.render(renderNormal())
         }
 
     }
 
-    private fun renderNormal() {
-        renderer.beginRender()
+    private fun renderNormal(): Model {
+        val model = Model()
 
         val previous = previous
-
         for (i in segments.indices) {
             val thickness = (segments.size - i) * 1.5f/16f
 
@@ -153,7 +152,7 @@ class KinematicChainVisualizer(
             if (!vector.isZero) vector.normalize().multiply(segment.length)
             val location = segment.position.clone().subtract(vector.clone()).toLocation(root.world!!)
 
-            renderer.render(i, lineTemplate(
+            model.add(i, lineModel(
                 location = location,
                 vector = vector,
                 thickness = thickness,
@@ -165,11 +164,11 @@ class KinematicChainVisualizer(
             ))
         }
 
-        renderer.finishRender()
+        return model
     }
 
-    private fun renderDetailed(subStage: Int = 0) {
-        renderer.beginRender()
+    private fun renderDetailed(subStage: Int = 0): Model {
+        val model = Model()
 
         val previous = previous
 
@@ -215,13 +214,14 @@ class KinematicChainVisualizer(
                 .add(arrow.clone().multiply(0.5))
                 .add(crossProduct.rotateAroundAxis(arrow, Math.toRadians(-90.0)).multiply(.5))
 
-            renderer.render("arrow_length", textTemplate(
+            model.add("arrow_length", textModel(
                 location = arrowCenter.toLocation(root.world!!),
                 text = String.format("%.2f", arrow.length()),
                 interpolation = 3,
-            ))
+            )
+            )
 
-            renderer.renderList("arrow", arrowTemplate(
+            model.add("arrow", arrowTemplate(
                 location = arrowStart.toLocation(root.world!!),
                 vector = arrow,
                 thickness = .101f,
@@ -229,17 +229,17 @@ class KinematicChainVisualizer(
             ))
         }
 
-        renderer.render("root", pointTemplate(root, Material.DIAMOND_BLOCK))
+        model.add("root", pointTemplate(root, Material.DIAMOND_BLOCK))
 
         for (i in renderedSegments.indices) {
             val segment = renderedSegments[i]
-            renderer.render("p$i", pointTemplate(segment.position.toLocation(root.world!!), Material.EMERALD_BLOCK))
+            model.add("p$i", pointTemplate(segment.position.toLocation(root.world!!), Material.EMERALD_BLOCK))
 
             val prev = renderedSegments.getOrNull(i - 1)?.position ?: root.toVector()
 
             val (a,b) = prev to segment.position
 
-            renderer.render(i, lineTemplate(
+            model.add(i, lineModel(
                 location = a.toLocation(root.world!!),
                 vector = b.clone().subtract(a),
                 thickness = .1f,
@@ -251,11 +251,11 @@ class KinematicChainVisualizer(
             ))
         }
 
-        renderer.finishRender()
+        return model
     }
 }
 
-fun pointTemplate(location: Location, block: Material) = blockTemplate(
+fun pointTemplate(location: Location, block: Material) = blockModel(
     location = location,
     init = {
         it.block = block.createBlockData()
@@ -270,8 +270,8 @@ fun arrowTemplate(
     vector: Vector,
     thickness: Float,
     interpolation: Int
-): List<EntityRendererTemplate<BlockDisplay>> {
-    val line = lineTemplate(
+): Model {
+    val line = lineModel(
         location = location,
         vector = vector,
         thickness = thickness,
@@ -291,7 +291,7 @@ fun arrowTemplate(
     val tipRotation = 30.0
 
 
-    val top = lineTemplate(
+    val top = lineModel(
         location = tip,
         vector = tipDirection.clone().rotateAroundAxis(crossProduct, Math.toRadians(tipRotation)),
         thickness = thickness,
@@ -302,7 +302,7 @@ fun arrowTemplate(
         },
     )
 
-    val bottom = lineTemplate(
+    val bottom = lineModel(
         location = tip,
         vector = tipDirection.clone().rotateAroundAxis(crossProduct, Math.toRadians(-tipRotation)),
         thickness = thickness,
@@ -313,5 +313,10 @@ fun arrowTemplate(
         },
     )
 
-    return listOf(line, top, bottom)
+    return Model(
+        "line" to line,
+        "top" to top,
+        "bottom" to bottom,
+    )
+
 }

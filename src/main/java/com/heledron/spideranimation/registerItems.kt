@@ -1,15 +1,17 @@
-package com.heledron.spideranimation.items
+package com.heledron.spideranimation
 
-import com.heledron.spideranimation.*
-import com.heledron.spideranimation.spider.*
+import com.heledron.spideranimation.spider.DirectionBehaviour
+import com.heledron.spideranimation.spider.SpiderParticleRenderer
+import com.heledron.spideranimation.spider.SpiderRenderer
+import com.heledron.spideranimation.spider.TargetBehaviour
+import com.heledron.spideranimation.utilities.*
 import org.bukkit.Material
 import org.bukkit.Sound
 import org.bukkit.inventory.ItemStack
 import kotlin.math.roundToInt
 
-fun registerItems() {
-    CustomItemRegistry.initialize()
 
+fun registerItems() {
     CustomItemRegistry.items += CustomItem(
         id = "spider",
         defaultItem = createNamedItem(Material.NETHERITE_INGOT, "Spider"),
@@ -57,14 +59,11 @@ fun registerItems() {
         id = "toggleDebug",
         defaultItem = createNamedItem(Material.BLAZE_ROD, "Toggle Debug Graphics"),
         onRightClick = { player ->
-            val pitch = if (AppState.spider?.debugRenderer == null) 2.0f else 1.5f
+            AppState.showDebugVisuals = !AppState.showDebugVisuals
+            AppState.chainVisualizer?.detailed = AppState.showDebugVisuals
+
+            val pitch = if (AppState.showDebugVisuals) 2.0f else 1.5f
             playSound(player.location, Sound.BLOCK_DISPENSER_FAIL, 1.0f, pitch)
-
-            AppState.spider?.let {
-                it.debugRenderer = if (it.debugRenderer == null) DebugRenderer(it) else null
-            }
-
-            AppState.chainVisualizer?.detailed = !AppState.chainVisualizer!!.detailed
         }
     )
 
@@ -74,12 +73,12 @@ fun registerItems() {
         onRightClick = { player ->
             val spider = AppState.spider ?: return@CustomItem
 
-            spider.renderer = if (spider.renderer is SpiderEntityRenderer) {
+            spider.renderer = if (spider.renderer is SpiderRenderer) {
                 playSound(player.location, Sound.ENTITY_AXOLOTL_ATTACK, 1.0f, 1.0f)
-                ParticleRenderer(spider)
+                SpiderParticleRenderer(spider)
             } else {
                 playSound(player.location, Sound.ITEM_ARMOR_EQUIP_NETHERITE, 1.0f, 1.0f)
-                SpiderEntityRenderer(spider)
+                SpiderRenderer(spider)
             }
         }
     )
@@ -117,8 +116,8 @@ fun registerItems() {
         defaultItem = createNamedItem(Material.BREEZE_ROD, "Switch Gait"),
         onRightClick = { player ->
             playSound(player.location, Sound.BLOCK_DISPENSER_FAIL, 1.0f, 2.0f)
-            AppState.spiderOptions.gallop = !AppState.spiderOptions.gallop
-            sendActionBar(player, if (!AppState.spiderOptions.gallop) "Walk mode" else "Gallop mode")
+            AppState.gallop = !AppState.gallop
+            sendActionBar(player, if (!AppState.gallop) "Walk mode" else "Gallop mode")
         }
     )
 
@@ -156,7 +155,7 @@ fun registerItems() {
         defaultItem = ItemStack(Material.CARROT_ON_A_STICK),
         onHeldTick = { player ->
             AppState.spider?.let { it.behaviour = TargetBehaviour(it, player.eyeLocation, run {
-                if (it.gait.legNoStraighten) 2.0
+                if (it.bodyPlan.straightenLegs) 2.0
                 else it.gait.bodyHeight * 5.0
             }) }
         }

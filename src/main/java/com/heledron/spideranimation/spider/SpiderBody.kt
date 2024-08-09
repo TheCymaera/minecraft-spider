@@ -1,8 +1,11 @@
 package com.heledron.spideranimation.spider
 
 import com.heledron.spideranimation.*
+import com.heledron.spideranimation.utilities.*
 import org.bukkit.Location
+import org.bukkit.entity.Trident
 import org.bukkit.util.Vector
+import org.joml.Vector2d
 import kotlin.math.*
 
 
@@ -12,9 +15,17 @@ class LegTarget(
     val id: Int,
 )
 
+
+class NormalInfo(
+    val normal: Vector,
+    val origin: Vector? = null,
+    val contactPolygon: List<Vector>? = null,
+    val centreOfMass: Vector? = null
+)
+
 class Leg(
     val spider: Spider,
-    val legPlan: LegPlan,
+    var legPlan: LegPlan
 ) {
     val didStep = EventEmitter()
 
@@ -39,6 +50,7 @@ class Leg(
     var touchingGround = true; private set
     var isMoving = false; private set
     var timeSinceBeginMove = 0; private set
+    var chain = KinematicChain(Vector(0, 0, 0), listOf())
 
     var isPrimary = false
     var canMove = false
@@ -70,10 +82,13 @@ class Leg(
         isOutsideTriggerZone = !triggerZone.contains(restPosition, endEffector)
         targetOutsideComfortZone = !comfortZone.contains(restPosition, target.position)
         isUncomfortable = !comfortZone.contains(restPosition, endEffector)
+
+        legPlan = spider.bodyPlan.legs.getOrNull(spider.body.legs.indexOf(this)) ?: legPlan
     }
 
     fun update() {
         updateMovement()
+        chain = chain()
     }
 
     private fun attachmentPosition(): Vector {
@@ -101,7 +116,7 @@ class Leg(
         // inherit parent velocity
         if (!isGrounded()) {
             endEffector.add(spider.velocity)
-            rotateYAbout(endEffector, spider.rotateVelocity, spider.location.toVector())
+            rotateAroundY(endEffector, spider.rotateVelocity, spider.location.toVector())
         }
 
         // resolve ground collision
@@ -117,12 +132,12 @@ class Leg(
         if (isMoving) {
             val legMoveSpeed = gait.legMoveSpeed
 
-            lerpVectorByConstant(endEffector, target.position, legMoveSpeed)
+            endEffector.moveTowards(target.position, legMoveSpeed)
 
             val targetY = target.position.y + gait.legLiftHeight
             val hDistance = horizontalDistance(endEffector, target.position)
             if (hDistance > gait.legDropDistance) {
-                endEffector.y = lerpNumberByConstant(endEffector.y, targetY, legMoveSpeed)
+                endEffector.y = endEffector.y.moveTowards(targetY, legMoveSpeed)
             }
 
             if (endEffector.distance(target.position) < 0.0001) {
@@ -143,6 +158,34 @@ class Leg(
         }
 
         if (didStep) this.didStep.emit()
+    }
+
+    private fun chain(): KinematicChain {
+        if (chain.segments.size != legPlan.segments.size) {
+            var stride = 0.0
+            chain = KinematicChain(attachmentPosition, legPlan.segments.map {
+                stride += it.length
+                val position = spider.location.toVector().add(legPlan.restPosition.clone().normalize().multiply(stride))
+                ChainSegment(position, it.length)
+            })
+        }
+
+        chain.root.copy(attachmentPosition)
+
+        if (spider.bodyPlan.straightenLegs) {
+            val direction = endEffector.clone().subtract(attachmentPosition)
+            direction.y = 0.0
+
+            val crossAxis = Vector(0.0, 1.0, 0.0).crossProduct(direction).normalize()
+
+            direction.rotateAroundAxis(crossAxis, Math.toRadians(spider.bodyPlan.legStraightenRotation))
+
+            chain.straightenDirection(direction)
+        }
+
+        chain.fabrik(endEffector)
+
+        return chain
     }
 
     private fun triggerZone(): SplitDistance {
@@ -166,13 +209,13 @@ class Leg(
     private fun lookAheadPosition(): Vector {
         if (!spider.isWalking || spider.velocity.isZero && spider.rotateVelocity == 0.0) return restPosition
 
-        val fraction = if (spider.gait.adjustLookAheadDistance) min(spider.velocity.length() / spider.gait.walkSpeed, 1.0) else 1.0
+        val fraction = min(spider.velocity.length() / spider.gait.walkSpeed, 1.0)
         val mag = fraction * spider.gait.legWalkingTriggerDistance * spider.gait.legLookAheadFraction
 
         val direction = if (spider.velocity.isZero) spider.location.direction else spider.velocity.clone().normalize()
 
         val lookAhead = direction.clone().normalize().multiply(mag).add(restPosition)
-        rotateYAbout(lookAhead, spider.rotateVelocity, spider.location.toVector())
+        rotateAroundY(lookAhead, spider.rotateVelocity, spider.location.toVector())
         return lookAhead
     }
 
@@ -271,6 +314,7 @@ class SpiderBody(val spider: Spider): SpiderComponent {
     var legs = spider.bodyPlan.legs.map { Leg(spider, it) }
     var normal: NormalInfo? = null; private set
     var normalAcceleration = Vector(0.0, 0.0, 0.0); private set
+    val onGetHitByTrident = EventEmitter()
 
     override fun update() {
         val groundedLegs = legs.filter { it.isGrounded() }
@@ -293,7 +337,7 @@ class SpiderBody(val spider: Spider): SpiderComponent {
         }
 
 
-        normal = spider.bodyPlan.getNormal(spider)
+        normal = getNormal(spider)
 
         normalAcceleration = Vector(0.0, 0.0, 0.0)
         normal?.let {
@@ -329,16 +373,113 @@ class SpiderBody(val spider: Spider): SpiderComponent {
             onGround = isOnGround(spider.location)
         }
 
-        val updateOrder = spider.bodyPlan.getLegsInUpdateOrder(spider)
+        val updateOrder = getLegsInUpdateOrder(spider)
         for (leg in updateOrder) leg.updateMemo()
         for (leg in updateOrder) leg.update()
+
+
+        val tridents = spider.location.world!!.getNearbyEntities(spider.location, 1.5, 1.5, 1.5) {
+            it is Trident && it.shooter != spider.mount.getRider()
+        }
+        for (trident in tridents) {
+            if (trident != null && trident.velocity.length() > 2.0) {
+                val tridentDirection = trident.velocity.normalize()
+
+                trident.velocity = tridentDirection.clone().multiply(-.3)
+                onGetHitByTrident.emit()
+
+                spider.velocity.add(tridentDirection.multiply(spider.gait.tridentKnockBack))
+            }
+        }
     }
 
-    fun getPreferredY(): Double {
+    private fun getPreferredY(): Double {
     //        val groundY = getGround(spider.location) + .3
         val averageY = spider.body.legs.map { it.target.position.y }.average() + spider.gait.bodyHeight
         val targetY = averageY //max(averageY, groundY)
-        val stabilizedY = lerpNumberByFactor(spider.location.y, targetY, spider.gait.bodyHeightCorrectionFactor)
+        val stabilizedY = spider.location.y.lerp(targetY, spider.gait.bodyHeightCorrectionFactor)
         return stabilizedY
+    }
+
+    private fun legsInPolygonalOrder(): List<Int> {
+        val lefts = legs.indices.filter { LegLookUp.isLeftLeg(it) }
+        val rights = legs.indices.filter { LegLookUp.isRightLeg(it) }
+        return lefts + rights.reversed()
+    }
+
+    private fun getLegsInUpdateOrder(spider: Spider): List<Leg> {
+        val diagonal1 = legs.indices.filter { LegLookUp.isDiagonal1(it) }
+        val diagonal2 = legs.indices.filter { LegLookUp.isDiagonal2(it) }
+        val indices = diagonal1 + diagonal2
+        return indices.map { spider.body.legs[it] }
+    }
+
+    private fun getNormal(spider: Spider): NormalInfo? {
+        if (spider.gait.useLegacyNormalForce) {
+            val pairs = LegLookUp.diagonalPairs(legs.indices.toList())
+            if (pairs.any { pair -> pair.mapNotNull { spider.body.legs.getOrNull(it) }.all { it.isGrounded() } }) {
+                return NormalInfo(normal = Vector(0, 1, 0))
+            }
+
+            return null
+        }
+
+        val centreOfMass = averageVector(spider.body.legs.map { it.endEffector })
+        centreOfMass.lerp(spider.location.toVector(), 0.5)
+        centreOfMass.y += 0.01
+
+        val groundedLegs = legsInPolygonalOrder().map { spider.body.legs[it] }.filter { it.isGrounded() }
+        if (groundedLegs.isEmpty()) return null
+
+        fun applyStabilization(normal: NormalInfo) {
+            if (normal.origin == null) return
+            if (normal.centreOfMass == null) return
+
+            if (horizontalDistance(normal.origin, normal.centreOfMass) < spider.gait.polygonLeeway) {
+                normal.origin.x = normal.centreOfMass.x
+                normal.origin.z = normal.centreOfMass.z
+            }
+
+            val stabilizationTarget = normal.origin.clone().setY(normal.centreOfMass.y)
+            normal.centreOfMass.lerp(stabilizationTarget, spider.gait.stabilizationFactor)
+
+            normal.normal.copy(normal.centreOfMass).subtract(normal.origin).normalize()
+        }
+
+        val legsPolygon = groundedLegs.map { it.endEffector.clone() }
+        val polygonCenterY = legsPolygon.map { it.y }.average()
+
+        if (legsPolygon.size > 1) {
+            val polygon2D = legsPolygon.map { Vector2d(it.x, it.z) }
+
+            if (pointInPolygon(Vector2d(centreOfMass.x, centreOfMass.z), polygon2D)) {
+                // inside polygon. accelerate upwards towards centre of mass
+                return NormalInfo(
+                    normal = Vector(0, 1, 0),
+                    origin = Vector(centreOfMass.x, polygonCenterY, centreOfMass.z),
+                    centreOfMass = centreOfMass,
+                    contactPolygon = legsPolygon
+                )
+            } else {
+                // outside polygon, accelerate at an angle from within the polygon
+                val point = nearestPointInPolygon(Vector2d(centreOfMass.x, centreOfMass.z), polygon2D)
+                val origin = Vector(point.x, polygonCenterY, point.y)
+                return NormalInfo(
+                    normal = centreOfMass.clone().subtract(origin).normalize(),
+                    origin = origin,
+                    centreOfMass = centreOfMass,
+                    contactPolygon = legsPolygon
+                ).apply { applyStabilization(this )}
+            }
+        } else {
+            // only 1 leg on ground
+            val origin = groundedLegs.first().endEffector.clone()
+            return NormalInfo(
+                normal = centreOfMass.clone().subtract(origin).normalize(),
+                origin = origin,
+                centreOfMass = centreOfMass,
+                contactPolygon = legsPolygon
+            ).apply { applyStabilization(this )}
+        }
     }
 }

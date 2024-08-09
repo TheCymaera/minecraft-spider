@@ -1,4 +1,4 @@
-package com.heledron.spideranimation
+package com.heledron.spideranimation.utilities
 
 import org.bukkit.Location
 import org.bukkit.entity.BlockDisplay
@@ -9,37 +9,45 @@ import org.bukkit.util.Vector
 import org.joml.Matrix4f
 import java.io.Closeable
 
-class EntityRendererTemplate <T : Entity> (
+class ModelPart <T : Entity> (
     val clazz : Class<T>,
     val location : Location,
     val init : (T) -> Unit = {},
     val update : (T) -> Unit = {}
 )
 
-fun blockTemplate(
+class Model(vararg parts: Pair<Any, ModelPart<out Entity>>) {
+    private val _parts = mutableMapOf<Any, ModelPart<out Entity>>()
+    val parts get() = _parts as Map<Any, ModelPart<out Entity>>
+
+    init {
+        for ((id, part) in parts) add(id, part)
+    }
+
+    fun add(id: Any, part: ModelPart<out Entity>) {
+        _parts[id] = part
+    }
+
+
+    fun add(id: Any, model: Model) {
+        for ((subId, part) in model._parts) {
+            _parts[id to subId] = part
+        }
+    }
+}
+
+fun blockModel(
     location: Location,
     init: (BlockDisplay) -> Unit = {},
     update: (BlockDisplay) -> Unit = {}
-) = EntityRendererTemplate(
+) = ModelPart(
     clazz = BlockDisplay::class.java,
     location = location,
     init = init,
     update = update
 )
 
-fun targetTemplate(
-    location: Location
-) = blockTemplate(
-    location = location,
-    init = {
-        it.block = org.bukkit.Material.REDSTONE_BLOCK.createBlockData()
-        it.teleportDuration = 1
-        it.brightness = Display.Brightness(15, 15)
-        it.transformation = centredTransform(.25f, .25f, .25f)
-    }
-)
-
-fun lineTemplate(
+fun lineModel(
     location: Location,
     vector: Vector,
     upVector: Vector = if (vector.x + vector.z != 0.0) UP_VECTOR else Vector(0, 0, 1),
@@ -47,7 +55,7 @@ fun lineTemplate(
     interpolation: Int = 1,
     init: (BlockDisplay) -> Unit = {},
     update: (BlockDisplay) -> Unit = {}
-) = blockTemplate(
+) = blockModel(
     location = location,
     init = {
         it.teleportDuration = interpolation
@@ -64,13 +72,13 @@ fun lineTemplate(
     }
 )
 
-fun textTemplate(
+fun textModel(
     location: Location,
     text: String,
     interpolation: Int,
     init: (TextDisplay) -> Unit = {},
     update: (TextDisplay) -> Unit = {},
-) = EntityRendererTemplate(
+) = ModelPart(
     clazz = TextDisplay::class.java,
     location = location,
     init = {
@@ -84,19 +92,19 @@ fun textTemplate(
     }
 )
 
-class EntityRenderer<T : Entity>: Closeable {
+class ModelPartRenderer<T : Entity>: Closeable {
     var entity: T? = null
 
-    fun render(template: EntityRendererTemplate<T>) {
-        entity = (entity ?: spawnEntity(template.location, template.clazz) {
-            template.init(it)
+    fun render(part: ModelPart<T>) {
+        entity = (entity ?: spawnEntity(part.location, part.clazz) {
+            part.init(it)
         }).apply {
-            this.teleport(template.location)
-            template.update(this)
+            this.teleport(part.location)
+            part.update(this)
         }
     }
 
-    fun renderIf(predicate: Boolean, template: EntityRendererTemplate<T>) {
+    fun renderIf(predicate: Boolean, template: ModelPart<T>) {
         if (predicate) render(template) else close()
     }
 
@@ -106,10 +114,10 @@ class EntityRenderer<T : Entity>: Closeable {
     }
 }
 
-class MultiEntityRenderer: Closeable {
+class ModelRenderer: Closeable {
     val rendered = mutableMapOf<Any, Entity>()
 
-    val used = mutableSetOf<Any>()
+    private val used = mutableSetOf<Any>()
 
     override fun close() {
         for (entity in rendered.values) {
@@ -119,17 +127,11 @@ class MultiEntityRenderer: Closeable {
         used.clear()
     }
 
-    fun beginRender() {
-        if (used.isNotEmpty()) {
-            throw IllegalStateException("beginRender called without finishRender")
+    fun render(model: Model) {
+        for ((id, template) in model.parts) {
+            renderPart(id, template)
         }
-    }
 
-    fun keepAlive(id: Any) {
-        used.add(id)
-    }
-
-    fun finishRender() {
         val toRemove = rendered.keys - used
         for (key in toRemove) {
             val entity = rendered[key]!!
@@ -139,7 +141,11 @@ class MultiEntityRenderer: Closeable {
         used.clear()
     }
 
-    fun <T: Entity>render(id: Any, template: EntityRendererTemplate<T>) {
+    fun <T: Entity>render(part: ModelPart<T>) {
+        render(Model(0 to part))
+    }
+
+    private fun <T: Entity>renderPart(id: Any, template: ModelPart<T>) {
         used.add(id)
 
         val oldEntity = rendered[id]
@@ -162,12 +168,27 @@ class MultiEntityRenderer: Closeable {
         }
         rendered[id] = entity
     }
-
-    fun renderList(id: Any, list: List<EntityRendererTemplate<*>>) {
-        for ((i, template) in list.withIndex()) {
-            render(id to i, template)
-        }
-    }
 }
 
 
+class MultiModelRenderer: Closeable {
+    private val renderer = ModelRenderer()
+    private var model = Model()
+
+    fun render(id: Any, model: Model) {
+        this.model.add(id, model)
+    }
+
+    fun render(id: Any, model: ModelPart<out Entity>) {
+        this.model.add(id, model)
+    }
+
+    fun flush() {
+        renderer.render(model)
+        model = Model()
+    }
+
+    override fun close() {
+        renderer.close()
+    }
+}

@@ -4,6 +4,9 @@ import com.heledron.spideranimation.spider.*
 import org.bukkit.Location
 
 object AppState {
+    var showDebugVisuals = true
+    var gallop = false
+
     var spider: Spider? = null
     set (value) {
         field?.close()
@@ -20,10 +23,9 @@ object AppState {
 
     var walkGait = Gait.defaultWalk()
     var gallopGait = Gait.defaultGallop()
-    var spiderOptions = SpiderOptions()
+    var debugOptions = SpiderDebugOptions()
 
-    var bodyPlan = quadrupedBodyPlan().create()
-
+    var bodyPlan = quadrupedBodyPlan(segmentCount = 3, segmentLength = 1.0)
 
     fun createSpider(location: Location): Spider {
         location.y += walkGait.bodyHeight
@@ -33,6 +35,8 @@ object AppState {
     fun update() {
         spider?.gallopGait = gallopGait
         spider?.walkGait = walkGait
-        spider?.options = spiderOptions
+        spider?.debugOptions = debugOptions
+        spider?.showDebugVisuals = showDebugVisuals
+        spider?.gallop = gallop
     }
 }

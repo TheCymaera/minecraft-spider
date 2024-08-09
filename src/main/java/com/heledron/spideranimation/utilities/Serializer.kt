@@ -1,9 +1,14 @@
-package com.heledron.spideranimation
+package com.heledron.spideranimation.utilities
 
 import com.google.gson.Gson
 
 object Serializer {
     val gson = Gson()
+
+    fun toNullableMap(obj: Any?): Any? {
+        if (obj == null) return null
+        return toMap(obj)
+    }
 
     fun toMap(obj: Any): Any {
         return gson.fromJson(gson.toJson(obj), Any::class.java)
@@ -39,6 +44,10 @@ object Serializer {
         val pathList = parsePath(path)
         val parent = get(obj, pathList.dropLast(1)) ?: return
         setShallow(parent, pathList.last(), value)
+    }
+
+    private fun parsePath(path: String): List<String> {
+        return path.split("[.\\[\\]]".toRegex()).map { it.trim() }.filter { it.isNotEmpty() }
     }
 
     private fun<T : Any> withSetMap(obj: T, path: List<String>, value: Any?): T {
@@ -80,9 +89,5 @@ object Serializer {
             field.isAccessible = true
             field.set(current, value)
         } catch (_: Exception) { }
-    }
-
-    private fun parsePath(path: String): List<String> {
-        return path.split("[.\\[\\]]".toRegex()).map { it.trim() }.filter { it.isNotEmpty() }
     }
 }
