@@ -48,4 +48,4 @@ You may use the plugin and source code for both commercial or non-commercial pur
 
 Attribution is appreciated but not due.
 
-Do not resell.
+Do not resell without making substantial changes.
