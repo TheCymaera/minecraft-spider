@@ -25,7 +25,7 @@ class SoundEffects(val spider: Spider) : SpiderComponent {
             playSound(spider.location, Sound.BLOCK_LODESTONE_PLACE, 1.0f, 0.0f)
         }
 
-        closeables += spider.cloak.onCloakDamaged.listen {
+        closeables += spider.cloak.onCloakDamage.listen {
             playSound(spider.location, Sound.BLOCK_RESPAWN_ANCHOR_DEPLETE, .5f, 1.5f)
             playSound(spider.location, Sound.BLOCK_LODESTONE_PLACE, 0.1f, 0.0f)
             playSound(spider.location, Sound.ENTITY_ZOMBIE_VILLAGER_CURE, .02f, 1.5f)
@@ -33,7 +33,7 @@ class SoundEffects(val spider: Spider) : SpiderComponent {
 
         for (leg in spider.body.legs) {
             // Step sound effect
-            closeables += leg.didStep.listen {
+            closeables += leg.onStep.listen {
                 val location = leg.endEffector.toLocation(spider.location.world!!)
                 val volume = .3f
                 val pitch = 1.0f + Math.random().toFloat() * 0.1f

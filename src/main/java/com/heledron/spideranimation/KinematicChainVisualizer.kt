@@ -313,10 +313,9 @@ fun arrowTemplate(
         },
     )
 
-    return Model(
-        "line" to line,
-        "top" to top,
-        "bottom" to bottom,
-    )
-
+    return Model().apply {
+        add("line", line)
+        add("top", top)
+        add("bottom", bottom)
+    }
 }

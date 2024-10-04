@@ -27,23 +27,14 @@ class Leg(
     val spider: Spider,
     var legPlan: LegPlan
 ) {
-    val didStep = EventEmitter()
-
-    var triggerZone = triggerZone()
-    var comfortZone = comfortZone()
-
-    var isDisabled = false
-
+    var triggerZone = triggerZone(); private set
+    var comfortZone = comfortZone(); private set
     var restPosition = restPosition(); private set
     var lookAheadPosition = lookAheadPosition(); private set
     var scanStartPosition = scanStartPosition(); private set
     var attachmentPosition = attachmentPosition(); private set
     var scanVector = scanVector(); private set
-    var target = strandedTarget(); private set
-    init { target = locateGround() ?: target }
-
-    var endEffector = target.position.clone()
-
+    var target = locateGround() ?: strandedTarget(); private set
     var isOutsideTriggerZone = false; private set
     var isUncomfortable = false; private set
     var targetOutsideComfortZone = false; private set
@@ -52,9 +43,11 @@ class Leg(
     var timeSinceBeginMove = 0; private set
     var chain = KinematicChain(Vector(0, 0, 0), listOf())
 
+    val onStep = EventEmitter()
+    var isDisabled = false
+    var endEffector = target.position.clone()
     var isPrimary = false
     var canMove = false
-
 
     private fun triggerDistance(): Double {
         val maxSpeed = spider.gait.walkSpeed
@@ -157,7 +150,7 @@ class Leg(
             }
         }
 
-        if (didStep) this.didStep.emit()
+        if (didStep) this.onStep.emit()
     }
 
     private fun chain(): KinematicChain {

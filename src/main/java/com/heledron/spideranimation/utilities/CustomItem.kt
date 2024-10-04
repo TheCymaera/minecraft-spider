@@ -5,6 +5,7 @@ import org.bukkit.Bukkit
 import org.bukkit.NamespacedKey
 import org.bukkit.entity.Player
 import org.bukkit.event.block.Action
+import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.inventory.ItemStack
 import org.bukkit.persistence.PersistentDataType
 import org.bukkit.plugin.Plugin
@@ -39,16 +40,10 @@ object CustomItemRegistry {
     }
 
     init {
-        addEventListener(object : org.bukkit.event.Listener {
-            @org.bukkit.event.EventHandler
-            fun onPlayerInteract(event: org.bukkit.event.player.PlayerInteractEvent) {
-                if (event.action != Action.RIGHT_CLICK_AIR && event.action != Action.RIGHT_CLICK_BLOCK) return
-                if (event.action == Action.RIGHT_CLICK_BLOCK && !(event.clickedBlock?.type?.isInteractable == false || event.player.isSneaking)) return
-                val customItem = get(event.item ?: return) ?: return
-
-                if (customItem.isItem(event.item ?: return)) customItem.onRightClick?.invoke(event.player)
-            }
-        })
+        onGestureUseItem { player, item ->
+            val customItem = get(item) ?: return@onGestureUseItem
+            if (customItem.isItem(item)) customItem.onRightClick?.invoke(player)
+        }
 
         interval(0, 1) {
             for (player in Bukkit.getServer().onlinePlayers) {

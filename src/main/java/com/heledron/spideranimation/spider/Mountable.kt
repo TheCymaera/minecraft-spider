@@ -8,7 +8,6 @@ import org.bukkit.entity.Pig
 import org.bukkit.entity.minecart.CommandMinecart
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
-import org.bukkit.event.player.PlayerInteractEntityEvent
 import org.bukkit.event.vehicle.VehicleEnterEvent
 import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.util.Vector
@@ -26,24 +25,23 @@ class Mountable(val spider: Spider): SpiderComponent {
         closable += pig
         closable += marker
 
-        closable += addEventListener(object : Listener {
-            @EventHandler
-            fun onInteract(event: PlayerInteractEntityEvent) {
-                val pigEntity = pig.entity
-                if (event.rightClicked != pigEntity) return
-                if (event.hand != EquipmentSlot.HAND) return
+        closable += onInteractEntity { player, entity, hand ->
+            val pigEntity = pig.entity
+            if (entity != pigEntity) return@onInteractEntity
+            if (hand != EquipmentSlot.HAND) return@onInteractEntity
 
-                // if right click with saddle, add saddle (automatic)
-                if (event.player.inventory.itemInMainHand.type == Material.SADDLE && !pigEntity.hasSaddle()) {
-                    playSound(pigEntity.location, Sound.ENTITY_PIG_SADDLE, 1.0f, 1.0f)
-                }
+            // if right click with saddle, add saddle (automatic)
+            if (player.inventory.itemInMainHand.type == Material.SADDLE && !pigEntity.hasSaddle()) {
+                playSound(pigEntity.location, Sound.ENTITY_PIG_SADDLE, 1.0f, 1.0f)
+            }
 
-                // if right click with empty hand, remove saddle
-                if (event.player.isSneaking && event.player.inventory.itemInMainHand.type.isAir) {
+            // if right click with empty hand, remove saddle
+            if (player.inventory.itemInMainHand.type.isAir && getRider() == null) {
+                if (player.isSneaking) {
                     pigEntity.setSaddle(false)
                 }
             }
-        })
+        }
 
         // when player mounts the pig, switch them to the marker entity
         closable += addEventListener(object : Listener {

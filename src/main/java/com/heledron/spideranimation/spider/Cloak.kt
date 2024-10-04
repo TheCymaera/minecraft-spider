@@ -3,14 +3,13 @@ package com.heledron.spideranimation.spider
 import com.heledron.spideranimation.utilities.*
 import org.bukkit.*
 import org.bukkit.block.data.BlockData
-import org.bukkit.entity.Trident
 import org.bukkit.util.RayTraceResult
 import java.util.WeakHashMap
 import kotlin.math.abs
 
 class Cloak(var  spider: Spider) : SpiderComponent {
     var active = false
-    val onCloakDamaged = EventEmitter()
+    val onCloakDamage = EventEmitter()
     val onToggle = EventEmitter()
 
     private var cloakMaterial = WeakHashMap<Pair<Int, Int>, Material>()
@@ -18,11 +17,11 @@ class Cloak(var  spider: Spider) : SpiderComponent {
 
     init {
         spider.body.onGetHitByTrident.listen {
-            if (active) onCloakDamaged.emit()
+            if (active) onCloakDamage.emit()
             active = false
         }
 
-        onCloakDamaged.listen {
+        onCloakDamage.listen {
             breakCloak()
         }
     }

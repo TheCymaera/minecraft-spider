@@ -17,7 +17,7 @@ fun targetModel(
     }
 )
 
-private val DEFAULT_MATERIAL = Material.NETHERITE_BLOCK
+//private val DEFAULT_MATERIAL = Material.NETHERITE_BLOCK
 
 fun spiderModel(spider: Spider): Model {
     val scale = spider.bodyPlan.storedScale
@@ -38,6 +38,9 @@ fun spiderModel(spider: Spider): Model {
         val segmentUpVector = segmentUpVector()
 
         // Render leg segment
+
+        // get material from namespacedID
+        val defaultMaterial = Material.matchMaterial(spider.bodyPlan.material) ?: Material.NETHERITE_BLOCK
         for ((segmentIndex, segment) in chain.segments.withIndex()) {
             val parent = chain.segments.getOrNull(segmentIndex - 1)?.position ?: chain.root
             val vector = segment.position.clone().subtract(parent).normalize().multiply(segment.length)
@@ -52,7 +55,7 @@ fun spiderModel(spider: Spider): Model {
                 upVector = segmentUpVector,
                 update = {
                     val cloak = spider.cloak.getSegment(legIndex to segmentIndex)
-                    it.block =  cloak ?: DEFAULT_MATERIAL.createBlockData()
+                    it.block =  cloak ?: defaultMaterial.createBlockData()
                 }
             ))
         }

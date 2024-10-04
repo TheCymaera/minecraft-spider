@@ -1,14 +1,19 @@
 package com.heledron.spideranimation.utilities
 
 import com.heledron.spideranimation.SpiderAnimationPlugin
+import com.heledron.spideranimation.utilities.CustomItemRegistry.get
 import net.md_5.bungee.api.ChatMessageType
 import org.bukkit.Bukkit
 import org.bukkit.ChatColor
 import org.bukkit.FluidCollisionMode
 import org.bukkit.Location
+import org.bukkit.World
 import org.bukkit.entity.BlockDisplay
 import org.bukkit.entity.Entity
+import org.bukkit.entity.Player
 import org.bukkit.event.Listener
+import org.bukkit.event.block.Action
+import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.inventory.ItemStack
 import org.bukkit.util.RayTraceResult
 import org.bukkit.util.Transformation
@@ -39,6 +44,35 @@ fun addEventListener(listener: Listener): Closeable {
     return Closeable {
         org.bukkit.event.HandlerList.unregisterAll(listener)
     }
+}
+
+fun onInteractEntity(listener: (Player, Entity, EquipmentSlot) -> Unit): Closeable {
+    return addEventListener(object : Listener {
+        @org.bukkit.event.EventHandler
+        fun onInteract(event: org.bukkit.event.player.PlayerInteractEntityEvent) {
+            listener(event.player, event.rightClicked, event.hand)
+        }
+    })
+}
+
+fun onSpawnEntity(listener: (Entity, World) -> Unit): Closeable {
+    return addEventListener(object : Listener {
+        @org.bukkit.event.EventHandler
+        fun onSpawn(event: org.bukkit.event.entity.EntitySpawnEvent) {
+            listener(event.entity, event.entity.world)
+        }
+    })
+}
+
+fun onGestureUseItem(listener: (Player, ItemStack) -> Unit): Closeable {
+    return addEventListener(object : Listener {
+        @org.bukkit.event.EventHandler
+        fun onPlayerInteract(event: org.bukkit.event.player.PlayerInteractEvent) {
+            if (event.action != Action.RIGHT_CLICK_AIR && event.action != Action.RIGHT_CLICK_BLOCK) return
+            if (event.action == Action.RIGHT_CLICK_BLOCK && !(event.clickedBlock?.type?.isInteractable == false || event.player.isSneaking)) return
+            listener(event.player, event.item ?: return)
+        }
+    })
 }
 
 
@@ -75,7 +109,7 @@ fun createNamedItem(material: org.bukkit.Material, name: String): ItemStack {
     return item
 }
 
-fun firstPlayer(): org.bukkit.entity.Player? {
+fun firstPlayer(): Player? {
     return Bukkit.getOnlinePlayers().firstOrNull()
 }
 
@@ -83,7 +117,7 @@ fun sendDebugMessage(message: String) {
     sendActionBar(firstPlayer() ?: return, message)
 }
 
-fun sendActionBar(player: org.bukkit.entity.Player, message: String) {
+fun sendActionBar(player: Player, message: String) {
 //    player.sendActionBar(message)
     player.spigot().sendMessage(ChatMessageType.ACTION_BAR, net.md_5.bungee.api.chat.TextComponent(message))
 }

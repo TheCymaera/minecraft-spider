@@ -2,11 +2,8 @@ package com.heledron.spideranimation
 
 import com.google.gson.Gson
 import com.heledron.spideranimation.spider.*
-import com.heledron.spideranimation.utilities.CustomItemRegistry
-import com.heledron.spideranimation.utilities.MultiModelRenderer
-import com.heledron.spideranimation.utilities.Serializer
-import com.heledron.spideranimation.utilities.interval
-import org.bukkit.*
+import com.heledron.spideranimation.utilities.*
+import org.bukkit.Bukkit.createInventory
 import org.bukkit.plugin.java.JavaPlugin
 import java.io.Closeable
 
@@ -40,14 +37,18 @@ class SpiderAnimationPlugin : JavaPlugin() {
             "walk_gait" to { AppState.walkGait },
             "gallop_gait" to { AppState.gallopGait },
             "debug_options" to { AppState.debugOptions },
-            "body_plan" to { AppState.bodyPlan }
+            "body_plan" to { AppState.bodyPlan },
+            "misc" to { AppState.miscOptions },
         )
         val defaultObjects = mapOf(
             "walk_gait" to { Gait.defaultWalk().apply { scale(AppState.bodyPlan.storedScale) } },
             "gallop_gait" to { Gait.defaultGallop().apply { scale(AppState.bodyPlan.storedScale) } },
             "debug_options" to { SpiderDebugOptions() },
-            "body_plan" to { quadrupedBodyPlan(segmentCount = 3, segmentLength = 1.0) }
+            "body_plan" to { quadrupedBodyPlan(segmentCount = 3, segmentLength = 1.0) },
+            "misc" to { MiscellaneousOptions() },
         )
+
+        config.getConfigurationSection("body_plan")?.getValues(true)?.let { println(it) }
 
         config.getConfigurationSection("walk_gait")?.getValues(true)?.let { AppState.walkGait = Serializer.fromMap(it, Gait::class.java) }
         config.getConfigurationSection("gallop_gait")?.getValues(true)?.let { AppState.gallopGait = Serializer.fromMap(it, Gait::class.java) }
@@ -64,7 +65,7 @@ class SpiderAnimationPlugin : JavaPlugin() {
                 if (spider.mount.getRider() == null) spider.behaviour = StayStillBehaviour(spider)
             }
 
-            (AppState.target ?: AppState.chainVisualizer?.target)?.let { target ->
+            (if (AppState.miscOptions.showLaser) AppState.target else null ?: AppState.chainVisualizer?.target)?.let { target ->
                 renderer.render("target", targetModel(target))
             }
 
@@ -75,19 +76,13 @@ class SpiderAnimationPlugin : JavaPlugin() {
         }
 
         // /summon minecraft:area_effect_cloud -26 -11 26 {Tags:["spider.chain_visualizer"]}
-        server.pluginManager.registerEvents(object : org.bukkit.event.Listener {
-            @org.bukkit.event.EventHandler
-            fun onEntitySpawn(event: org.bukkit.event.entity.EntitySpawnEvent) {
-                if (!event.entity.scoreboardTags.contains("spider.chain_visualizer")) return
 
-                val location = event.entity.location
-
-                AppState.chainVisualizer?.close()
-                AppState.chainVisualizer = if (AppState.chainVisualizer != null) null else KinematicChainVisualizer.create(3, 1.5, location)
-
-                event.entity.remove()
-            }
-        }, this)
+        closables += onSpawnEntity { entity, _ ->
+            if (!entity.scoreboardTags.contains("spider.chain_visualizer")) return@onSpawnEntity
+            val location = entity.location
+            AppState.chainVisualizer = if (AppState.chainVisualizer != null) null else KinematicChainVisualizer.create(3, 1.5, location)
+            entity.remove()
+        }
 
         getCommand("options")?.apply {
             setExecutor { sender, _, _, args ->
@@ -239,7 +234,7 @@ class SpiderAnimationPlugin : JavaPlugin() {
         getCommand("items")?.setExecutor { sender, _, _, _ ->
             val player = sender as? org.bukkit.entity.Player ?: return@setExecutor true
 
-            val inventory = Bukkit.createInventory(null, 9 * 3, "Items")
+            val inventory = createInventory(null, 9 * 3, "Items")
             for (item in CustomItemRegistry.items) {
                 inventory.addItem(item.defaultItem.clone())
             }

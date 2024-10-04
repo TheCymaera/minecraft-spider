@@ -20,6 +20,7 @@ class BodyPlan {
     var storedScale: Double = 1.0
     var legs: List<LegPlan> = emptyList()
 
+    var material = "minecraft:netherite_block"
     var straightenLegs = true
     var legStraightenRotation = -60.0
     var renderSegmentThickness = 1.0

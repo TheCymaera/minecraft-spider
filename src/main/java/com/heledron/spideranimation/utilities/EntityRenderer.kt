@@ -16,22 +16,17 @@ class ModelPart <T : Entity> (
     val update : (T) -> Unit = {}
 )
 
-class Model(vararg parts: Pair<Any, ModelPart<out Entity>>) {
-    private val _parts = mutableMapOf<Any, ModelPart<out Entity>>()
-    val parts get() = _parts as Map<Any, ModelPart<out Entity>>
-
-    init {
-        for ((id, part) in parts) add(id, part)
-    }
+class Model {
+    val parts = mutableMapOf<Any, ModelPart<out Entity>>()
 
     fun add(id: Any, part: ModelPart<out Entity>) {
-        _parts[id] = part
+        parts[id] = part
     }
 
 
     fun add(id: Any, model: Model) {
-        for ((subId, part) in model._parts) {
-            _parts[id to subId] = part
+        for ((subId, part) in model.parts) {
+            parts[id to subId] = part
         }
     }
 }
@@ -142,7 +137,8 @@ class ModelRenderer: Closeable {
     }
 
     fun <T: Entity>render(part: ModelPart<T>) {
-        render(Model(0 to part))
+        val model = Model().apply { add(0, part) }
+        render(model)
     }
 
     private fun <T: Entity>renderPart(id: Any, template: ModelPart<T>) {

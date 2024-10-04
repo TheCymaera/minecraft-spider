@@ -24,6 +24,7 @@ object AppState {
     var walkGait = Gait.defaultWalk()
     var gallopGait = Gait.defaultGallop()
     var debugOptions = SpiderDebugOptions()
+    var miscOptions = MiscellaneousOptions()
 
     var bodyPlan = quadrupedBodyPlan(segmentCount = 3, segmentLength = 1.0)
 
@@ -39,4 +40,8 @@ object AppState {
         spider?.showDebugVisuals = showDebugVisuals
         spider?.gallop = gallop
     }
+}
+
+class MiscellaneousOptions {
+    var showLaser = true
 }
