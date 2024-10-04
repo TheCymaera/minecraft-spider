@@ -7,12 +7,30 @@ commands:
   items:
     description: Open the items menu
     usage: /items
+    permission: spider-animation.items
   options:
     description: Set gait options
     usage: /options <gait|galloping_gait|debug_renderer> <option:string> <value:double?>
+    permission: spider-animation.options
   fall:
     description: Teleport the spider up by the specified height
     usage: /fall <height:double>
+    permission: spider-animation.fall
   body_plan:
     description: Set the body plan of the spider
     usage: /body_plan <quadruped|hexapod|octopod> <scale:double?> <segment_length:double?> <segment_count:int?>
+    permission: spider-animation.body_plan
+
+permissions:
+  spider-animation.items:
+    description: Allows access to the items command
+    default: op
+  spider-animation.options:
+    description: Allows access to the options command
+    default: op
+  spider-animation.fall:
+    description: Allows access to the fall command
+    default: op
+  spider-animation.body_plan:
+    description: Allows access to the body_plan command
+    default: op
