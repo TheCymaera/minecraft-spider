@@ -60,7 +60,7 @@ object GallopGaitType {
 }
 
 fun hasCooldown(leg: Leg, cooldown: Int): Boolean {
-    return leg.isMoving && leg.target.isGrounded && leg.timeSinceBeginMove < cooldown
+    return /*leg.isMoving && */leg.target.isGrounded && leg.timeSinceBeginMove < cooldown
 }
 
 fun unIndexLeg(spider: Spider, indices: List<Int>): List<Leg> {

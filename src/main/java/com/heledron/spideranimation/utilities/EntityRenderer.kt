@@ -62,7 +62,7 @@ fun lineModel(
             .translate(-thickness / 2, -thickness / 2, 0f)
             .scale(thickness, thickness, vector.length().toFloat())
 
-        applyTransformationWithInterpolation(it, matrix)
+        it.applyTransformationWithInterpolation(matrix)
         update(it)
     }
 )

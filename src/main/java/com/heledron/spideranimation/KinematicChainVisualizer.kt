@@ -42,7 +42,7 @@ class KinematicChainVisualizer(
 
     companion object {
         fun create(segments: Int, length: Double, root: Location): KinematicChainVisualizer {
-            val segmentList = (0 until segments).map { ChainSegment(root.toVector(), length) }
+            val segmentList = (0 until segments).map { ChainSegment(root.toVector(), length, ChainSegment.FORWARD) }
             return KinematicChainVisualizer(root.clone(), segmentList)
         }
     }
@@ -80,7 +80,7 @@ class KinematicChainVisualizer(
 
         val target = target?.toVector() ?: return
 
-        previous = Triple(stage, iterator, segments.map { ChainSegment(it.position.clone(), it.length) })
+        previous = Triple(stage, iterator, segments.map { ChainSegment(it.position.clone(), it.length, it.initDirection) })
 
         if (stage == Stage.Forwards) {
             val segment = segments[iterator]
@@ -221,7 +221,7 @@ class KinematicChainVisualizer(
             )
             )
 
-            model.add("arrow", arrowTemplate(
+            model.add("arrow", arrowModel(
                 location = arrowStart.toLocation(root.world!!),
                 vector = arrow,
                 thickness = .101f,
@@ -229,11 +229,11 @@ class KinematicChainVisualizer(
             ))
         }
 
-        model.add("root", pointTemplate(root, Material.DIAMOND_BLOCK))
+        model.add("root", pointModel(root, Material.DIAMOND_BLOCK))
 
         for (i in renderedSegments.indices) {
             val segment = renderedSegments[i]
-            model.add("p$i", pointTemplate(segment.position.toLocation(root.world!!), Material.EMERALD_BLOCK))
+            model.add("p$i", pointModel(segment.position.toLocation(root.world!!), Material.EMERALD_BLOCK))
 
             val prev = renderedSegments.getOrNull(i - 1)?.position ?: root.toVector()
 
@@ -255,7 +255,7 @@ class KinematicChainVisualizer(
     }
 }
 
-fun pointTemplate(location: Location, block: Material) = blockModel(
+fun pointModel(location: Location, block: Material) = blockModel(
     location = location,
     init = {
         it.block = block.createBlockData()
@@ -265,7 +265,7 @@ fun pointTemplate(location: Location, block: Material) = blockModel(
     }
 )
 
-fun arrowTemplate(
+fun arrowModel(
     location: Location,
     vector: Vector,
     thickness: Float,

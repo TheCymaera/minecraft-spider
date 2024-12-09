@@ -1,8 +1,8 @@
 package com.heledron.spideranimation
 
 import com.heledron.spideranimation.spider.DirectionBehaviour
-import com.heledron.spideranimation.spider.SpiderParticleRenderer
-import com.heledron.spideranimation.spider.SpiderRenderer
+import com.heledron.spideranimation.spider.rendering.SpiderParticleRenderer
+import com.heledron.spideranimation.spider.rendering.SpiderRenderer
 import com.heledron.spideranimation.spider.TargetBehaviour
 import com.heledron.spideranimation.utilities.*
 import org.bukkit.Material
@@ -155,7 +155,7 @@ fun registerItems() {
         defaultItem = ItemStack(Material.CARROT_ON_A_STICK),
         onHeldTick = { player ->
             AppState.spider?.let { it.behaviour = TargetBehaviour(it, player.eyeLocation, run {
-                if (it.bodyPlan.straightenLegs) 2.0
+                if (it.options.bodyPlan.straightenLegs) 2.0
                 else it.gait.bodyHeight * 5.0
             }) }
         }

@@ -9,6 +9,7 @@ import org.bukkit.FluidCollisionMode
 import org.bukkit.Location
 import org.bukkit.World
 import org.bukkit.entity.BlockDisplay
+import org.bukkit.entity.Display
 import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
 import org.bukkit.event.Listener
@@ -174,21 +175,27 @@ fun centredTransform(xSize: Float, ySize: Float, zSize: Float): Transformation {
     )
 }
 
-fun transformFromMatrix(matrix: Matrix4f): Transformation {
-    val translation = matrix.getTranslation(Vector3f())
-    val rotation = matrix.getUnnormalizedRotation(Quaternionf())
-    val scale = matrix.getScale(Vector3f())
-
-    return Transformation(translation, rotation, scale, Quaternionf())
+fun matrixFromTransform(transformation: Transformation): Matrix4f {
+    val matrix = Matrix4f()
+    matrix.translate(transformation.translation)
+    matrix.rotate(transformation.leftRotation)
+    matrix.scale(transformation.scale)
+    matrix.rotate(transformation.rightRotation)
+    return matrix
 }
 
-fun applyTransformationWithInterpolation(entity: BlockDisplay, transformation: Transformation) {
-    if (entity.transformation != transformation) {
-        entity.transformation = transformation
-        entity.interpolationDelay = 0
-    }
+
+
+fun Display.applyTransformationWithInterpolation(transformation: Transformation) {
+    if (this.transformation == transformation) return
+    this.transformation = transformation
+    this.interpolationDelay = 0
 }
 
-fun applyTransformationWithInterpolation(entity: BlockDisplay, matrix: Matrix4f) {
-    applyTransformationWithInterpolation(entity, transformFromMatrix(matrix))
+fun Display.applyTransformationWithInterpolation(matrix: Matrix4f) {
+    val oldTransform = this.transformation
+    setTransformationMatrix(matrix)
+
+    if (oldTransform == this.transformation) return
+    this.interpolationDelay = 0
 }

@@ -1,5 +1,7 @@
-package com.heledron.spideranimation.spider
+package com.heledron.spideranimation.spider.rendering
 
+import com.heledron.spideranimation.spider.Spider
+import com.heledron.spideranimation.spider.SpiderComponent
 import com.heledron.spideranimation.utilities.MultiModelRenderer
 import com.heledron.spideranimation.utilities.spawnParticle
 import org.bukkit.Color
@@ -11,8 +13,10 @@ import org.bukkit.util.Vector
 class SpiderRenderer(val spider: Spider): SpiderComponent {
     private val renderer = MultiModelRenderer()
 
+    val bodyModel = BodyModels.FLAT.map { it.clone().scale(spider.options.bodyPlan.scale.toFloat()) }
+
     override fun render() {
-        renderer.render("spider", spiderModel(spider))
+        renderer.render("spider", spiderModel(spider, bodyModel))
         if (spider.showDebugVisuals) renderer.render("debug", spiderDebugModel(spider))
         renderer.flush()
     }

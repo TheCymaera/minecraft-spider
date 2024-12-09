@@ -1,6 +1,8 @@
 package com.heledron.spideranimation
 
 import com.heledron.spideranimation.spider.*
+import com.heledron.spideranimation.spider.configuration.SpiderOptions
+import com.heledron.spideranimation.spider.configuration.hexBotBodyPlan
 import org.bukkit.Location
 
 object AppState {
@@ -21,22 +23,16 @@ object AppState {
         field = value
     }
 
-    var walkGait = Gait.defaultWalk()
-    var gallopGait = Gait.defaultGallop()
-    var debugOptions = SpiderDebugOptions()
+    var options = SpiderOptions()
     var miscOptions = MiscellaneousOptions()
 
-    var bodyPlan = quadrupedBodyPlan(segmentCount = 3, segmentLength = 1.0)
-
     fun createSpider(location: Location): Spider {
-        location.y += walkGait.bodyHeight
-        return Spider(location, bodyPlan)
+        location.y += options.walkGait.bodyHeight
+        return Spider(location, options)
     }
 
     fun update() {
-        spider?.gallopGait = gallopGait
-        spider?.walkGait = walkGait
-        spider?.debugOptions = debugOptions
+//        spider?.options = options
         spider?.showDebugVisuals = showDebugVisuals
         spider?.gallop = gallop
     }

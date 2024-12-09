@@ -1,6 +1,8 @@
 package com.heledron.spideranimation.spider
 
 import com.heledron.spideranimation.utilities.*
+import org.bukkit.Bukkit
+import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.Sound
 import org.bukkit.entity.ArmorStand
@@ -103,9 +105,8 @@ class Mountable(val spider: Spider): SpiderComponent {
     }
 }
 
-fun runCommandSilently(command: String) {
-    val server = org.bukkit.Bukkit.getServer()
-    val location = org.bukkit.Bukkit.getWorlds().first().spawnLocation
+fun runCommandSilently(command: String, location: Location = Bukkit.getWorlds().first().spawnLocation) {
+    val server = Bukkit.getServer()
     spawnEntity(location, CommandMinecart::class.java) {
         it.setCommand(command)
         server.dispatchCommand(it, command)

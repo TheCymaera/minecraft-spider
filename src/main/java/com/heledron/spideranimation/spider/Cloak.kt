@@ -12,7 +12,7 @@ class Cloak(var  spider: Spider) : SpiderComponent {
     val onCloakDamage = EventEmitter()
     val onToggle = EventEmitter()
 
-    private var cloakMaterial = WeakHashMap<Pair<Int, Int>, Material>()
+    private var cloakMaterial = WeakHashMap<Any, Material>()
     private var cloakGlitching = false
 
     init {
@@ -27,23 +27,7 @@ class Cloak(var  spider: Spider) : SpiderComponent {
     }
 
     override fun update() {
-        for ((legIndex, leg) in spider.body.legs.withIndex()) {
-            val chain = leg.chain
-            for ((segmentIndex, _) in chain.segments.withIndex()) {
-                val segment = legIndex to segmentIndex
-
-                val location = (chain.segments.getOrNull(segmentIndex - 1)?.position ?: chain.root).toLocation(spider.location.world!!)
-                val vector = chain.segments[segmentIndex].position.clone().subtract(location.toVector())
-
-                if (!cloakGlitching) {
-                    val otherSegments = (0 until chain.segments.size).map { Pair(legIndex, it) }.filter { it != segment }
-
-                    val centre = location.clone().add(vector.clone().multiply(0.5))
-                    applyCloak(segment, centre, otherSegments)
-                }
-
-            }
-        }
+        // no nothing
     }
 
     fun toggleCloak() {
@@ -51,8 +35,9 @@ class Cloak(var  spider: Spider) : SpiderComponent {
         onToggle.emit()
     }
 
-    fun getSegment(segment: Pair<Int, Int>): BlockData? {
-        return cloakMaterial[segment]?.createBlockData()
+    fun getPiece(id: Any, location: Location): BlockData? {
+        applyCloak(id, location)
+        return cloakMaterial[id]?.createBlockData()
     }
 
 
@@ -62,7 +47,7 @@ class Cloak(var  spider: Spider) : SpiderComponent {
         val originalMaterials = cloakMaterial.toList()
 
         var maxTime = 0
-        for ((segment, originalBlock) in originalMaterials) {
+        for ((id, entry) in originalMaterials) {
             val scheduler = SeriesScheduler()
 
             fun randomSleep(min: Int, max: Int) {
@@ -76,7 +61,7 @@ class Cloak(var  spider: Spider) : SpiderComponent {
                 Material.WHITE_GLAZED_TERRACOTTA,
                 Material.GRAY_GLAZED_TERRACOTTA,
                 null,
-                originalBlock
+                entry
             )
 
             randomSleep(0, 3)
@@ -84,19 +69,17 @@ class Cloak(var  spider: Spider) : SpiderComponent {
                 val transitionBlock = glitchBlocks[(Math.random() * glitchBlocks.size).toInt()]
 
                 scheduler.run {
-                    cloakMaterial[segment] = transitionBlock
-                    if (Math.random() < .5) {
-                        val (legIndex, segmentIndex) = segment
-                        val chain = spider.body.legs[legIndex].chain
-                        val location = (chain.segments.getOrNull(segmentIndex - 1)?.position ?: chain.root).toLocation(spider.location.world!!)
-                        spawnParticle(Particle.FISHING, location, (1 * Math.random()).toInt(), .3, .3, .3, 0.0)
-                    }
+//                    cloakMaterial[id]?.material = transitionBlock
+//                    if (Math.random() < .5) {
+//                        val location = (chain.segments.getOrNull(segmentIndex - 1)?.position ?: chain.root).toLocation(spider.location.world!!)
+//                        spawnParticle(Particle.FISHING, location, (1 * Math.random()).toInt(), .3, .3, .3, 0.0)
+//                    }
                 }
 
                 scheduler.sleep(2L)
             }
 
-            scheduler.run { cloakMaterial[segment] = null }
+            scheduler.run { cloakMaterial[id] = null }
 
             if (Math.random() < 1.0 / 6) continue
 
@@ -105,12 +88,12 @@ class Cloak(var  spider: Spider) : SpiderComponent {
             for (i in 0 until  (Math.random() * 3).toInt()) {
                 scheduler.run {
                     val randomBlock = originalMaterials[(Math.random() * originalMaterials.size).toInt()].second
-                    cloakMaterial[segment] = randomBlock
+                    cloakMaterial[id] = randomBlock
                 }
 
                 randomSleep(5, 15)
 
-                scheduler.run { cloakMaterial[segment] = null }
+                scheduler.run { cloakMaterial[id] = null }
                 scheduler.sleep(2L)
             }
 
@@ -122,13 +105,13 @@ class Cloak(var  spider: Spider) : SpiderComponent {
         }
     }
 
-    private fun applyCloak(segment: Pair<Int, Int>, centre: Location, otherSegments: List<Pair<Int, Int>>) {
-        val currentMaterial = cloakMaterial[segment]
+    private fun applyCloak(id: Any, centre: Location) {
+        val currentMaterial = cloakMaterial[id]
 
         if (!spider.cloak.active) {
             if (currentMaterial != null) {
                 transitionSegmentBlock(
-                    segment,
+                    id,
                     (Math.random() * 3).toInt(),
                     (Math.random() * 3).toInt(),
                     null
@@ -140,6 +123,7 @@ class Cloak(var  spider: Spider) : SpiderComponent {
         fun groundCast(): RayTraceResult? {
             return raycastGround(centre, DOWN_VECTOR, 5.0)
         }
+
         fun cast(): RayTraceResult? {
             val targetPlayer = Bukkit.getOnlinePlayers().firstOrNull()
             if (targetPlayer != null) {
@@ -164,44 +148,44 @@ class Cloak(var  spider: Spider) : SpiderComponent {
                     val waitTime = if (alreadyInPalette || !doGlitch) 0 else (Math.random() * 3).toInt()
                     val glitchTime = if (alreadyInPalette || !doGlitch) 0 else (Math.random() * 3).toInt()
 
-                    transitionSegmentBlock(segment, waitTime, glitchTime, choice)
+                    transitionSegmentBlock(id, waitTime, glitchTime, choice)
                 }
             } else {
-                // take block from another segment
-                val other = otherSegments
-                    .firstOrNull { cloakMaterial[it] != null }
-                    ?: otherSegments.firstOrNull()
-
-                val otherMaterial = cloakMaterial[other]
-
-                if (other != null && currentMaterial != otherMaterial) {
-                    transitionSegmentBlock(
-                        segment,
-                        (Math.random() * 3).toInt(),
-                        (Math.random() * 3).toInt(),
-                        otherMaterial
-                    )
-                }
+//                // take block from another segment
+//                val other = otherSegments
+//                    .firstOrNull { cloakMaterial[it] != null }
+//                    ?: otherSegments.firstOrNull()
+//
+//                val otherMaterial = cloakMaterial[other]
+//
+//                if (other != null && currentMaterial != otherMaterial) {
+//                    transitionSegmentBlock(
+//                        segment,
+//                        (Math.random() * 3).toInt(),
+//                        (Math.random() * 3).toInt(),
+//                        otherMaterial
+//                    )
+//                }
             }
         }
     }
 
 
-    val transitioningSegments = ArrayList<Pair<Int, Int>>()
-    fun transitionSegmentBlock(segment: Pair<Int, Int>, waitTime: Int, glitchTime: Int, newBlock: Material?) {
-        if (transitioningSegments.contains(segment)) return
-        transitioningSegments.add(segment)
+    val transitioning = ArrayList<Any>()
+    fun transitionSegmentBlock(id: Any, waitTime: Int, glitchTime: Int, newBlock: Material?) {
+        if (transitioning.contains(id)) return
+        transitioning.add(id)
 
         val scheduler = SeriesScheduler()
         scheduler.sleep(waitTime.toLong())
         scheduler.run {
-            cloakMaterial[segment] = Material.GRAY_GLAZED_TERRACOTTA
+            cloakMaterial[id] = Material.GRAY_GLAZED_TERRACOTTA
         }
 
         scheduler.sleep(glitchTime.toLong())
         scheduler.run {
-            cloakMaterial[segment] = newBlock
-            transitioningSegments.remove(segment)
+            cloakMaterial[id] = newBlock
+            transitioning.remove(id)
         }
     }
 }

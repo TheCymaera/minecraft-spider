@@ -2,6 +2,8 @@ package com.heledron.spideranimation
 
 import com.google.gson.Gson
 import com.heledron.spideranimation.spider.*
+import com.heledron.spideranimation.spider.configuration.*
+import com.heledron.spideranimation.spider.rendering.targetModel
 import com.heledron.spideranimation.utilities.*
 import org.bukkit.Bukkit.createInventory
 import org.bukkit.plugin.java.JavaPlugin
@@ -34,26 +36,22 @@ class SpiderAnimationPlugin : JavaPlugin() {
         logger.info("Enabling Spider Animation plugin")
 
         val options = mapOf(
-            "walk_gait" to { AppState.walkGait },
-            "gallop_gait" to { AppState.gallopGait },
-            "debug_options" to { AppState.debugOptions },
-            "body_plan" to { AppState.bodyPlan },
+            "spider" to { AppState.options },
             "misc" to { AppState.miscOptions },
         )
         val defaultObjects = mapOf(
-            "walk_gait" to { Gait.defaultWalk().apply { scale(AppState.bodyPlan.storedScale) } },
-            "gallop_gait" to { Gait.defaultGallop().apply { scale(AppState.bodyPlan.storedScale) } },
-            "debug_options" to { SpiderDebugOptions() },
-            "body_plan" to { quadrupedBodyPlan(segmentCount = 3, segmentLength = 1.0) },
+            "spider" to { SpiderOptions().apply { scale(AppState.options.bodyPlan.scale) } },
             "misc" to { MiscellaneousOptions() },
         )
 
-        config.getConfigurationSection("body_plan")?.getValues(true)?.let { println(it) }
+        fun saveConfig() {
+            for ((key, value) in options) {
+                instance.config.set(key, Serializer.toMap(value()))
+            }
+            instance.saveConfig()
+        }
 
-        config.getConfigurationSection("walk_gait")?.getValues(true)?.let { AppState.walkGait = Serializer.fromMap(it, Gait::class.java) }
-        config.getConfigurationSection("gallop_gait")?.getValues(true)?.let { AppState.gallopGait = Serializer.fromMap(it, Gait::class.java) }
-        config.getConfigurationSection("options")?.getValues(true)?.let { AppState.debugOptions = Serializer.fromMap(it, SpiderDebugOptions::class.java) }
-        config.getConfigurationSection("body_plan")?.getValues(true)?.let { AppState.bodyPlan = Serializer.fromMap(it, BodyPlan::class.java) }
+//        config.getConfigurationSection("spider")?.getValues(true)?.let { AppState.options = Serializer.fromMap(it, SpiderOptions::class.java) }
 
         registerItems()
 
@@ -116,10 +114,7 @@ class SpiderAnimationPlugin : JavaPlugin() {
                     sender.sendMessage("Set option $option to ${printable(value)}")
                 }
 
-                for ((key, value) in options) {
-                    instance.config.set(key, Serializer.toMap(value()))
-                }
-                instance.saveConfig()
+                saveConfig()
 
                 return@setExecutor true
             }
@@ -185,7 +180,8 @@ class SpiderAnimationPlugin : JavaPlugin() {
                 "biped" to ::bipedBodyPlan,
                 "quadruped" to ::quadrupedBodyPlan,
                 "hexapod" to ::hexapodBodyPlan,
-                "octopod" to ::octopodBodyPlan
+                "octopod" to ::octopodBodyPlan,
+                "hexbot" to ::hexBotBodyPlan
             )
 
             setExecutor { sender, _, _, args ->
@@ -201,18 +197,14 @@ class SpiderAnimationPlugin : JavaPlugin() {
                     return@setExecutor true
                 }
 
-                val oldScale = AppState.bodyPlan.storedScale
-                AppState.bodyPlan = bodyPlan(segmentCount, segmentLength).apply { scale(scale) }
+                val oldScale = AppState.options.bodyPlan.scale
+                AppState.options.bodyPlan = bodyPlan(segmentCount, segmentLength).apply { scale(scale) }
+                AppState.options.walkGait.scale(scale / oldScale)
+                AppState.options.gallopGait.scale(scale / oldScale)
 
-                AppState.walkGait.scale(scale / oldScale)
-                AppState.gallopGait.scale(scale / oldScale)
+                saveConfig()
 
-                instance.config.set("body_plan", Serializer.toMap(AppState.bodyPlan))
-                for ((key, value) in options) {
-                    instance.config.set(key, Serializer.toMap(value()))
-                }
-                instance.saveConfig()
-
+                // recreate spider
                 val spider = AppState.spider
                 if (spider != null) {
                     AppState.spider = AppState.createSpider(spider.location)
