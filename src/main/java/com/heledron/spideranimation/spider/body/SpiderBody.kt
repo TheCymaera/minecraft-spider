@@ -70,7 +70,7 @@ class SpiderBody(val spider: Spider): SpiderComponent {
             if (spider.velocity.y < 0) spider.velocity.y *= -spider.gait.bounceFactor
             if (spider.velocity.y < spider.gait.gravityAcceleration) spider.velocity.y = .0
         } else {
-            onGround = isOnGround(spider.position.toLocation(spider.world))
+            onGround = spider.world.isOnGround(spider.position, DOWN_VECTOR.rotate(spider.orientation))
         }
 
         val updateOrder = getLegsInUpdateOrder(spider)

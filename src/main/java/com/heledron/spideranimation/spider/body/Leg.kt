@@ -196,7 +196,7 @@ class Leg(
     }
 
     private fun touchingGround(): Boolean {
-        return isOnGround(endEffector.toLocation(spider.world))
+        return spider.world.isOnGround(endEffector, DOWN_VECTOR.rotate(spider.orientation))
     }
 
     private fun triggerZoneSize(): SplitDistance {
