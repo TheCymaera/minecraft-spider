@@ -10,6 +10,8 @@ import com.heledron.spideranimation.utilities.*
 import org.bukkit.Location
 import org.bukkit.util.Vector
 import org.joml.Quaterniond
+import kotlin.math.ceil
+import kotlin.math.floor
 import kotlin.math.min
 
 class Leg(
@@ -240,42 +242,40 @@ class Leg(
 
         val mainCandidate = rayCast(x, z)
 
-        return mainCandidate
+        if (!spider.gait.legScanAlternativeGround) return mainCandidate
 
-//        if (!spider.gait.legScanAlternativeGround) return mainCandidate
-//
-//        if (mainCandidate != null) {
-//            if (mainCandidate.position.y in lookAhead.y - .24 .. lookAhead.y + 1.5) {
-//                return mainCandidate
-//            }
-//        }
-//
-//        val margin = 2 / 16.0
-//        val nx = floor(x) - margin
-//        val nz = floor(z) - margin
-//        val pz = ceil(z) + margin
-//        val px = ceil(x) + margin
-//
-//        val candidates = listOf(
-//            rayCast(nx, nz), rayCast(nx, z), rayCast(nx, pz),
-//            rayCast(x, nz),  mainCandidate,  rayCast(x, pz),
-//            rayCast(px, nz), rayCast(px, z), rayCast(px, pz),
-//        )
-//
-//        val preferredPosition = lookAhead.toVector()
-//
-//        val frontBlock = lookAhead.clone().add(spider.forwardDirection().clone().multiply(1)).block
-//        if (!frontBlock.isPassable) preferredPosition.y += spider.gait.legScanHeightBias
-//
-//        val best = candidates
-//            .filterNotNull()
-//            .minByOrNull { it.position.distanceSquared(preferredPosition) }
-//
-//        if (best != null && !comfortZone.contains(best.position)) {
-//            return null
-//        }
-//
-//        return best
+        if (mainCandidate != null) {
+            if (mainCandidate.position.y in lookAhead.y - .24 .. lookAhead.y + 1.5) {
+                return mainCandidate
+            }
+        }
+
+        val margin = 2 / 16.0
+        val nx = floor(x) - margin
+        val nz = floor(z) - margin
+        val pz = ceil(z) + margin
+        val px = ceil(x) + margin
+
+        val candidates = listOf(
+            rayCast(nx, nz), rayCast(nx, z), rayCast(nx, pz),
+            rayCast(x, nz),  mainCandidate,  rayCast(x, pz),
+            rayCast(px, nz), rayCast(px, z), rayCast(px, pz),
+        )
+
+        val preferredPosition = lookAhead.toVector()
+
+        val frontBlock = lookAhead.clone().add(spider.forwardDirection().clone().multiply(1)).block
+        if (!frontBlock.isPassable) preferredPosition.y += spider.gait.legScanHeightBias
+
+        val best = candidates
+            .filterNotNull()
+            .minByOrNull { it.position.distanceSquared(preferredPosition) }
+
+        if (best != null && !comfortZone.contains(best.position)) {
+            return null
+        }
+
+        return best
     }
 
     private fun strandedTarget(): LegTarget {

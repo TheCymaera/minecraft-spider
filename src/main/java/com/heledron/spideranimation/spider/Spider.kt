@@ -124,9 +124,13 @@ class Spider(
 
         preferredPitch = forward.getPitch().lerp(preferredPitch, .3)
 
-        val sidewaysFront = frontRight.clone().subtract(frontLeft)
-        val sidewaysBack = backRight.clone().subtract(backLeft)
-        val sideways = averageVector(listOf(sidewaysFront, sidewaysBack))
+        val sideways = Vector(0.0,0.0,0.0)
+        for (i in 0 until body.legs.size step 2) {
+            val left = body.legs.getOrNull(i) ?: continue
+            val right = body.legs.getOrNull(i + 1) ?: continue
+
+            sideways.add(getPos(right).clone().subtract(getPos(left)))
+        }
 
         preferredRoll = sideways.getPitch().lerp(preferredRoll, .1)
 
