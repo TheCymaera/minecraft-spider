@@ -1,5 +1,7 @@
-package com.heledron.spideranimation.spider
+package com.heledron.spideranimation.spider.misc
 
+import com.heledron.spideranimation.spider.Spider
+import com.heledron.spideranimation.spider.SpiderComponent
 import com.heledron.spideranimation.utilities.*
 import org.bukkit.util.Vector
 import org.joml.Quaterniond
@@ -24,7 +26,7 @@ class TargetBehaviour(val spider: Spider, val target: Vector, val distance: Doub
 
         val decelerateDistance = (currentSpeed * currentSpeed) / (2 * spider.gait.walkAcceleration)
 
-        val currentDistance = horizontalDistance(spider.position, target)
+        val currentDistance = spider.position.horizontalDistance(target)
 
         if (currentDistance > distance + decelerateDistance) {
             spider.walkAt(direction.clone().multiply(spider.gait.walkSpeed))

@@ -204,7 +204,7 @@ fun spiderDebugModel(spider: Spider): Model {
             it.transformation = centredTransform(size, size, size)
         },
         update = {
-            val material = if (horizontalLength(normal.normal) == .0) Material.LAPIS_BLOCK else Material.REDSTONE_BLOCK
+            val material = if (normal.normal.horizontalLength() == .0) Material.LAPIS_BLOCK else Material.REDSTONE_BLOCK
             it.block = material.createBlockData()
         }
     ))

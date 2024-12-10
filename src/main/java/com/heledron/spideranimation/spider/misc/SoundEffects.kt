@@ -1,5 +1,7 @@
-package com.heledron.spideranimation.spider
+package com.heledron.spideranimation.spider.misc
 
+import com.heledron.spideranimation.spider.Spider
+import com.heledron.spideranimation.spider.SpiderComponent
 import com.heledron.spideranimation.utilities.playSound
 import org.bukkit.Sound
 import java.io.Closeable
@@ -17,7 +19,7 @@ class SoundEffects(val spider: Spider) : SpiderComponent {
             spider.world.playSound(spider.position, Sound.BLOCK_NETHERITE_BLOCK_FALL, 1.0f, .8f)
         }
 
-        closeables += spider.body.onGetHitByTrident.listen {
+        closeables += spider.tridentDetector.onHit.listen {
             spider.world.playSound(spider.position, Sound.ENTITY_ZOMBIE_ATTACK_IRON_DOOR, .5f, 1.0f)
         }
 

@@ -3,6 +3,7 @@ package com.heledron.spideranimation.spider
 import com.heledron.spideranimation.spider.body.Leg
 import com.heledron.spideranimation.spider.body.SpiderBody
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
+import com.heledron.spideranimation.spider.misc.*
 import com.heledron.spideranimation.spider.rendering.SpiderRenderer
 import com.heledron.spideranimation.utilities.*
 import org.bukkit.Location
@@ -63,6 +64,7 @@ class Spider(
 
     // components
     val body = SpiderBody(this)
+    val tridentDetector = TridentHitDetector(this)
     val cloak = Cloak(this)
     val sound = SoundEffects(this)
     val mount = Mountable(this)
@@ -95,6 +97,7 @@ class Spider(
         yield(behaviour)
         yield(cloak)
         yield(body)
+        yield(tridentDetector)
         yield(sound)
         yield(mount)
         yield(pointDetector)

@@ -1,9 +1,9 @@
 package com.heledron.spideranimation
 
-import com.heledron.spideranimation.spider.DirectionBehaviour
+import com.heledron.spideranimation.spider.misc.DirectionBehaviour
 import com.heledron.spideranimation.spider.rendering.SpiderParticleRenderer
 import com.heledron.spideranimation.spider.rendering.SpiderRenderer
-import com.heledron.spideranimation.spider.TargetBehaviour
+import com.heledron.spideranimation.spider.misc.TargetBehaviour
 import com.heledron.spideranimation.utilities.*
 import org.bukkit.Material
 import org.bukkit.Sound

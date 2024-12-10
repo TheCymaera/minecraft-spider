@@ -1,5 +1,7 @@
-package com.heledron.spideranimation.spider
+package com.heledron.spideranimation.spider.misc
 
+import com.heledron.spideranimation.spider.Spider
+import com.heledron.spideranimation.spider.SpiderComponent
 import com.heledron.spideranimation.utilities.*
 import org.bukkit.Bukkit
 import org.bukkit.Location

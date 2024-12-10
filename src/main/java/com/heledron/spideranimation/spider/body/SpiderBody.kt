@@ -3,7 +3,6 @@ package com.heledron.spideranimation.spider.body
 import com.heledron.spideranimation.spider.Spider
 import com.heledron.spideranimation.spider.SpiderComponent
 import com.heledron.spideranimation.utilities.*
-import org.bukkit.entity.Trident
 import org.bukkit.util.Vector
 import org.joml.Vector2d
 import kotlin.math.*
@@ -14,7 +13,6 @@ class SpiderBody(val spider: Spider): SpiderComponent {
     var legs = spider.options.bodyPlan.legs.map { Leg(spider, it) }
     var normal: NormalInfo? = null; private set
     var normalAcceleration = Vector(0.0, 0.0, 0.0); private set
-    val onGetHitByTrident = EventEmitter()
 
     override fun update() {
         val groundedLegs = legs.filter { it.isGrounded() }
@@ -36,21 +34,21 @@ class SpiderBody(val spider: Spider): SpiderComponent {
             spider.velocity.z *= .5
         }
 
-
-        normal = getNormal(spider)
+        val normal = getNormal(spider)
+        this.normal = normal
 
         normalAcceleration = Vector(0.0, 0.0, 0.0)
-        normal?.let {
+        if (normal != null) {
             val preferredY = getPreferredY()
             val preferredYAcceleration = (preferredY - spider.position.y - spider.velocity.y).coerceAtLeast(0.0)
             val capableAcceleration = spider.gait.bodyHeightCorrectionAcceleration * fractionOfLegsGrounded
             val accelerationMagnitude = min(preferredYAcceleration, capableAcceleration)
 
-            normalAcceleration = it.normal.clone().multiply(accelerationMagnitude)
+            normalAcceleration = normal.normal.clone().multiply(accelerationMagnitude)
 
             // if the horizontal acceleration is too high,
             // there's no point accelerating as the spider will fall over anyway
-            if (horizontalLength(normalAcceleration) > normalAcceleration.y) normalAcceleration.multiply(0.0)
+            if (normalAcceleration.horizontalLength() > normalAcceleration.y) normalAcceleration.multiply(0.0)
 
             spider.velocity.add(normalAcceleration)
         }
@@ -76,21 +74,6 @@ class SpiderBody(val spider: Spider): SpiderComponent {
         val updateOrder = getLegsInUpdateOrder(spider)
         for (leg in updateOrder) leg.updateMemo()
         for (leg in updateOrder) leg.update()
-
-
-        val tridents = spider.world.getNearbyEntities(spider.position.toLocation(spider.world), 1.5, 1.5, 1.5) {
-            it is Trident && it.shooter != spider.mount.getRider()
-        }
-        for (trident in tridents) {
-            if (trident != null && trident.velocity.length() > 2.0) {
-                val tridentDirection = trident.velocity.normalize()
-
-                trident.velocity = tridentDirection.clone().multiply(-.3)
-                onGetHitByTrident.emit()
-
-                spider.velocity.add(tridentDirection.multiply(spider.gait.tridentKnockBack))
-            }
-        }
     }
 
     private fun getPreferredY(): Double {
@@ -171,7 +154,7 @@ class SpiderBody(val spider: Spider): SpiderComponent {
         if (normal.origin == null) return
         if (normal.centreOfMass == null) return
 
-        if (horizontalDistance(normal.origin, normal.centreOfMass) < spider.gait.polygonLeeway) {
+        if (normal.origin.horizontalDistance(normal.centreOfMass) < spider.gait.polygonLeeway) {
             normal.origin.x = normal.centreOfMass.x
             normal.origin.z = normal.centreOfMass.z
         }

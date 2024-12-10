@@ -1,8 +1,8 @@
 package com.heledron.spideranimation
 
 import com.google.gson.Gson
-import com.heledron.spideranimation.spider.*
 import com.heledron.spideranimation.spider.configuration.*
+import com.heledron.spideranimation.spider.misc.StayStillBehaviour
 import com.heledron.spideranimation.spider.rendering.targetModel
 import com.heledron.spideranimation.utilities.*
 import org.bukkit.Bukkit.createInventory

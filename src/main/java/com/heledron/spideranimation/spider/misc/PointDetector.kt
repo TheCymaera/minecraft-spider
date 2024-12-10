@@ -1,5 +1,7 @@
-package com.heledron.spideranimation.spider
+package com.heledron.spideranimation.spider.misc
 
+import com.heledron.spideranimation.spider.Spider
+import com.heledron.spideranimation.spider.SpiderComponent
 import com.heledron.spideranimation.spider.body.Leg
 import com.heledron.spideranimation.utilities.lookingAtPoint
 import org.bukkit.Location

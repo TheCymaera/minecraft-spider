@@ -2,9 +2,7 @@ package com.heledron.spideranimation.spider.body
 
 import com.heledron.spideranimation.ChainSegment
 import com.heledron.spideranimation.KinematicChain
-import com.heledron.spideranimation.spider.GallopGaitType
 import com.heledron.spideranimation.spider.Spider
-import com.heledron.spideranimation.spider.WalkGaitType
 import com.heledron.spideranimation.spider.configuration.LegPlan
 import com.heledron.spideranimation.utilities.*
 import org.bukkit.Location
@@ -141,7 +139,7 @@ class Leg(
             endEffector.moveTowards(target.position, legMoveSpeed)
 
             val targetY = target.position.y + gait.legLiftHeight
-            val hDistance = horizontalDistance(endEffector, target.position)
+            val hDistance = endEffector.horizontalDistance(target.position)
             if (hDistance > gait.legDropDistance) {
                 endEffector.y = endEffector.y.moveTowards(targetY, legMoveSpeed)
             }

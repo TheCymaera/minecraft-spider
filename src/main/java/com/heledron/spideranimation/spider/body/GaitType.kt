@@ -1,7 +1,6 @@
-package com.heledron.spideranimation.spider
+package com.heledron.spideranimation.spider.body
 
-import com.heledron.spideranimation.spider.body.Leg
-import com.heledron.spideranimation.spider.body.LegLookUp
+import com.heledron.spideranimation.spider.Spider
 
 object WalkGaitType {
     fun canMoveLeg(leg: Leg): Boolean {

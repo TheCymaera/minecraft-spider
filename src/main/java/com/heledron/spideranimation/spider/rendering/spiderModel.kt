@@ -1,7 +1,7 @@
 package com.heledron.spideranimation.spider.rendering
 
 import com.heledron.spideranimation.spider.Spider
-import com.heledron.spideranimation.spider.runCommandSilently
+import com.heledron.spideranimation.spider.misc.runCommandSilently
 import com.heledron.spideranimation.utilities.*
 import org.bukkit.*
 import org.bukkit.block.data.BlockData

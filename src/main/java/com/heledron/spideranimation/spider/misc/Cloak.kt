@@ -1,5 +1,7 @@
-package com.heledron.spideranimation.spider
+package com.heledron.spideranimation.spider.misc
 
+import com.heledron.spideranimation.spider.Spider
+import com.heledron.spideranimation.spider.SpiderComponent
 import com.heledron.spideranimation.utilities.*
 import org.bukkit.*
 import org.bukkit.block.data.BlockData
@@ -17,7 +19,7 @@ class Cloak(var  spider: Spider) : SpiderComponent {
     private var cloakGlitching = false
 
     init {
-        spider.body.onGetHitByTrident.listen {
+        spider.tridentDetector.onHit.listen {
             if (active) onCloakDamage.emit()
             active = false
         }
