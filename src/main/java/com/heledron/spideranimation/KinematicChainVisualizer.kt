@@ -3,6 +3,7 @@ package com.heledron.spideranimation
 import com.heledron.spideranimation.utilities.*
 import org.bukkit.Location
 import org.bukkit.Material
+import org.bukkit.World
 import org.bukkit.entity.Display
 import org.bukkit.util.Vector
 import java.io.Closeable
@@ -42,7 +43,7 @@ class KinematicChainVisualizer(
 
     companion object {
         fun create(segments: Int, length: Double, root: Location): KinematicChainVisualizer {
-            val segmentList = (0 until segments).map { ChainSegment(root.toVector(), length, ChainSegment.FORWARD) }
+            val segmentList = (0 until segments).map { ChainSegment(root.toVector(), length, FORWARD_VECTOR) }
             return KinematicChainVisualizer(root.clone(), segmentList)
         }
     }
@@ -150,10 +151,11 @@ class KinematicChainVisualizer(
             val prev = list.getOrNull(i - 1)?.position ?: root.toVector()
             val vector = segment.position.clone().subtract(prev)
             if (!vector.isZero) vector.normalize().multiply(segment.length)
-            val location = segment.position.clone().subtract(vector.clone()).toLocation(root.world!!)
+            val position = segment.position.clone().subtract(vector.clone())//.toLocation(root.world!!)
 
             model.add(i, lineModel(
-                location = location,
+                world = root.world!!,
+                position = position,
                 vector = vector,
                 thickness = thickness,
                 interpolation = 3,
@@ -185,10 +187,10 @@ class KinematicChainVisualizer(
             renderedSegments = segments
 
             if (subStage == 0) {
-                interruptions += { renderDetailed(1) }
-                interruptions += { renderDetailed(2) }
-                interruptions += { renderDetailed(3) }
-                interruptions += { renderDetailed(4) }
+                interruptions += { renderer.render(renderDetailed(1)) }
+                interruptions += { renderer.render(renderDetailed(2)) }
+                interruptions += { renderer.render(renderDetailed(3)) }
+                interruptions += { renderer.render(renderDetailed(4)) }
             }
 
             // stage 0: subtract vector
@@ -207,7 +209,7 @@ class KinematicChainVisualizer(
             if (subStage >= 4) return@arrow
 
 
-            val crossProduct = if (arrow == UP_VECTOR) Vector(0, 0, 1) else
+            val crossProduct = if (arrow == UP_VECTOR) FORWARD_VECTOR else
                 arrow.clone().crossProduct(UP_VECTOR).normalize()
 
             val arrowCenter = arrowStart.clone()
@@ -215,14 +217,15 @@ class KinematicChainVisualizer(
                 .add(crossProduct.rotateAroundAxis(arrow, Math.toRadians(-90.0)).multiply(.5))
 
             model.add("arrow_length", textModel(
-                location = arrowCenter.toLocation(root.world!!),
+                world = root.world!!,
+                position = arrowCenter,
                 text = String.format("%.2f", arrow.length()),
                 interpolation = 3,
-            )
-            )
+            ))
 
             model.add("arrow", arrowModel(
-                location = arrowStart.toLocation(root.world!!),
+                world = root.world!!,
+                position = arrowStart,
                 vector = arrow,
                 thickness = .101f,
                 interpolation = 3,
@@ -240,7 +243,8 @@ class KinematicChainVisualizer(
             val (a,b) = prev to segment.position
 
             model.add(i, lineModel(
-                location = a.toLocation(root.world!!),
+                world = root.world!!,
+                position = a,
                 vector = b.clone().subtract(a),
                 thickness = .1f,
                 interpolation = 3,
@@ -266,13 +270,15 @@ fun pointModel(location: Location, block: Material) = blockModel(
 )
 
 fun arrowModel(
-    location: Location,
+    world: World,
+    position: Vector,
     vector: Vector,
     thickness: Float,
     interpolation: Int
 ): Model {
     val line = lineModel(
-        location = location,
+        world = world,
+        position = position,
         vector = vector,
         thickness = thickness,
         interpolation = interpolation,
@@ -283,16 +289,16 @@ fun arrowModel(
     )
 
     val tipLength = 0.5
-    val tip = location.clone().add(vector)
-    val crossProduct = if (vector == UP_VECTOR) Vector(0, 0, 1) else
+    val tip = position.clone().add(vector)
+    val crossProduct = if (vector == UP_VECTOR) FORWARD_VECTOR else
         vector.clone().crossProduct(UP_VECTOR).normalize().multiply(tipLength)
 
     val tipDirection = vector.clone().normalize().multiply(-tipLength)
     val tipRotation = 30.0
 
-
     val top = lineModel(
-        location = tip,
+        world = world,
+        position = tip,
         vector = tipDirection.clone().rotateAroundAxis(crossProduct, Math.toRadians(tipRotation)),
         thickness = thickness,
         interpolation = interpolation,
@@ -303,7 +309,8 @@ fun arrowModel(
     )
 
     val bottom = lineModel(
-        location = tip,
+        world = world,
+        position = tip,
         vector = tipDirection.clone().rotateAroundAxis(crossProduct, Math.toRadians(-tipRotation)),
         thickness = thickness,
         interpolation = interpolation,

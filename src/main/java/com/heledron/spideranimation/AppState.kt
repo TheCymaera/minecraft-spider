@@ -28,7 +28,7 @@ object AppState {
 
     fun createSpider(location: Location): Spider {
         location.y += options.walkGait.bodyHeight
-        return Spider(location, options)
+        return Spider.fromLocation(location, options)
     }
 
     fun update() {

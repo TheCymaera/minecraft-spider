@@ -4,6 +4,7 @@ import com.heledron.spideranimation.utilities.*
 import org.bukkit.*
 import org.bukkit.block.data.BlockData
 import org.bukkit.util.RayTraceResult
+import org.bukkit.util.Vector
 import java.util.WeakHashMap
 import kotlin.math.abs
 
@@ -35,8 +36,8 @@ class Cloak(var  spider: Spider) : SpiderComponent {
         onToggle.emit()
     }
 
-    fun getPiece(id: Any, location: Location): BlockData? {
-        applyCloak(id, location)
+    fun getPiece(id: Any, position: Vector): BlockData? {
+        applyCloak(id, position)
         return cloakMaterial[id]?.createBlockData()
     }
 
@@ -71,7 +72,7 @@ class Cloak(var  spider: Spider) : SpiderComponent {
                 scheduler.run {
 //                    cloakMaterial[id]?.material = transitionBlock
 //                    if (Math.random() < .5) {
-//                        val location = (chain.segments.getOrNull(segmentIndex - 1)?.position ?: chain.root).toLocation(spider.location.world!!)
+//                        val location = (chain.segments.getOrNull(segmentIndex - 1)?.position ?: chain.root).toLocation(spider.world)
 //                        spawnParticle(Particle.FISHING, location, (1 * Math.random()).toInt(), .3, .3, .3, 0.0)
 //                    }
                 }
@@ -105,7 +106,8 @@ class Cloak(var  spider: Spider) : SpiderComponent {
         }
     }
 
-    private fun applyCloak(id: Any, centre: Location) {
+    private fun applyCloak(id: Any, position: Vector) {
+        val location = position.toLocation(spider.world)
         val currentMaterial = cloakMaterial[id]
 
         if (!spider.cloak.active) {
@@ -121,24 +123,22 @@ class Cloak(var  spider: Spider) : SpiderComponent {
         }
 
         fun groundCast(): RayTraceResult? {
-            return raycastGround(centre, DOWN_VECTOR, 5.0)
+            return raycastGround(location, DOWN_VECTOR, 5.0)
         }
 
         fun cast(): RayTraceResult? {
-            val targetPlayer = Bukkit.getOnlinePlayers().firstOrNull()
-            if (targetPlayer != null) {
-                val direction = centre.toVector().subtract(targetPlayer.eyeLocation.toVector())
-                val rayCast = raycastGround(centre, direction, 30.0)
-                if (rayCast != null) return rayCast
-            }
-            return groundCast()
+            val targetPlayer = Bukkit.getOnlinePlayers().firstOrNull() ?: return groundCast()
+
+            val direction = location.toVector().subtract(targetPlayer.eyeLocation.toVector())
+            val rayCast = raycastGround(location, direction, 30.0)
+            return rayCast
         }
 
         val rayTrace = cast()
         if (rayTrace != null) {
             val palette = getCloakPalette(rayTrace.hitBlock!!.blockData.material)
             if (palette.isNotEmpty()) {
-                val hash = abs(centre.x.toInt() + centre.z.toInt())
+                val hash = abs(location.x.toInt() + location.z.toInt())
                 val choice = palette[hash % palette.size]
 
                 if (currentMaterial !== choice) {

@@ -1,20 +1,16 @@
 package com.heledron.spideranimation.spider
 
+import com.heledron.spideranimation.spider.body.Leg
+import com.heledron.spideranimation.spider.body.SpiderBody
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.spider.rendering.SpiderRenderer
-import com.heledron.spideranimation.utilities.averageVector
-import com.heledron.spideranimation.utilities.getPitch
-import com.heledron.spideranimation.utilities.sendDebugMessage
-import com.heledron.spideranimation.utilities.toRadians
+import com.heledron.spideranimation.utilities.*
 import org.bukkit.Location
+import org.bukkit.World
 import org.bukkit.util.Vector
 import org.joml.Quaterniond
-import org.joml.Quaternionf
+import org.joml.Vector3d
 import java.io.Closeable
-import kotlin.math.asin
-import kotlin.math.atan
-import kotlin.math.atan2
-import kotlin.math.sqrt
 
 interface SpiderComponent : Closeable {
     fun update() {}
@@ -23,40 +19,54 @@ interface SpiderComponent : Closeable {
 }
 
 class Spider(
-    var location: Location,
+    val world: World,
+    val position: Vector,
+    val orientation: Quaterniond,
     val options: SpiderOptions
 ): Closeable {
-    var gallop = false
-    var showDebugVisuals = false
+    companion object {
+        fun fromLocation(location: Location, options: SpiderOptions): Spider {
+            val world = location.world!!
+            val position = location.toVector()
+            val orientation = Quaterniond().rotationYXZ(toRadians(-location.yaw.toDouble()), toRadians(location.pitch.toDouble()), 0.0)
+            return Spider(world, position, orientation, options)
+        }
+    }
 
-//    var debugOptions = SpiderDebugOptions()
+    // utils
+    fun location(): Location {
+        val location = position.toLocation(world)
+        location.direction = forwardDirection()
+        return location
+    }
 
-//    var walkGait = Gait.defaultWalk()
-//    var gallopGait = Gait.defaultGallop()
+    fun forwardDirection() = FORWARD_VECTOR.rotate(orientation)
 
     val gait get() = if (gallop) options.gallopGait else options.walkGait
 
+    // memo
+    var preferredPitch = orientation.getEulerAnglesYXZ(Vector3d()).x
+    var preferredRoll = orientation.getEulerAnglesYXZ(Vector3d()).z
+    var preferredOrientation = Quaterniond(orientation)
+
+    // params
+    var gallop = false
+    var showDebugVisuals = false
+
+    // state
     var isWalking = false
     var isRotatingYaw = false
     var isRotatingPitch = false
-    var yawVelocity = 0f
+    var yawVelocity = .0
 
     val velocity = Vector(0.0, 0.0, 0.0)
 
+    // components
     val body = SpiderBody(this)
-
     val cloak = Cloak(this)
     val sound = SoundEffects(this)
     val mount = Mountable(this)
     val pointDetector = PointDetector(this)
-
-    var position: Vector
-        get() = location.toVector()
-        set(value) {
-            location.x = value.x
-            location.y = value.y
-            location.z = value.z
-        }
 
     var behaviour: SpiderComponent = StayStillBehaviour(this)
     set (value) {
@@ -70,15 +80,14 @@ class Spider(
         field = value
     }
 
-
     override fun close() {
         getComponents().forEach { it.close() }
     }
 
     fun teleport(newLocation: Location) {
-        val diff = newLocation.toVector().subtract(location.toVector())
+        val diff = newLocation.toVector().subtract(position)
 
-        location = newLocation
+        position.copy(newLocation.toVector())
         for (leg in body.legs) leg.endEffector.add(diff)
     }
 
@@ -93,30 +102,36 @@ class Spider(
     }
 
     fun update() {
+        updatePreferredAngles()
         for (component in getComponents()) component.update()
         for (component in getComponents()) component.render()
     }
 
-    fun orientation(): Quaterniond {
-        return Quaterniond().rotationYXZ(toRadians(-location.yaw.toDouble()), toRadians(location.pitch.toDouble()), .0)
-    }
+    private fun updatePreferredAngles() {
+        fun getPos(leg: Leg): Vector {
+//            if (leg.isOutsideTriggerZone) return leg.endEffector
+            return leg.target.position
+        }
 
-    fun preferredOrientation(): Quaterniond {
-        val yaw = toRadians(-location.yaw.toDouble())
-        return Quaterniond().rotationYXZ(yaw, preferredPitch(), .0)
-    }
+        val frontLeft  = getPos(body.legs.getOrNull(0) ?: return)
+        val frontRight = getPos(body.legs.getOrNull(1) ?: return)
+        val backLeft  = getPos(body.legs.getOrNull(body.legs.size - 2) ?: return)
+        val backRight = getPos(body.legs.getOrNull(body.legs.size - 1) ?: return)
 
-    fun preferredPitch(): Double {
-        val frontLeft  = body.legs.getOrNull(0)?.target?.position ?: return .0
-        val frontRight = body.legs.getOrNull(1)?.target?.position ?: return .0
-        val backLeft  = body.legs.getOrNull(body.legs.size - 2)?.target?.position ?: return .0
-        val backRight = body.legs.getOrNull(body.legs.size - 1)?.target?.position ?: return .0
+        val forwardLeft = frontLeft.clone().subtract(backLeft)
+        val forwardRight = frontRight.clone().subtract(backRight)
+        val forward = averageVector(listOf(forwardLeft, forwardRight))
 
-        val leftVector = frontLeft.clone().subtract(backLeft)
-        val rightVector = frontRight.clone().subtract(backRight)
+        preferredPitch = forward.getPitch().lerp(preferredPitch, .3)
 
-        val average = averageVector(listOf(leftVector, rightVector))
-        return average.getPitch()
+        val sidewaysFront = frontRight.clone().subtract(frontLeft)
+        val sidewaysBack = backRight.clone().subtract(backLeft)
+        val sideways = averageVector(listOf(sidewaysFront, sidewaysBack))
+
+        preferredRoll = sideways.getPitch().lerp(preferredRoll, .1)
+
+        val currentEuler = orientation.getEulerAnglesYXZ(Vector3d())
+        preferredOrientation = Quaterniond().rotationYXZ(currentEuler.y, preferredPitch, preferredRoll)
     }
 }
 

@@ -145,7 +145,7 @@ fun registerItems() {
                     it.resetIterator()
                 }
 
-                AppState.spider?.let { it.behaviour = TargetBehaviour(it, targetVal, it.gait.bodyHeight) }
+                AppState.spider?.let { it.behaviour = TargetBehaviour(it, targetVal.toVector(), it.gait.bodyHeight) }
             }
         }
     )
@@ -154,7 +154,7 @@ fun registerItems() {
         id = "comeHere",
         defaultItem = ItemStack(Material.CARROT_ON_A_STICK),
         onHeldTick = { player ->
-            AppState.spider?.let { it.behaviour = TargetBehaviour(it, player.eyeLocation, run {
+            AppState.spider?.let { it.behaviour = TargetBehaviour(it, player.eyeLocation.toVector(), run {
                 if (it.options.bodyPlan.straightenLegs) 2.0
                 else it.gait.bodyHeight * 5.0
             }) }

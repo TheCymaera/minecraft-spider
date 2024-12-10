@@ -60,7 +60,7 @@ class Mountable(val spider: Spider): SpiderComponent {
     }
 
     override fun render() {
-        val location = spider.location.clone().add(spider.velocity)
+        val location = spider.position.clone().add(spider.velocity).toLocation(spider.world)
 
         val pigLocation = location.clone().add(Vector(.0, -.4, .0))
         val markerLocation = location.clone().add(Vector(.0, .5, .0))

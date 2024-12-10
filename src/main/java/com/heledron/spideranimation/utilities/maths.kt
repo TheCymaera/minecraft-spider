@@ -73,6 +73,13 @@ fun Vector.getPitch(): Double {
     return pitch
 }
 
+fun Vector.getYaw(): Double {
+    val x = this.x
+    val z = this.z
+    val yaw = atan2(-x, z)
+    return yaw
+}
+
 //fun Vector.rotateAround(rotation: Quaternionf, origin: Vector) {
 //    this.subtract(origin).rotate(rotation).add(origin)
 //}
@@ -85,7 +92,7 @@ fun Vector.getPitch(): Double {
 fun Quaterniond.rotationToYX(fromDir: Vector3d, toDir: Vector3d): Quaterniond {
     this.rotationTo(fromDir, toDir)
     val euler = this.getEulerAnglesYXZ(Vector3d())
-    return Quaterniond().rotationYXZ(euler.y, euler.x, .0)
+    return this.rotationYXZ(euler.y, euler.x, .0)
 }
 
 fun toDegrees(radians: Double): Double {
@@ -129,8 +136,8 @@ class SplitDistance(
     val horizontal: Double,
     val vertical: Double
 ) {
-    fun contains(origin: Vector, point: Vector): Boolean {
-        return horizontalDistance(origin, point) <= horizontal && verticalDistance(origin, point) <= vertical
+    fun clone(): SplitDistance {
+        return SplitDistance(horizontal, vertical)
     }
 
     fun scale(factor: Double): SplitDistance {
@@ -142,8 +149,27 @@ class SplitDistance(
     }
 }
 
+class SplitDistanceZone(
+    val center: Vector,
+    val size: SplitDistance
+) {
+    fun contains(point: Vector): Boolean {
+//        return point.distance(center) <= radius.horizontal
+        return horizontalDistance(center, point) <= size.horizontal && verticalDistance(center, point) <= size.vertical
+    }
+
+    val horizontal: Double; get() = size.horizontal
+    val vertical: Double; get() = size.vertical
+}
+
+
+
+
 val DOWN_VECTOR; get () = Vector(0, -1, 0)
 val UP_VECTOR; get () = Vector(0, 1, 0)
+val FORWARD_VECTOR; get () = Vector(0, 0, 1)
+val LEFT_VECTOR; get () = Vector(-1, 0, 0)
+val RIGHT_VECTOR; get () = Vector(1, 0, 0)
 
 
 

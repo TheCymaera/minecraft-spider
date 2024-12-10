@@ -1,11 +1,8 @@
 package com.heledron.spideranimation
 
 import com.heledron.spideranimation.utilities.rotate
-import com.heledron.spideranimation.utilities.rotationToYX
 import org.bukkit.util.Vector
 import org.joml.Quaterniond
-import org.joml.Quaternionf
-import org.joml.Vector3d
 
 
 class KinematicChain(
@@ -23,11 +20,6 @@ class KinematicChain(
                 break
             }
         }
-    }
-
-    fun straightenDirection(direction: Vector) {
-        val rotation = Quaterniond().rotationToYX(ChainSegment.FORWARD.toVector3d(), direction.toVector3d())
-        straightenDirection(rotation)
     }
 
     fun straightenDirection(rotation: Quaterniond) {
@@ -76,8 +68,4 @@ class ChainSegment(
         var position: Vector,
         var length: Double,
         var initDirection: Vector,
-) {
-    companion object {
-        val FORWARD: Vector; get() = Vector(0, 0, 1)
-    }
-}
+)

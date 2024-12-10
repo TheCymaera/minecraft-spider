@@ -63,7 +63,7 @@ class SpiderAnimationPlugin : JavaPlugin() {
                 if (spider.mount.getRider() == null) spider.behaviour = StayStillBehaviour(spider)
             }
 
-            (if (AppState.miscOptions.showLaser) AppState.target else null ?: AppState.chainVisualizer?.target)?.let { target ->
+            ((if (AppState.miscOptions.showLaser) AppState.target else null) ?: AppState.chainVisualizer?.target)?.let { target ->
                 renderer.render("target", targetModel(target))
             }
 
@@ -79,6 +79,7 @@ class SpiderAnimationPlugin : JavaPlugin() {
             if (!entity.scoreboardTags.contains("spider.chain_visualizer")) return@onSpawnEntity
             val location = entity.location
             AppState.chainVisualizer = if (AppState.chainVisualizer != null) null else KinematicChainVisualizer.create(3, 1.5, location)
+            AppState.chainVisualizer?.detailed = AppState.showDebugVisuals
             entity.remove()
         }
 
@@ -169,7 +170,7 @@ class SpiderAnimationPlugin : JavaPlugin() {
                 return@setExecutor true
             }
 
-            spider.teleport(spider.location.clone().add(0.0, height, 0.0))
+            spider.teleport(spider.location().add(0.0, height, 0.0))
 
 
             return@setExecutor true
@@ -207,7 +208,7 @@ class SpiderAnimationPlugin : JavaPlugin() {
                 // recreate spider
                 val spider = AppState.spider
                 if (spider != null) {
-                    AppState.spider = AppState.createSpider(spider.location)
+                    AppState.spider = AppState.createSpider(spider.location())
                 }
 
                 sender.sendMessage("Set body plan to $option")

@@ -1,5 +1,7 @@
-package com.heledron.spideranimation.spider
+package com.heledron.spideranimation.spider.body
 
+import com.heledron.spideranimation.spider.Spider
+import com.heledron.spideranimation.spider.SpiderComponent
 import com.heledron.spideranimation.utilities.*
 import org.bukkit.entity.Trident
 import org.bukkit.util.Vector
@@ -40,7 +42,7 @@ class SpiderBody(val spider: Spider): SpiderComponent {
         normalAcceleration = Vector(0.0, 0.0, 0.0)
         normal?.let {
             val preferredY = getPreferredY()
-            val preferredYAcceleration = (preferredY - spider.location.y - spider.velocity.y).coerceAtLeast(0.0)
+            val preferredYAcceleration = (preferredY - spider.position.y - spider.velocity.y).coerceAtLeast(0.0)
             val capableAcceleration = spider.gait.bodyHeightCorrectionAcceleration * fractionOfLegsGrounded
             val accelerationMagnitude = min(preferredYAcceleration, capableAcceleration)
 
@@ -54,21 +56,21 @@ class SpiderBody(val spider: Spider): SpiderComponent {
         }
 
         // apply velocity
-        spider.location.add(spider.velocity)
+        spider.position.add(spider.velocity)
 
         // resolve collision
-        val collision = resolveCollision(spider.location, Vector(0.0, min(-1.0, -abs(spider.velocity.y)), 0.0))
+        val collision = spider.world.resolveCollision(spider.position, Vector(0.0, min(-1.0, -abs(spider.velocity.y)), 0.0))
         if (collision != null) {
             onGround = true
 
             val didHit = collision.offset.length() > (spider.gait.gravityAcceleration * 2) * (1 - spider.gait.airDragCoefficient)
             if (didHit) onHitGround.emit()
 
-            spider.location.y = collision.position.y
+            spider.position.y = collision.position.y
             if (spider.velocity.y < 0) spider.velocity.y *= -spider.gait.bounceFactor
             if (spider.velocity.y < spider.gait.gravityAcceleration) spider.velocity.y = .0
         } else {
-            onGround = isOnGround(spider.location)
+            onGround = isOnGround(spider.position.toLocation(spider.world))
         }
 
         val updateOrder = getLegsInUpdateOrder(spider)
@@ -76,7 +78,7 @@ class SpiderBody(val spider: Spider): SpiderComponent {
         for (leg in updateOrder) leg.update()
 
 
-        val tridents = spider.location.world!!.getNearbyEntities(spider.location, 1.5, 1.5, 1.5) {
+        val tridents = spider.world.getNearbyEntities(spider.position.toLocation(spider.world), 1.5, 1.5, 1.5) {
             it is Trident && it.shooter != spider.mount.getRider()
         }
         for (trident in tridents) {
@@ -92,10 +94,9 @@ class SpiderBody(val spider: Spider): SpiderComponent {
     }
 
     private fun getPreferredY(): Double {
-    //        val groundY = getGround(spider.location) + .3
         val averageY = spider.body.legs.map { it.target.position.y }.average() + spider.gait.bodyHeight
         val targetY = averageY //max(averageY, groundY)
-        val stabilizedY = spider.location.y.lerp(targetY, spider.gait.bodyHeightCorrectionFactor)
+        val stabilizedY = spider.position.y.lerp(targetY, spider.gait.bodyHeightCorrectionFactor)
         return stabilizedY
     }
 
@@ -123,7 +124,7 @@ class SpiderBody(val spider: Spider): SpiderComponent {
         }
 
         val centreOfMass = averageVector(spider.body.legs.map { it.endEffector })
-        centreOfMass.lerp(spider.location.toVector(), 0.5)
+        centreOfMass.lerp(spider.position, 0.5)
         centreOfMass.y += 0.01
 
         val groundedLegs = legsInPolygonalOrder().map { spider.body.legs[it] }.filter { it.isGrounded() }

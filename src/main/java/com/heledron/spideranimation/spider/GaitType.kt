@@ -1,5 +1,8 @@
 package com.heledron.spideranimation.spider
 
+import com.heledron.spideranimation.spider.body.Leg
+import com.heledron.spideranimation.spider.body.LegLookUp
+
 object WalkGaitType {
     fun canMoveLeg(leg: Leg): Boolean {
         val spider = leg.spider

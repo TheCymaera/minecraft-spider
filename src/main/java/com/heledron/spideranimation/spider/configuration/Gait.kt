@@ -16,7 +16,7 @@ class Gait(
             return Gait(.4, true).apply {
                 legWalkCooldown = 1
                 legMoveSpeed = .6
-                rotateSpeed = .25f
+                rotateSpeed = .25
                 uncomfortableSpeedMultiplier = .6
             }
         }
@@ -40,7 +40,7 @@ class Gait(
     var walkSpeed = walkSpeed
     var walkAcceleration = .15 / 4
 
-    var rotateSpeed = .15f; private set
+    var rotateSpeed = .15
 
     var legMoveSpeed = walkSpeed * 3
 

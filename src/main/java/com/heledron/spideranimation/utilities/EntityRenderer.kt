@@ -1,6 +1,8 @@
 package com.heledron.spideranimation.utilities
 
 import org.bukkit.Location
+import org.bukkit.Material
+import org.bukkit.World
 import org.bukkit.entity.BlockDisplay
 import org.bukkit.entity.Display
 import org.bukkit.entity.Entity
@@ -42,16 +44,30 @@ fun blockModel(
     update = update
 )
 
+fun blockModel(
+    world: World,
+    position: Vector,
+    init: (BlockDisplay) -> Unit = {},
+    update: (BlockDisplay) -> Unit = {}
+) = ModelPart(
+    clazz = BlockDisplay::class.java,
+    location = position.toLocation(world),
+    init = init,
+    update = update
+)
+
 fun lineModel(
-    location: Location,
+    world: World,
+    position: Vector,
     vector: Vector,
-    upVector: Vector = if (vector.x + vector.z != 0.0) UP_VECTOR else Vector(0, 0, 1),
+    upVector: Vector = if (vector.x + vector.z != 0.0) UP_VECTOR else FORWARD_VECTOR,
     thickness: Float = .1f,
     interpolation: Int = 1,
     init: (BlockDisplay) -> Unit = {},
     update: (BlockDisplay) -> Unit = {}
 ) = blockModel(
-    location = location,
+    world = world,
+    position = position,
     init = {
         it.teleportDuration = interpolation
         it.interpolationDuration = interpolation
@@ -85,6 +101,21 @@ fun textModel(
         it.text = text
         update(it)
     }
+)
+
+fun textModel(
+    world: World,
+    position: Vector,
+    text: String,
+    interpolation: Int,
+    init: (TextDisplay) -> Unit = {},
+    update: (TextDisplay) -> Unit = {},
+) = textModel(
+    location = position.toLocation(world),
+    text = text,
+    interpolation = interpolation,
+    init = init,
+    update = update
 )
 
 class ModelPartRenderer<T : Entity>: Closeable {

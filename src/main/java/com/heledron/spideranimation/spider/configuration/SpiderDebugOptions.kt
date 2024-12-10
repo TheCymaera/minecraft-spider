@@ -10,4 +10,6 @@ class SpiderDebugOptions {
     var normalForce = true
     var orientation = true
     var preferredOrientation = true
+
+    var disableFabrik = false
 }

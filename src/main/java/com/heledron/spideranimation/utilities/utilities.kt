@@ -1,14 +1,12 @@
 package com.heledron.spideranimation.utilities
 
 import com.heledron.spideranimation.SpiderAnimationPlugin
-import com.heledron.spideranimation.utilities.CustomItemRegistry.get
 import net.md_5.bungee.api.ChatMessageType
 import org.bukkit.Bukkit
 import org.bukkit.ChatColor
 import org.bukkit.FluidCollisionMode
 import org.bukkit.Location
 import org.bukkit.World
-import org.bukkit.entity.BlockDisplay
 import org.bukkit.entity.Display
 import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
@@ -143,8 +141,16 @@ fun resolveCollision(location: Location, direction: Vector): CollisionResult? {
     return null
 }
 
+fun World.resolveCollision(position: Vector, direction: Vector): CollisionResult? {
+    return resolveCollision(position.toLocation(this), direction)
+}
+
 fun playSound(location: Location, sound: org.bukkit.Sound, volume: Float, pitch: Float) {
     location.world!!.playSound(location, sound, volume, pitch)
+}
+
+fun World.playSound(position: Vector, sound: org.bukkit.Sound, volume: Float, pitch: Float) {
+    playSound(position.toLocation(this), sound, volume, pitch)
 }
 
 fun <T : Entity> spawnEntity(location: Location, clazz: Class<T>, initializer: (T) -> Unit): T {
@@ -173,6 +179,12 @@ fun centredTransform(xSize: Float, ySize: Float, zSize: Float): Transformation {
         Vector3f(xSize, ySize, zSize),
         AxisAngle4f(0f, 0f, 0f, 1f)
     )
+}
+
+fun centeredMatrix(xSize: Float, ySize: Float, zSize: Float): Matrix4f {
+    return Matrix4f()
+        .scale(xSize, ySize, zSize)
+        .translate(-.5f, -.5f, -.5f)
 }
 
 fun matrixFromTransform(transformation: Transformation): Matrix4f {

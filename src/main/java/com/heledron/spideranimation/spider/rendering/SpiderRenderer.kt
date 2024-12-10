@@ -38,7 +38,7 @@ class SpiderParticleRenderer(val spider: Spider): SpiderComponent {
 
         fun renderSpider(spider: Spider) {
             for (leg in spider.body.legs) {
-                val world = leg.spider.location.world!!
+                val world = leg.spider.world
                 val chain = leg.chain
                 var current = chain.root.toLocation(world)
 

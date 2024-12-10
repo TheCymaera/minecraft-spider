@@ -2,22 +2,25 @@ package com.heledron.spideranimation.spider.rendering
 
 import com.heledron.spideranimation.spider.Spider
 import com.heledron.spideranimation.utilities.*
-import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.entity.Display
 import org.bukkit.util.Vector
-import org.joml.Vector3d
+import org.joml.Matrix4f
+import org.joml.Quaternionf
+import org.joml.Vector3f
 
 
 fun spiderDebugModel(spider: Spider): Model {
     val model = Model()
 
     val scale = spider.options.bodyPlan.scale.toFloat()
+    val preferredOrientation = Quaternionf(spider.preferredOrientation)
 
     for ((legIndex, leg) in spider.body.legs.withIndex()) {
         // Render scan bars
         if (spider.options.debug.scanBars) model.add(Pair("scanBar", legIndex), lineModel(
-            location = leg.scanStartPosition.toLocation(spider.location.world!!),
+            world = spider.world,
+            position = leg.scanStartPosition,
             vector = leg.scanVector,
             thickness = .05f * scale,
             init = {
@@ -30,24 +33,35 @@ fun spiderDebugModel(spider: Spider): Model {
         ))
 
         // Render trigger zone
-        val vector = Vector(0,1,0).multiply(leg.triggerZone.vertical)
-        if (spider.options.debug.triggerZones) model.add(Pair("triggerZoneVertical", legIndex), lineModel(
-            location = leg.restPosition.toLocation(spider.location.world!!).subtract(vector.clone().multiply(.5)),
-            vector = vector,
-            thickness = .07f * scale,
-            init = { it.brightness = Display.Brightness(15, 15) },
+        if (spider.options.debug.triggerZones) model.add(Pair("triggerZoneVertical", legIndex), blockModel(
+            world = spider.world,
+            position = leg.triggerZone.center,
+            init = {
+                it.teleportDuration = 1
+                it.interpolationDuration = 1
+                it.brightness = Display.Brightness(15, 15)
+           },
             update = {
                 val material = if (leg.isUncomfortable) Material.RED_STAINED_GLASS else Material.CYAN_STAINED_GLASS
                 it.block = material.createBlockData()
+
+                val thickness = .07f * scale
+                val transform = Matrix4f()
+                    .rotate(preferredOrientation)
+                    .scale(thickness, 2 * leg.triggerZone.vertical.toFloat(), thickness)
+                    .translate(-.5f,-.5f,-.5f)
+
+                it.applyTransformationWithInterpolation(transform)
             }
         ))
 
         // Render trigger zone
         if (spider.options.debug.triggerZones) model.add(Pair("triggerZoneHorizontal", legIndex), blockModel(
-            location = run {
-                val location = leg.triggerZoneCenter.toLocation(leg.spider.location.world!!)
-                location.y = leg.target.position.y.coerceIn(location.y - leg.triggerZone.vertical, location.y + leg.triggerZone.vertical)
-                location
+            world = spider.world,
+            position = run {
+                val pos = leg.triggerZone.center.clone()
+                pos.y = leg.target.position.y.coerceIn(pos.y - leg.triggerZone.vertical, pos.y + leg.triggerZone.vertical)
+                pos
             },
             init = {
                 it.teleportDuration = 1
@@ -60,13 +74,19 @@ fun spiderDebugModel(spider: Spider): Model {
 
                 val size = 2 * leg.triggerZone.horizontal.toFloat()
                 val ySize = 0.02f
-                it.transformation = centredTransform(size, ySize, size)
+                val transform = Matrix4f()
+                    .rotate(preferredOrientation)
+                    .scale(size, ySize, size)
+                    .translate(-.5f,-.5f,-.5f)
+
+                it.applyTransformationWithInterpolation(transform)
             }
         ))
 
         // Render end effector
         if (spider.options.debug.endEffectors) model.add(Pair("endEffector", legIndex), blockModel(
-            location = leg.endEffector.toLocation(spider.location.world!!),
+            world = spider.world,
+            position = leg.endEffector,
             init = {
                 it.teleportDuration = 1
                 it.brightness = Display.Brightness(15, 15)
@@ -85,7 +105,7 @@ fun spiderDebugModel(spider: Spider): Model {
 
         // Render target position
         if (spider.options.debug.targetPositions) model.add(Pair("targetPosition", legIndex), blockModel(
-            location = leg.target.position.toLocation(spider.location.world!!),
+            location = leg.target.position.toLocation(spider.world),
             init = {
                 it.teleportDuration = 1
                 it.brightness = Display.Brightness(15, 15)
@@ -101,50 +121,70 @@ fun spiderDebugModel(spider: Spider): Model {
     }
 
     // Render spider direction
-    if (spider.options.debug.orientation) {
-        val forward = Vector(0.0, 0.0, scale.toDouble()).rotate(spider.orientation())
+    if (spider.options.debug.orientation) model.add("direction", blockModel(
+        location = spider.position.toLocation(spider.world),
+        init = {
+            it.teleportDuration = 1
+            it.interpolationDuration = 1
+            it.brightness = Display.Brightness(15, 15)
+        },
+        update = {
+            it.block = if (spider.gait.gallop) Material.REDSTONE_BLOCK.createBlockData() else Material.EMERALD_BLOCK.createBlockData()
 
-        model.add("direction", blockModel(
-            location = spider.location.clone().add(forward),
-            init = {
-                it.teleportDuration = 1
-                it.brightness = Display.Brightness(15, 15)
+            val size = .1f * scale
+            val displacement = 1f * scale
+            val transform = Matrix4f()
+                .rotate(Quaternionf(spider.orientation))
+                .translate(FORWARD_VECTOR.toVector3f().mul(displacement))
+                .scale(size, size, size)
+                .translate(-.5f,-.5f, -.5f)
 
-                val size = 0.1f * scale
-                it.transformation = centredTransform(size, size, size)
-            },
-            update = {
-                it.block = if (spider.gait.gallop) Material.REDSTONE_BLOCK.createBlockData() else Material.EMERALD_BLOCK.createBlockData()
-            }
-        ))
-    }
+            it.applyTransformationWithInterpolation(transform)
+        }
+    ))
 
     // Render preferred orientation
     if (spider.options.debug.preferredOrientation) {
-        val forward = Vector(0.0, 0.0, 2.0).rotate(spider.preferredOrientation())
+        fun model(orientation: Quaternionf, direction: Vector, thickness: Float, length: Float, material: Material) = run {
+            val mTranslation = Vector3f(-1f, -1f, -1f).add(direction.toVector3f()).mul(.5f)
+            val mScale = Vector3f(thickness, thickness, thickness).add(direction.toVector3f().mul(length))
 
-        model.add("preferredOrientation", lineModel(
-            location = Location(spider.location.world, spider.location.x, spider.location.y, spider.location.z),
-            vector = forward,
-            thickness = .05f * scale,
-            init = {
-                it.block = Material.BLUE_STAINED_GLASS.createBlockData()
-            }
-        ))
+            blockModel(
+                location = spider.position.toLocation(spider.world),
+                init = {
+                    it.block = material.createBlockData()
+                    it.teleportDuration = 1
+                    it.interpolationDuration = 1
+                },
+                update = {
+                    val transform = Matrix4f()
+                        .rotate(orientation)
+                        .scale(mScale)
+                        .translate(mTranslation)
 
+                    it.applyTransformationWithInterpolation(transform)
+                }
+            )
+        }
+
+        val thickness = .025f * scale
+        model.add("preferredForwards", model(preferredOrientation, FORWARD_VECTOR, thickness, 2.0f * scale, Material.DIAMOND_BLOCK))
+        model.add("preferredRight"   , model(preferredOrientation, RIGHT_VECTOR  , thickness, 1.0f * scale, Material.DIAMOND_BLOCK))
+        model.add("preferredUp"      , model(preferredOrientation, UP_VECTOR     , thickness, 1.0f * scale, Material.DIAMOND_BLOCK))
     }
 
 
     val normal = spider.body.normal ?: return model
     if (spider.options.debug.legPolygons && normal.contactPolygon != null) {
-        val points = normal.contactPolygon.map { it.toLocation(spider.location.world!!)}
+        val points = normal.contactPolygon//.map { it.toLocation(spider.world)}
         for (i in points.indices) {
             val a = points[i]
             val b = points[(i + 1) % points.size]
 
             model.add(Pair("polygon",i), lineModel(
-                location = a,
-                vector = b.toVector().subtract(a.toVector()),
+                world = spider.world,
+                position = a,
+                vector = b.clone().subtract(a),
                 thickness = .05f * scale,
                 interpolation = 0,
                 init = { it.brightness = Display.Brightness(15, 15) },
@@ -154,7 +194,8 @@ fun spiderDebugModel(spider: Spider): Model {
     }
 
     if (spider.options.debug.centreOfMass && normal.centreOfMass != null) model.add("centreOfMass", blockModel(
-        location = normal.centreOfMass.toLocation(spider.location.world!!),
+        world = spider.world,
+        position = normal.centreOfMass,
         init = {
             it.teleportDuration = 1
             it.brightness = Display.Brightness(15, 15)
@@ -170,7 +211,8 @@ fun spiderDebugModel(spider: Spider): Model {
 
 
     if (spider.options.debug.normalForce && normal.centreOfMass != null && normal.origin !== null) model.add("acceleration", lineModel(
-        location = normal.origin.toLocation(spider.location.world!!),
+        world = spider.world,
+        position = normal.origin,
         vector = normal.centreOfMass.clone().subtract(normal.origin),
         thickness = .02f * scale,
         interpolation = 1,

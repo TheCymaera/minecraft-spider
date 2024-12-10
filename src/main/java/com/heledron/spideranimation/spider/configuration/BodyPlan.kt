@@ -1,6 +1,7 @@
 package com.heledron.spideranimation.spider.configuration
 
 import com.heledron.spideranimation.ChainSegment
+import com.heledron.spideranimation.utilities.FORWARD_VECTOR
 import org.bukkit.util.Vector
 
 class SegmentPlan(
@@ -15,7 +16,7 @@ class SegmentPlan(
             val fraction = it.toDouble() / (segmentCount - 1)
 
             val thickness = rootThickness + (tipThickness - rootThickness) * fraction
-            SegmentPlan(segmentLength, thickness, ChainSegment.FORWARD)
+            SegmentPlan(segmentLength, thickness, FORWARD_VECTOR)
         }
     }
 }
@@ -32,7 +33,7 @@ class BodyPlan {
 
     var material = "minecraft:netherite_block"
     var straightenLegs = true
-    var legStraightenRotation = -60.0
+    var legStraightenRotation = -80.0
 
     fun addLegPair(root: Vector, rest: Vector, segments: List<SegmentPlan>) {
         legs += LegPlan(Vector( root.x, root.y, root.z), Vector( rest.x, rest.y, rest.z), segments)

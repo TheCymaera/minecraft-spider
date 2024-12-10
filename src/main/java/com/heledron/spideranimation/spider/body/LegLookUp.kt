@@ -1,4 +1,4 @@
-package com.heledron.spideranimation.spider
+package com.heledron.spideranimation.spider.body
 
 object LegLookUp {
     fun diagonalPairs(legs: List<Int>): List<List<Int>> {
