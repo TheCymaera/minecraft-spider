@@ -108,6 +108,15 @@ class Spider(
     }
 
     private fun updatePreferredAngles() {
+        val currentEuler = orientation.getEulerAnglesYXZ(Vector3d())
+
+        if (gait.disableAdvancedRotation) {
+            preferredPitch = .0
+            preferredRoll = .0
+            preferredOrientation = Quaterniond().rotationYXZ(currentEuler.y, .0, .0)
+            return
+        }
+
         fun getPos(leg: Leg): Vector {
 //            if (leg.isOutsideTriggerZone) return leg.endEffector
             return leg.target.position
@@ -122,7 +131,7 @@ class Spider(
         val forwardRight = frontRight.clone().subtract(backRight)
         val forward = averageVector(listOf(forwardLeft, forwardRight))
 
-        preferredPitch = forward.getPitch().lerp(preferredPitch, .3)
+        preferredPitch = forward.getPitch().lerp(currentEuler.x, .3)
 
         val sideways = Vector(0.0,0.0,0.0)
         for (i in 0 until body.legs.size step 2) {
@@ -132,9 +141,8 @@ class Spider(
             sideways.add(getPos(right).clone().subtract(getPos(left)))
         }
 
-        preferredRoll = sideways.getPitch().lerp(preferredRoll, .1)
+        preferredRoll = sideways.getPitch().lerp(currentEuler.z, .3)
 
-        val currentEuler = orientation.getEulerAnglesYXZ(Vector3d())
         preferredOrientation = Quaterniond().rotationYXZ(currentEuler.y, preferredPitch, preferredRoll)
     }
 }

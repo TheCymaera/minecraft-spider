@@ -76,4 +76,6 @@ class Gait(
     var stabilizationFactor = 0.7
 
     var uncomfortableSpeedMultiplier = 0.0
+
+    var disableAdvancedRotation = false
 }
