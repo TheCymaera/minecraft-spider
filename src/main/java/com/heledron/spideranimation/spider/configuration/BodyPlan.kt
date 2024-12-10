@@ -2,6 +2,7 @@ package com.heledron.spideranimation.spider.configuration
 
 import com.heledron.spideranimation.ChainSegment
 import com.heledron.spideranimation.utilities.FORWARD_VECTOR
+import org.bukkit.Material
 import org.bukkit.util.Vector
 
 class SegmentPlan(
@@ -31,7 +32,7 @@ class BodyPlan {
     var scale = 1.0
     var legs = emptyList<LegPlan>()
 
-    var material = "minecraft:netherite_block"
+    var material = Material.NETHERITE_BLOCK
     var straightenLegs = true
     var legStraightenRotation = -80.0
 

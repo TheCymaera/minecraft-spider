@@ -76,7 +76,6 @@ fun spiderModel(spider: Spider, bodyModel: List<SpiderModelPiece>): Model {
         // Render leg segment
 
         // get material from namespacedID
-        val defaultMaterial = Material.matchMaterial(spider.options.bodyPlan.material) ?: Material.NETHERITE_BLOCK
         for ((segmentIndex, segment) in chain.segments.withIndex()) {
             val segmentPlan = spider.options.bodyPlan.legs.getOrNull(legIndex)?.segments?.getOrNull(segmentIndex) ?: continue;
 
@@ -91,7 +90,7 @@ fun spiderModel(spider: Spider, bodyModel: List<SpiderModelPiece>): Model {
                 upVector = segmentUpVector,
                 update = {
                     val cloak = spider.cloak.getPiece(legIndex to segmentIndex, parent)
-                    it.block =  cloak ?: defaultMaterial.createBlockData()
+                    it.block =  cloak ?: spider.options.bodyPlan.material.createBlockData()
                 }
             ))
         }

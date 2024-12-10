@@ -183,10 +183,6 @@ class Leg(
             val rotation = Quaterniond().rotationToYX(FORWARD_VECTOR.toVector3d(), direction.toVector3d())
             rotation.rotateX(Math.toRadians(spider.options.bodyPlan.legStraightenRotation))
 
-//            val crossAxis = Vector(0.0, 1.0, 0.0).crossProduct(direction).normalize()
-//            direction.rotateAroundAxis(crossAxis, Math.toRadians(spider.options.bodyPlan.legStraightenRotation))
-//            direction.rotate(Quaterniond().rotateLocalX(spider.options.bodyPlan.legStraightenRotation))
-
             chain.straightenDirection(rotation)
         }
 

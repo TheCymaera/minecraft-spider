@@ -113,15 +113,17 @@ class SpiderBody(val spider: Spider): SpiderComponent {
         return indices.map { spider.body.legs[it] }
     }
 
-    private fun getNormal(spider: Spider): NormalInfo? {
-        if (spider.gait.useLegacyNormalForce) {
-            val pairs = LegLookUp.diagonalPairs(legs.indices.toList())
-            if (pairs.any { pair -> pair.mapNotNull { spider.body.legs.getOrNull(it) }.all { it.isGrounded() } }) {
-                return NormalInfo(normal = Vector(0, 1, 0))
-            }
-
-            return null
+    private fun getLegacyNormal(): NormalInfo? {
+        val pairs = LegLookUp.diagonalPairs(legs.indices.toList())
+        if (pairs.any { pair -> pair.mapNotNull { spider.body.legs.getOrNull(it) }.all { it.isGrounded() } }) {
+            return NormalInfo(normal = Vector(0, 1, 0))
         }
+
+        return null
+    }
+
+    private fun getNormal(spider: Spider): NormalInfo? {
+        if (spider.gait.useLegacyNormalForce) return getLegacyNormal()
 
         val centreOfMass = averageVector(spider.body.legs.map { it.endEffector })
         centreOfMass.lerp(spider.position, 0.5)
@@ -130,56 +132,54 @@ class SpiderBody(val spider: Spider): SpiderComponent {
         val groundedLegs = legsInPolygonalOrder().map { spider.body.legs[it] }.filter { it.isGrounded() }
         if (groundedLegs.isEmpty()) return null
 
-        fun applyStabilization(normal: NormalInfo) {
-            if (normal.origin == null) return
-            if (normal.centreOfMass == null) return
-
-            if (horizontalDistance(normal.origin, normal.centreOfMass) < spider.gait.polygonLeeway) {
-                normal.origin.x = normal.centreOfMass.x
-                normal.origin.z = normal.centreOfMass.z
-            }
-
-            val stabilizationTarget = normal.origin.clone().setY(normal.centreOfMass.y)
-            normal.centreOfMass.lerp(stabilizationTarget, spider.gait.stabilizationFactor)
-
-            normal.normal.copy(normal.centreOfMass).subtract(normal.origin).normalize()
-        }
-
         val legsPolygon = groundedLegs.map { it.endEffector.clone() }
         val polygonCenterY = legsPolygon.map { it.y }.average()
 
-        if (legsPolygon.size > 1) {
-            val polygon2D = legsPolygon.map { Vector2d(it.x, it.z) }
-
-            if (pointInPolygon(Vector2d(centreOfMass.x, centreOfMass.z), polygon2D)) {
-                // inside polygon. accelerate upwards towards centre of mass
-                return NormalInfo(
-                    normal = Vector(0, 1, 0),
-                    origin = Vector(centreOfMass.x, polygonCenterY, centreOfMass.z),
-                    centreOfMass = centreOfMass,
-                    contactPolygon = legsPolygon
-                )
-            } else {
-                // outside polygon, accelerate at an angle from within the polygon
-                val point = nearestPointInPolygon(Vector2d(centreOfMass.x, centreOfMass.z), polygon2D)
-                val origin = Vector(point.x, polygonCenterY, point.y)
-                return NormalInfo(
-                    normal = centreOfMass.clone().subtract(origin).normalize(),
-                    origin = origin,
-                    centreOfMass = centreOfMass,
-                    contactPolygon = legsPolygon
-                ).apply { applyStabilization(this )}
-            }
-        } else {
-            // only 1 leg on ground
+        // only 1 leg on ground
+        if (legsPolygon.size == 1) {
             val origin = groundedLegs.first().endEffector.clone()
             return NormalInfo(
                 normal = centreOfMass.clone().subtract(origin).normalize(),
                 origin = origin,
                 centreOfMass = centreOfMass,
                 contactPolygon = legsPolygon
-            ).apply { applyStabilization(this )}
+            ).apply { applyStabilization(this) }
         }
+
+        val polygon2D = legsPolygon.map { Vector2d(it.x, it.z) }
+
+        // inside polygon. accelerate upwards towards centre of mass
+        if (pointInPolygon(Vector2d(centreOfMass.x, centreOfMass.z), polygon2D)) return NormalInfo(
+            normal = Vector(0, 1, 0),
+            origin = Vector(centreOfMass.x, polygonCenterY, centreOfMass.z),
+            centreOfMass = centreOfMass,
+            contactPolygon = legsPolygon
+        )
+
+        // outside polygon, accelerate at an angle from within the polygon
+        val point = nearestPointInPolygon(Vector2d(centreOfMass.x, centreOfMass.z), polygon2D)
+        val origin = Vector(point.x, polygonCenterY, point.y)
+        return NormalInfo(
+            normal = centreOfMass.clone().subtract(origin).normalize(),
+            origin = origin,
+            centreOfMass = centreOfMass,
+            contactPolygon = legsPolygon
+        ).apply { applyStabilization(this )}
+    }
+
+    private fun applyStabilization(normal: NormalInfo) {
+        if (normal.origin == null) return
+        if (normal.centreOfMass == null) return
+
+        if (horizontalDistance(normal.origin, normal.centreOfMass) < spider.gait.polygonLeeway) {
+            normal.origin.x = normal.centreOfMass.x
+            normal.origin.z = normal.centreOfMass.z
+        }
+
+        val stabilizationTarget = normal.origin.clone().setY(normal.centreOfMass.y)
+        normal.centreOfMass.lerp(stabilizationTarget, spider.gait.stabilizationFactor)
+
+        normal.normal.copy(normal.centreOfMass).subtract(normal.origin).normalize()
     }
 }
 

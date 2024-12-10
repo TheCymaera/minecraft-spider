@@ -32,7 +32,6 @@ class SoundEffects(val spider: Spider) : SpiderComponent {
         }
 
         for (leg in spider.body.legs) {
-            // Step sound effect
             closeables += leg.onStep.listen {
                 val volume = .3f
                 val pitch = 1.0f + Math.random().toFloat() * 0.1f
