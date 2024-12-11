@@ -40,9 +40,6 @@ fun Vector.lerp(target: Vector, factor: Double) {
     this.add(target.clone().subtract(this).multiply(factor))
 }
 
-//fun Vector3f.toVector(): Vector {
-//    return Vector(x.toDouble(), y.toDouble(), z.toDouble())
-//}
 fun Vector.copy(vec: Vector3d) {
     this.x = vec.x
     this.y = vec.y
@@ -80,19 +77,30 @@ fun Vector.getYaw(): Double {
     return yaw
 }
 
-//fun Vector.rotateAround(rotation: Quaternionf, origin: Vector) {
-//    this.subtract(origin).rotate(rotation).add(origin)
+//fun Quaterniond.rotationToYX(fromDir: Vector3d, toDir: Vector3d): Quaterniond {
+//    this.rotationTo(fromDir, toDir)
+//    val euler = this.getEulerAnglesYXZ(Vector3d())
+//    return this.rotationYXZ(euler.y, euler.x, .0)
 //}
 
-//fun Quaternionf.transform(vector: Vector): Vector {
-//    vector.copy(this.transform(vector.toVector3d()))
-//    return vector
-//}
+fun Quaterniond.stripRelativeZ(pivot: Quaterniond) {
+    val relative = Quaterniond(pivot).difference(this)
 
-fun Quaterniond.rotationToYX(fromDir: Vector3d, toDir: Vector3d): Quaterniond {
-    this.rotationTo(fromDir, toDir)
-    val euler = this.getEulerAnglesYXZ(Vector3d())
-    return this.rotationYXZ(euler.y, euler.x, .0)
+    // remove z rotation
+    val euler = relative.getEulerAnglesYXZ(Vector3d())
+    relative.rotationYXZ(euler.y, euler.x, .0)
+
+    this.set(pivot).mul(relative)
+}
+
+fun Quaternionf.stripRelativeZ(pivot: Quaternionf): Quaternionf {
+    val relative = Quaternionf(pivot).difference(this)
+
+    // remove z rotation
+    val euler = relative.getEulerAnglesYXZ(Vector3f())
+    relative.rotationYXZ(euler.y, euler.x, .0f)
+
+    return this.set(pivot).mul(relative)
 }
 
 fun toDegrees(radians: Double): Double {
@@ -125,10 +133,10 @@ fun Vector.horizontalLength(): Double {
     return sqrt(x * x + z * z)
 }
 
-fun averageVector(vectors: List<Vector>): Vector {
+fun List<Vector>.average(): Vector {
     val out = Vector(0, 0, 0)
-    for (vector in vectors) out.add(vector)
-    out.multiply(1.0 / vectors.size)
+    for (vector in this) out.add(vector)
+    out.multiply(1.0 / this.size)
     return out
 }
 

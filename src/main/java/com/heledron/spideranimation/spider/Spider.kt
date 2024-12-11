@@ -132,7 +132,7 @@ class Spider(
 
         val forwardLeft = frontLeft.clone().subtract(backLeft)
         val forwardRight = frontRight.clone().subtract(backRight)
-        val forward = averageVector(listOf(forwardLeft, forwardRight))
+        val forward = listOf(forwardLeft, forwardRight).average()
 
         preferredPitch = forward.getPitch().lerp(currentEuler.x, .3)
 

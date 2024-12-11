@@ -108,7 +108,7 @@ class SpiderBody(val spider: Spider): SpiderComponent {
     private fun getNormal(spider: Spider): NormalInfo? {
         if (spider.gait.useLegacyNormalForce) return getLegacyNormal()
 
-        val centreOfMass = averageVector(spider.body.legs.map { it.endEffector })
+        val centreOfMass = spider.body.legs.map { it.endEffector }.average()
         centreOfMass.lerp(spider.position, 0.5)
         centreOfMass.y += 0.01
 

@@ -34,7 +34,7 @@ class BodyPlan {
 
     var material = Material.NETHERITE_BLOCK
     var straightenLegs = true
-    var legStraightenRotation = -80.0
+    var legStraightenRotation = Math.toRadians(-80.0)
 
     fun addLegPair(root: Vector, rest: Vector, segments: List<SegmentPlan>) {
         legs += LegPlan(Vector( root.x, root.y, root.z), Vector( rest.x, rest.y, rest.z), segments)

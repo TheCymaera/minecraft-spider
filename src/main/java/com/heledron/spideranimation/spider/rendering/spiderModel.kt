@@ -8,6 +8,7 @@ import org.bukkit.block.data.BlockData
 import org.bukkit.entity.BlockDisplay
 import org.bukkit.entity.Display
 import org.bukkit.util.Vector
+import org.joml.Matrix4d
 import org.joml.Matrix4f
 import org.joml.Quaternionf
 import org.joml.Vector4f
@@ -76,23 +77,42 @@ fun spiderModel(spider: Spider, bodyModel: List<SpiderModelPiece>): Model {
         // Render leg segment
 
         // get material from namespacedID
-        for ((segmentIndex, segment) in chain.segments.withIndex()) {
-            val segmentPlan = spider.options.bodyPlan.legs.getOrNull(legIndex)?.segments?.getOrNull(segmentIndex) ?: continue;
+        for ((segmentIndex, rotation) in chain.getRotations(Quaternionf(spider.orientation)).withIndex()) {
+            val segmentPlan = spider.options.bodyPlan.legs.getOrNull(legIndex)?.segments?.getOrNull(segmentIndex) ?: continue
+
+            val segmentModel = listOf(SpiderModelPiece(
+                block = spider.options.bodyPlan.material.createBlockData(),
+                transformation = Matrix4f()
+                    .scale(segmentPlan.thickness.toFloat(), segmentPlan.thickness.toFloat(), segmentPlan.length.toFloat())
+                    .translate(-.5f,-.5f,.0f),
+                brightness = Display.Brightness(0, 15),
+                cloak = false
+            ))
 
             val parent = chain.segments.getOrNull(segmentIndex - 1)?.position ?: chain.root
-            val vector = segment.position.clone().subtract(parent).normalize().multiply(segment.length)
 
-            model.add(Pair(legIndex, segmentIndex), lineModel(
-                world = spider.world,
-                position = parent.clone(),
-                vector = vector,
-                thickness = segmentPlan.thickness.toFloat(),
-                upVector = segmentUpVector,
-                update = {
-                    val cloak = spider.cloak.getPiece(legIndex to segmentIndex, parent)
-                    it.block =  cloak ?: spider.options.bodyPlan.material.createBlockData()
-                }
-            ))
+            for ((pieceIndex, piece) in segmentModel.withIndex()) {
+                model.add(legIndex to segmentIndex to pieceIndex, blockModel(
+                    world = spider.world,
+                    position = parent,
+                    init = {
+                        it.teleportDuration = 1
+                        it.interpolationDuration = 1
+                        it.brightness = piece.brightness
+                    },
+                    update = {
+                        val transform = Matrix4f()
+                            .rotate(rotation)
+                            .mul(piece.transformation)
+
+                        it.applyTransformationWithInterpolation(transform)
+
+                        val cloak = spider.cloak.getPiece(legIndex to segmentIndex, parent)
+                        it.block =  cloak ?: spider.options.bodyPlan.material.createBlockData()
+                    }
+                ))
+            }
+
         }
     }
 

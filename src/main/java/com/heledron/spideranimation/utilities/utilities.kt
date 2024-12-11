@@ -125,6 +125,10 @@ fun raycastGround(location: Location, direction: Vector, maxDistance: Double): R
     return location.world!!.rayTraceBlocks(location, direction, maxDistance, FluidCollisionMode.NEVER, true)
 }
 
+fun World.raycastGround(position: Vector, direction: Vector, maxDistance: Double): RayTraceResult? {
+    return raycastGround(position.toLocation(this), direction, maxDistance)
+}
+
 fun World.isOnGround(position: Vector, downVector: Vector = DOWN_VECTOR): Boolean {
     return raycastGround(position.toLocation(this), downVector, 0.001) != null
 }

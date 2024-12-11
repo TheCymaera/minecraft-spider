@@ -18,9 +18,7 @@ class Leg(
 ) {
     // memo
     lateinit var triggerZone: SplitDistanceZone; private set
-//    val triggerZoneCenter: Vector; get () = restPosition.clone()
     lateinit var comfortZone: SplitDistanceZone; private set
-//    lateinit var comfortZoneCenter: Vector; private set
 
     lateinit var restPosition: Vector; private set
     lateinit var lookAheadPosition: Vector; private set
@@ -177,11 +175,12 @@ class Leg(
 
         if (spider.options.bodyPlan.straightenLegs) {
             val direction = endEffector.clone().subtract(attachmentPosition)
+            val orientation = Quaterniond().rotationTo(FORWARD_VECTOR.toVector3d(), direction.toVector3d())
 
-            val rotation = Quaterniond().rotationToYX(FORWARD_VECTOR.toVector3d(), direction.toVector3d())
-            rotation.rotateX(Math.toRadians(spider.options.bodyPlan.legStraightenRotation))
+            orientation.stripRelativeZ(spider.orientation)
+            orientation.rotateX(spider.options.bodyPlan.legStraightenRotation)
 
-            chain.straightenDirection(rotation)
+            chain.straightenDirection(orientation)
         }
 
         if (!spider.options.debug.disableFabrik) chain.fabrik(endEffector)
@@ -277,11 +276,14 @@ class Leg(
     }
 
     private fun disabledTarget(): LegTarget {
-        val target = strandedTarget()
-        target.position.y += spider.gait.bodyHeight / 2
+        val upVector = UP_VECTOR.rotate(spider.orientation)
 
-        val groundPosition = raycastGround(endEffector.toLocation(spider.world).add(0.0, .5, 0.0), DOWN_VECTOR, 2.0)?.hitPosition
-        if (groundPosition != null && groundPosition.y > target.position.y) target.position.y = groundPosition.y + spider.gait.bodyHeight * .3
+        val target = strandedTarget()
+        target.position.add(upVector.clone().multiply(spider.gait.bodyHeight * .5))
+
+//        val downVector = upVector.clone().multiply(-1)
+//        val groundPosition = spider.world.raycastGround(endEffector, downVector, 2.0)?.hitPosition
+//        if (groundPosition != null && groundPosition.y > target.position.y) {
 
         return target
     }

@@ -1,8 +1,11 @@
 package com.heledron.spideranimation
 
+import com.heledron.spideranimation.utilities.FORWARD_VECTOR
 import com.heledron.spideranimation.utilities.rotate
+import com.heledron.spideranimation.utilities.stripRelativeZ
 import org.bukkit.util.Vector
 import org.joml.Quaterniond
+import org.joml.Quaternionf
 
 
 class KinematicChain(
@@ -61,6 +64,35 @@ class KinematicChain(
 
     fun getEndEffector(): Vector {
         return segments.last().position
+    }
+
+    fun getVectors(): List<Vector> {
+        return segments.mapIndexed { i, segment ->
+            val previous = segments.getOrNull(i - 1)?.position ?: root
+            segment.position.clone().subtract(previous)
+        }
+    }
+
+    fun getRotations(pivot: Quaternionf): List<Quaternionf> {
+        val vectors = getVectors()
+
+        val firstRotation = Quaternionf()
+            .rotationTo(FORWARD_VECTOR.toVector3f(), vectors.first().toVector3f())
+            .stripRelativeZ(pivot)
+
+        // get relative rotations
+        val rotations = vectors.mapIndexed { i, current ->
+            val previous = vectors.getOrNull(i - 1) ?: return@mapIndexed firstRotation
+
+            Quaternionf().rotationTo(previous.toVector3f(), current.toVector3f())
+        }
+
+        // cumulate rotations
+        for (i in 1 until rotations.size) {
+            rotations[i].mul(rotations[i - 1])
+        }
+
+        return rotations
     }
 }
 
