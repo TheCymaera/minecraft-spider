@@ -4,6 +4,7 @@ import com.heledron.spideranimation.spider.Spider
 import com.heledron.spideranimation.spider.SpiderComponent
 import com.heledron.spideranimation.utilities.*
 import org.bukkit.util.Vector
+import org.joml.Quaternionf
 import org.joml.Vector2d
 import kotlin.math.*
 
@@ -22,16 +23,32 @@ class SpiderBody(val spider: Spider): SpiderComponent {
         spider.velocity.y -= spider.moveGait.gravityAcceleration
         spider.velocity.y *= (1 - spider.moveGait.airDragCoefficient)
 
-        // apply ground drag
-//        if (!spider.isWalking) {
-//            val drag = spider.gait.groundDragCoefficient * fractionOfLegsGrounded
-//            spider.velocity.x *= drag
-//            spider.velocity.z *= drag
-//        }
+        // apply rotational velocity
+        val rotVelocity = Quaternionf().rotationYXZ(spider.yawVelocity, spider.pitchVelocity, spider.rollVelocity)
+        spider.orientation.set(rotVelocity.mul(spider.orientation))
 
+        // apply drag while leg on ground
+        if (!spider.isWalking) {
+            val legDrag = 1 - spider.moveGait.groundDragCoefficient * fractionOfLegsGrounded
+            spider.velocity.x *= legDrag
+            spider.velocity.z *= legDrag
+        }
+
+        // apply rotational drag
+        val rotDrag = 1 - spider.moveGait.rotationalDragCoefficient * fractionOfLegsGrounded.toFloat()
+        spider.yawVelocity *= rotDrag
+        spider.pitchVelocity *= rotDrag
+        spider.rollVelocity *= rotDrag
+
+        // apply drag while body on ground
         if (onGround) {
-            spider.velocity.x *= .5
-            spider.velocity.z *= .5
+            val bodyDrag = .5f
+            spider.velocity.x *= bodyDrag
+            spider.velocity.z *= bodyDrag
+
+            spider.yawVelocity *= bodyDrag
+            spider.pitchVelocity *= bodyDrag
+            spider.rollVelocity *= bodyDrag
         }
 
         val normal = getNormal(spider)

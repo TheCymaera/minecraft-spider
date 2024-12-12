@@ -3,6 +3,7 @@ package com.heledron.spideranimation.spider.configuration
 import com.heledron.spideranimation.spider.body.GaitType
 import com.heledron.spideranimation.utilities.SplitDistance
 import com.heledron.spideranimation.utilities.lerp
+import com.heledron.spideranimation.utilities.toRadians
 
 
 class Gait(
@@ -30,9 +31,9 @@ class Gait(
     companion object {
         fun stationary() = Gait()
 
-        fun movingButNotWalking() = stationary().apply {
+        fun movingButNotWalking() = stationary()/*.apply {
             triggerZone = SplitDistance(triggerZone.horizontal / 2, triggerZone.vertical)
-        }
+        }*/
 
         fun walk() = stationary().apply {
             triggerZone = SplitDistance(.8,1.5)
@@ -57,7 +58,7 @@ class MoveGait(
             gait = Gait.gallop()
             legWalkCooldown = 1
             legMoveSpeed = .6
-            rotateSpeed = .25
+            rotateAcceleration = .25f / 4
             uncomfortableSpeedMultiplier = .6
         }
     }
@@ -77,7 +78,8 @@ class MoveGait(
     var maxSpeed = walkSpeed
     var walkAcceleration = .15 / 4
 
-    var rotateSpeed = .15
+    var rotateAcceleration = .15f / 4
+    var rotationalDragCoefficient = .2f
 
     var legMoveSpeed = walkSpeed * 3
 
@@ -110,12 +112,14 @@ class MoveGait(
 
     var useLegacyNormalForce = false
     var polygonLeeway = .0
-    var stabilizationFactor = 0.7
+    
+    // TODO: Consider removing this
+    var stabilizationFactor = .0 //0.7
 
     var uncomfortableSpeedMultiplier = 0.0
 
     var disableAdvancedRotation = false
 
     var straightenLegs = true
-    var legStraightenRotation = Math.toRadians(-80.0)
+    var legStraightenRotation = toRadians(-80f)
 }

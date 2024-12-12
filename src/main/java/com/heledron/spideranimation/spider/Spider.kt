@@ -9,8 +9,8 @@ import com.heledron.spideranimation.utilities.*
 import org.bukkit.Location
 import org.bukkit.World
 import org.bukkit.util.Vector
-import org.joml.Quaterniond
-import org.joml.Vector3d
+import org.joml.Quaternionf
+import org.joml.Vector3f
 import java.io.Closeable
 
 interface SpiderComponent : Closeable {
@@ -22,14 +22,14 @@ interface SpiderComponent : Closeable {
 class Spider(
     val world: World,
     val position: Vector,
-    val orientation: Quaterniond,
+    val orientation: Quaternionf,
     val options: SpiderOptions
 ): Closeable {
     companion object {
         fun fromLocation(location: Location, options: SpiderOptions): Spider {
             val world = location.world!!
             val position = location.toVector()
-            val orientation = Quaterniond().rotationYXZ(toRadians(-location.yaw.toDouble()), toRadians(location.pitch.toDouble()), 0.0)
+            val orientation = Quaternionf().rotationYXZ(toRadians(-location.yaw), toRadians(location.pitch), 0f)
             return Spider(world, position, orientation, options)
         }
     }
@@ -47,9 +47,9 @@ class Spider(
 
     // memo
     var gait = options.stationaryGait.clone()
-    var preferredPitch = orientation.getEulerAnglesYXZ(Vector3d()).x
-    var preferredRoll = orientation.getEulerAnglesYXZ(Vector3d()).z
-    var preferredOrientation = Quaterniond(orientation)
+    var preferredPitch = orientation.getEulerAnglesYXZ(Vector3f()).x
+    var preferredRoll = orientation.getEulerAnglesYXZ(Vector3f()).z
+    var preferredOrientation = Quaternionf(orientation)
 
     // params
     var gallop = false
@@ -58,10 +58,12 @@ class Spider(
     // state
     var isWalking = false
     var isRotatingYaw = false
-    var isRotatingPitch = false
-    var yawVelocity = .0
+//    var isRotatingPitch = false
 
     val velocity = Vector(0.0, 0.0, 0.0)
+    var yawVelocity = 0f
+    var pitchVelocity = 0f
+    var rollVelocity = 0f
 
     // components
     val body = SpiderBody(this)
@@ -106,9 +108,11 @@ class Spider(
     }
 
     fun update() {
-        updateGait()
         updatePreferredAngles()
-        for (component in getComponents()) component.update()
+        for (component in getComponents()) {
+            updateGait()
+            component.update()
+        }
         for (component in getComponents()) component.render()
     }
 
@@ -128,18 +132,18 @@ class Spider(
     }
 
     private fun updatePreferredAngles() {
-        val currentEuler = orientation.getEulerAnglesYXZ(Vector3d())
+        val currentEuler = orientation.getEulerAnglesYXZ(Vector3f())
 
         if (moveGait.disableAdvancedRotation) {
-            preferredPitch = .0
-            preferredRoll = .0
-            preferredOrientation = Quaterniond().rotationYXZ(currentEuler.y, .0, .0)
+            preferredPitch = .0f
+            preferredRoll = .0f
+            preferredOrientation = Quaternionf().rotationYXZ(currentEuler.y, .0f, .0f)
             return
         }
 
         fun getPos(leg: Leg): Vector {
 //            if (leg.isOutsideTriggerZone) return leg.endEffector
-            return leg.target.position
+            return leg.groundPosition ?: leg.restPosition
         }
 
         val frontLeft  = getPos(body.legs.getOrNull(0) ?: return)
@@ -151,7 +155,7 @@ class Spider(
         val forwardRight = frontRight.clone().subtract(backRight)
         val forward = listOf(forwardLeft, forwardRight).average()
 
-        preferredPitch = forward.getPitch().lerp(currentEuler.x, .3)
+        preferredPitch = forward.getPitch()//.lerp(currentEuler.x, .3f)
 
         val sideways = Vector(0.0,0.0,0.0)
         for (i in 0 until body.legs.size step 2) {
@@ -161,9 +165,9 @@ class Spider(
             sideways.add(getPos(right).clone().subtract(getPos(left)))
         }
 
-        preferredRoll = sideways.getPitch().lerp(currentEuler.z, .3)
+        preferredRoll = sideways.getPitch()//.lerp(currentEuler.z, .3f)
 
-        preferredOrientation = Quaterniond().rotationYXZ(currentEuler.y, preferredPitch, preferredRoll)
+        preferredOrientation = Quaternionf().rotationYXZ(currentEuler.y, preferredPitch, preferredRoll)
     }
 }
 

@@ -57,24 +57,29 @@ fun Vector.rotateAroundY(angle: Double, origin: Vector) {
 }
 
 fun Vector.rotate(rotation: Quaterniond): Vector {
-    this.copy(rotation.transform(this.toVector3d()))
+    this.copy(toVector3d().rotate(rotation))
     return this
 }
 
-fun Vector.getPitch(): Double {
+fun Vector.rotate(rotation: Quaternionf): Vector {
+    this.copy(toVector3f().rotate(rotation))
+    return this
+}
+
+fun Vector.getPitch(): Float {
     val x = this.x
     val y = this.y
     val z = this.z
     val xz = sqrt(x * x + z * z)
     val pitch = atan2(-y, xz)
-    return pitch
+    return pitch.toFloat()
 }
 
-fun Vector.getYaw(): Double {
+fun Vector.getYaw(): Float {
     val x = this.x
     val z = this.z
     val yaw = atan2(-x, z)
-    return yaw
+    return yaw.toFloat()
 }
 
 //fun Quaterniond.rotationToYX(fromDir: Vector3d, toDir: Vector3d): Quaterniond {
@@ -82,16 +87,6 @@ fun Vector.getYaw(): Double {
 //    val euler = this.getEulerAnglesYXZ(Vector3d())
 //    return this.rotationYXZ(euler.y, euler.x, .0)
 //}
-
-fun Quaterniond.stripRelativeZ(pivot: Quaterniond) {
-    val relative = Quaterniond(pivot).difference(this)
-
-    // remove z rotation
-    val euler = relative.getEulerAnglesYXZ(Vector3d())
-    relative.rotationYXZ(euler.y, euler.x, .0)
-
-    this.set(pivot).mul(relative)
-}
 
 fun Quaternionf.stripRelativeZ(pivot: Quaternionf): Quaternionf {
     val relative = Quaternionf(pivot).difference(this)

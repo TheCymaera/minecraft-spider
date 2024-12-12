@@ -8,9 +8,9 @@ import com.heledron.spideranimation.utilities.*
 import org.bukkit.Location
 import org.bukkit.util.Vector
 import org.joml.Quaterniond
+import org.joml.Quaternionf
 import kotlin.math.ceil
 import kotlin.math.floor
-import kotlin.math.min
 
 class Leg(
     val spider: Spider,
@@ -20,6 +20,7 @@ class Leg(
     lateinit var triggerZone: SplitDistanceZone; private set
     lateinit var comfortZone: SplitDistanceZone; private set
 
+    var groundPosition: Vector? = null; private set
     lateinit var restPosition: Vector; private set
     lateinit var lookAheadPosition: Vector; private set
     lateinit var scanStartPosition: Vector; private set
@@ -107,10 +108,12 @@ class Leg(
         timeSinceBeginMove += 1
 
         // update target
+        val ground = locateGround()
+        groundPosition = locateGround()?.position
+
         if (isDisabled) {
             target = disabledTarget()
         } else {
-            val ground = locateGround()
             if (ground != null) target = ground
 
             if (!target.isGrounded || !comfortZone.contains(target.position)) {
@@ -121,7 +124,7 @@ class Leg(
         // inherit parent velocity
         if (!isGrounded()) {
             endEffector.add(spider.velocity)
-            endEffector.rotateAroundY(spider.yawVelocity, spider.position)
+            endEffector.rotateAroundY(spider.yawVelocity.toDouble(), spider.position)
         }
 
         // resolve ground collision
@@ -178,7 +181,7 @@ class Leg(
 
         if (spider.moveGait.straightenLegs) {
             val direction = endEffector.clone().subtract(attachmentPosition)
-            val orientation = Quaterniond().rotationTo(FORWARD_VECTOR.toVector3d(), direction.toVector3d())
+            val orientation = Quaternionf().rotationTo(FORWARD_VECTOR.toVector3f(), direction.toVector3f())
 
             orientation.stripRelativeZ(spider.orientation)
             orientation.rotateX(spider.moveGait.legStraightenRotation)
@@ -201,7 +204,7 @@ class Leg(
         val direction = if (spider.velocity.isZero) spider.forwardDirection() else spider.velocity.clone().normalize()
 
         val lookAhead = direction.multiply(triggerZoneRadius * spider.moveGait.legLookAheadFraction).add(restPosition)
-        lookAhead.rotateAroundY(spider.yawVelocity, spider.position)
+        lookAhead.rotateAroundY(spider.yawVelocity.toDouble(), spider.position)
         return lookAhead
     }
 

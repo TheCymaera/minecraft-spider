@@ -6,7 +6,6 @@ import org.bukkit.*
 import org.bukkit.entity.Display
 import org.bukkit.util.Vector
 import org.joml.Matrix4f
-import org.joml.Quaternionf
 import org.joml.Vector4f
 
 fun targetModel(
@@ -28,7 +27,7 @@ fun spiderModel(spider: Spider): Model {
     for ((index, piece) in spider.options.bodyPlan.bodyModel.pieces.withIndex()) {
         val id = "body" to index
 
-        val transform = Matrix4f().rotate(Quaternionf(spider.orientation))
+        val transform = Matrix4f().rotate(spider.orientation)
         model.add(id, pieceToModel(spider, spider.position, piece, transform))
     }
 
@@ -36,7 +35,7 @@ fun spiderModel(spider: Spider): Model {
     for ((legIndex, leg) in spider.body.legs.withIndex()) {
         val chain = leg.chain
 
-        for ((segmentIndex, rotation) in chain.getRotations(Quaternionf(spider.orientation)).withIndex()) {
+        for ((segmentIndex, rotation) in chain.getRotations(spider.orientation).withIndex()) {
             val segmentPlan = spider.options.bodyPlan.legs.getOrNull(legIndex)?.segments?.getOrNull(segmentIndex) ?: continue
 
             val parent = chain.segments.getOrNull(segmentIndex - 1)?.position ?: chain.root

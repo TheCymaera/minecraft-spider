@@ -4,11 +4,10 @@ import com.heledron.spideranimation.spider.Spider
 import com.heledron.spideranimation.spider.SpiderComponent
 import com.heledron.spideranimation.utilities.*
 import org.bukkit.util.Vector
-import org.joml.Quaterniond
-import org.joml.Vector3d
+import org.joml.Quaternionf
+import org.joml.Vector3f
 import kotlin.math.PI
 import kotlin.math.abs
-import kotlin.math.floor
 
 class StayStillBehaviour(val spider: Spider) : SpiderComponent {
     override fun update() {
@@ -45,43 +44,52 @@ class DirectionBehaviour(val spider: Spider, val targetDirection: Vector, val wa
 
 
 
-fun Spider.rotateTowards(target: Vector) =
-    rotateTowards(Quaterniond().rotationTo(Vector3d(0.0, 0.0, 1.0), target.toVector3d()))
+fun Spider.rotateTowards(targetVector: Vector) {
+//    val maxAcceleration = moveGait.rotateAcceleration * body.legs.filter { it.isGrounded() }.size / body.legs.size
+//    yawVelocity = yawVelocity.moveTowards(.0f, maxAcceleration)
+//    pitchVelocity = pitchVelocity.moveTowards(.0f, maxAcceleration)
+//    rollVelocity = rollVelocity.moveTowards(.0f, maxAcceleration)
 
+    val currentEuler = orientation.getEulerAnglesYXZ(Vector3f())
 
-fun Spider.rotateTowards(target: Quaterniond) {
-    // get current
-    val euler = this.orientation.getEulerAnglesYXZ(Vector3d())
-    val oldPitch = euler.x
-    val oldYaw = euler.y
-
-    // get target
-    val targetEuler = target.getEulerAnglesYXZ(Vector3d())
-    var targetPitch = targetEuler.x
-    var targetYaw = targetEuler.y
+    val targetEuler = Quaternionf()
+        .rotationTo(FORWARD_VECTOR.toVector3f(), targetVector.toVector3f())
+        .getEulerAnglesYXZ(Vector3f())
 
     // clamp pitch
-    val clamp = toRadians(10.0)
-    targetPitch = targetPitch.coerceIn(preferredPitch - clamp, preferredPitch + clamp)
+    val clamp = toRadians(10f)
+    targetEuler.x = targetEuler.x.coerceIn(preferredPitch - clamp, preferredPitch + clamp)
 
-    // optimize yaw
-    val circle = 2 * PI
-    targetYaw += (circle * floor((oldYaw - targetYaw + PI) / circle)).toFloat()
+    // clamp roll
+    targetEuler.z = preferredRoll
 
-    // get yaw change speed
-    var maxYawChange = moveGait.rotateSpeed * body.legs.filter { it.isGrounded() }.size / body.legs.size
-    if (body.legs.any { it.isUncomfortable && !it.isMoving }) maxYawChange = .0
+    // clamp yaw if uncomfortable
+    if (body.legs.any { it.isUncomfortable && !it.isMoving }) targetEuler.y = currentEuler.y
 
-    // apply
-    euler.x = oldPitch.lerp(targetPitch, .3)
-    euler.y = oldYaw.moveTowards(targetYaw, maxYawChange)
-    euler.z = euler.z.lerp(preferredRoll, .1)
+    // get diff
+    val diffEuler = Vector3f(targetEuler).sub(currentEuler)
+    if (diffEuler.y > PI) diffEuler.y -= 2 * PI.toFloat()
+    if (diffEuler.y < -PI) diffEuler.y += 2 * PI.toFloat()
 
-    yawVelocity = -(euler.y - oldYaw)
-    isRotatingPitch = abs(targetPitch - oldPitch) > 0.0001
-    isRotatingYaw = abs(targetYaw - oldYaw) > 0.0001
+    val diff = Quaternionf().rotationYXZ(diffEuler.y, diffEuler.x, diffEuler.z)
+    isRotatingYaw = abs(diffEuler.y) > 0.0001
 
-    orientation.rotationYXZ(euler.y, euler.x, euler.z)
+    //orientation.mul(diff)
+
+    // convert to premultiplied
+    val conjugated = Quaternionf(orientation).mul(diff).mul(Quaternionf(orientation).invert())
+
+//    orientation.premul(preDiff)
+
+    val conjugatedEuler = conjugated.getEulerAnglesYXZ(Vector3f())
+    val maxAcceleration = moveGait.rotateAcceleration * body.legs.filter { it.isGrounded() }.size / body.legs.size
+    yawVelocity = yawVelocity.moveTowards(conjugatedEuler.y, maxAcceleration)
+    pitchVelocity = pitchVelocity.moveTowards(conjugatedEuler.x, maxAcceleration)
+    rollVelocity = rollVelocity.moveTowards(conjugatedEuler.z, maxAcceleration)
+
+
+
+
 }
 
 fun Spider.walkAt(targetVelocity: Vector) {

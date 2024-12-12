@@ -14,7 +14,6 @@ fun spiderDebugModel(spider: Spider): Model {
     val model = Model()
 
     val scale = spider.options.bodyPlan.scale.toFloat()
-    val preferredOrientation = Quaternionf(spider.preferredOrientation)
 
     for ((legIndex, leg) in spider.body.legs.withIndex()) {
         // Render scan bars
@@ -47,7 +46,7 @@ fun spiderDebugModel(spider: Spider): Model {
 
                 val thickness = .07f * scale
                 val transform = Matrix4f()
-                    .rotate(preferredOrientation)
+                    .rotate(spider.preferredOrientation)
                     .scale(thickness, 2 * leg.triggerZone.vertical.toFloat(), thickness)
                     .translate(-.5f,-.5f,-.5f)
 
@@ -75,7 +74,7 @@ fun spiderDebugModel(spider: Spider): Model {
                 val size = 2 * leg.triggerZone.horizontal.toFloat()
                 val ySize = 0.02f
                 val transform = Matrix4f()
-                    .rotate(preferredOrientation)
+                    .rotate(spider.preferredOrientation)
                     .scale(size, ySize, size)
                     .translate(-.5f,-.5f,-.5f)
 
@@ -134,7 +133,7 @@ fun spiderDebugModel(spider: Spider): Model {
             val size = .1f * scale
             val displacement = 1f * scale
             val transform = Matrix4f()
-                .rotate(Quaternionf(spider.orientation))
+                .rotate(spider.orientation)
                 .translate(FORWARD_VECTOR.toVector3f().mul(displacement))
                 .scale(size, size, size)
                 .translate(-.5f,-.5f, -.5f)
@@ -168,9 +167,9 @@ fun spiderDebugModel(spider: Spider): Model {
         }
 
         val thickness = .025f * scale
-        model.add("preferredForwards", model(preferredOrientation, FORWARD_VECTOR, thickness, 2.0f * scale, Material.DIAMOND_BLOCK))
-        model.add("preferredRight"   , model(preferredOrientation, RIGHT_VECTOR  , thickness, 1.0f * scale, Material.DIAMOND_BLOCK))
-        model.add("preferredUp"      , model(preferredOrientation, UP_VECTOR     , thickness, 1.0f * scale, Material.DIAMOND_BLOCK))
+        model.add("preferredForwards", model(spider.preferredOrientation, FORWARD_VECTOR, thickness, 2.0f * scale, Material.DIAMOND_BLOCK))
+        model.add("preferredRight"   , model(spider.preferredOrientation, RIGHT_VECTOR  , thickness, 1.0f * scale, Material.DIAMOND_BLOCK))
+        model.add("preferredUp"      , model(spider.preferredOrientation, UP_VECTOR     , thickness, 1.0f * scale, Material.DIAMOND_BLOCK))
     }
 
 

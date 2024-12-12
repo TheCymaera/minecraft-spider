@@ -8,8 +8,12 @@ import com.heledron.spideranimation.spider.rendering.BlockDisplayModelPiece
 import com.heledron.spideranimation.spider.rendering.targetModel
 import com.heledron.spideranimation.utilities.*
 import org.bukkit.Bukkit.createInventory
+import org.bukkit.Bukkit.getWorlds
 import org.bukkit.Material
+import org.bukkit.entity.BlockDisplay
 import org.bukkit.plugin.java.JavaPlugin
+import org.joml.Matrix4f
+import org.joml.Quaternionf
 import java.io.Closeable
 
 @Suppress("unused")

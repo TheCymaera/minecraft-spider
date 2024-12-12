@@ -25,7 +25,7 @@ class KinematicChain(
         }
     }
 
-    fun straightenDirection(rotation: Quaterniond) {
+    fun straightenDirection(rotation: Quaternionf) {
         val position = root.clone()
         for (segment in segments) {
             val initDirection = segment.initDirection.clone().rotate(rotation)
