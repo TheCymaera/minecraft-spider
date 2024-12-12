@@ -129,7 +129,7 @@ fun spiderDebugModel(spider: Spider): Model {
             it.brightness = Display.Brightness(15, 15)
         },
         update = {
-            it.block = if (spider.gait.gallop) Material.REDSTONE_BLOCK.createBlockData() else Material.EMERALD_BLOCK.createBlockData()
+            it.block = if (spider.gallop) Material.REDSTONE_BLOCK.createBlockData() else Material.EMERALD_BLOCK.createBlockData()
 
             val size = .1f * scale
             val displacement = 1f * scale

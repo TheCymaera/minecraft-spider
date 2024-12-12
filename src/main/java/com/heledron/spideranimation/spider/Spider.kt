@@ -43,9 +43,10 @@ class Spider(
 
     fun forwardDirection() = FORWARD_VECTOR.rotate(orientation)
 
-    val gait get() = if (gallop) options.gallopGait else options.walkGait
+    val moveGait get() = if (gallop) options.gallopGait else options.walkGait
 
     // memo
+    var gait = options.stationaryGait.clone()
     var preferredPitch = orientation.getEulerAnglesYXZ(Vector3d()).x
     var preferredRoll = orientation.getEulerAnglesYXZ(Vector3d()).z
     var preferredOrientation = Quaterniond(orientation)
@@ -105,15 +106,31 @@ class Spider(
     }
 
     fun update() {
+        updateGait()
         updatePreferredAngles()
         for (component in getComponents()) component.update()
         for (component in getComponents()) component.render()
     }
 
+    private fun updateGait() {
+        if (isRotatingYaw) {
+            gait = moveGait.gait.clone()
+            return
+        }
+
+        if (!isWalking && !velocity.isZero) {
+            gait = options.movingButNotWalkingGait.clone()
+            return
+        }
+
+        val speedFraction = velocity.length() / moveGait.maxSpeed
+        gait = options.stationaryGait.clone().lerp(moveGait.gait, speedFraction)
+    }
+
     private fun updatePreferredAngles() {
         val currentEuler = orientation.getEulerAnglesYXZ(Vector3d())
 
-        if (gait.disableAdvancedRotation) {
+        if (moveGait.disableAdvancedRotation) {
             preferredPitch = .0
             preferredRoll = .0
             preferredOrientation = Quaterniond().rotationYXZ(currentEuler.y, .0, .0)

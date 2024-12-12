@@ -26,7 +26,7 @@ object AppState {
     var miscOptions = MiscellaneousOptions()
 
     fun createSpider(location: Location): Spider {
-        location.y += options.walkGait.bodyHeight
+        location.y += options.stationaryGait.bodyHeight
         return Spider.fromLocation(location, options)
     }
 

@@ -2,6 +2,11 @@ package com.heledron.spideranimation.spider.body
 
 import com.heledron.spideranimation.spider.Spider
 
+enum class GaitType(val canMoveLeg: (Leg) -> Boolean) {
+    WALK(WalkGaitType::canMoveLeg),
+    GALLOP(GallopGaitType::canMoveLeg)
+}
+
 object WalkGaitType {
     fun canMoveLeg(leg: Leg): Boolean {
         val spider = leg.spider
@@ -20,7 +25,7 @@ object WalkGaitType {
 
         // cooldown
         val diagonal = unIndexLeg(spider, LegLookUp.diagonal(index))
-        if (diagonal.any { hasCooldown(it, spider.gait.legWalkCooldown) }) return false
+        if (diagonal.any { hasCooldown(it, spider.moveGait.legWalkCooldown) }) return false
 
         val wantsToMove = leg.isOutsideTriggerZone || !leg.touchingGround
         val alreadyAtTarget = leg.endEffector.distanceSquared(leg.target.position) < 0.01
@@ -52,11 +57,11 @@ object GallopGaitType {
             // cooldown
             val front = spider.body.legs.getOrNull(LegLookUp.diagonalFront(index))
             val back = spider.body.legs.getOrNull(LegLookUp.diagonalBack(index))
-            if (listOfNotNull(front, back).any { hasCooldown(it, spider.gait.legGallopVerticalCooldown) }) return false
+            if (listOfNotNull(front, back).any { hasCooldown(it, spider.moveGait.legGallopVerticalCooldown) }) return false
 
             return leg.isOutsideTriggerZone || !leg.touchingGround
         } else {
-            return pair.isMoving && !hasCooldown(pair, spider.gait.legGallopHorizontalCooldown)
+            return pair.isMoving && !hasCooldown(pair, spider.moveGait.legGallopHorizontalCooldown)
         }
     }
 }

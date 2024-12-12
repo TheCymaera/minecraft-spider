@@ -28,7 +28,7 @@ class TridentHitDetector(val spider: Spider): SpiderComponent {
                 trident.velocity = tridentDirection.clone().multiply(-.3)
                 onHit.emit()
 
-                spider.velocity.add(tridentDirection.multiply(spider.gait.tridentKnockBack))
+                spider.velocity.add(tridentDirection.multiply(spider.moveGait.tridentKnockBack))
             }
         }
     }

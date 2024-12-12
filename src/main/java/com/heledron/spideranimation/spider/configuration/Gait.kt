@@ -1,44 +1,80 @@
 package com.heledron.spideranimation.spider.configuration
 
+import com.heledron.spideranimation.spider.body.GaitType
 import com.heledron.spideranimation.utilities.SplitDistance
+import com.heledron.spideranimation.utilities.lerp
 
 
 class Gait(
+    var bodyHeight: Double = 1.1,
+    var triggerZone: SplitDistance = SplitDistance(.25, 1.5)
+) {
+    fun scale(scale: Double): Gait {
+        return Gait(
+            bodyHeight = bodyHeight * scale,
+            triggerZone = triggerZone.scale(scale)
+        )
+    }
+
+    fun clone() = Gait(
+        bodyHeight = bodyHeight,
+        triggerZone = triggerZone
+    )
+
+    fun lerp(target: Gait, factor: Double): Gait {
+        this.bodyHeight = bodyHeight.lerp(target.bodyHeight, factor)
+        this.triggerZone = triggerZone.lerp(target.triggerZone, factor)
+        return this
+    }
+
+    companion object {
+        fun stationary() = Gait()
+
+        fun movingButNotWalking() = stationary().apply {
+            triggerZone = SplitDistance(triggerZone.horizontal / 2, triggerZone.vertical)
+        }
+
+        fun walk() = stationary().apply {
+            triggerZone = SplitDistance(.8,1.5)
+        }
+
+        fun gallop() = walk().apply {
+            bodyHeight *= 1.3
+        }
+    }
+}
+
+
+class MoveGait(
     walkSpeed: Double,
-    gallop: Boolean,
+    val type: GaitType,
 ) {
     companion object {
 
-        fun defaultWalk(): Gait {
-            return Gait(.15, false)
-        }
+        fun defaultWalk() = MoveGait(.15, GaitType.WALK)
 
-        fun defaultGallop(): Gait {
-            return Gait(.4, true).apply {
-                legWalkCooldown = 1
-                legMoveSpeed = .6
-                rotateSpeed = .25
-                uncomfortableSpeedMultiplier = .6
-            }
+        fun defaultGallop() = MoveGait(.4, GaitType.GALLOP).apply {
+            gait = Gait.gallop()
+            legWalkCooldown = 1
+            legMoveSpeed = .6
+            rotateSpeed = .25
+            uncomfortableSpeedMultiplier = .6
         }
     }
 
     fun scale(scale: Double) {
-        walkSpeed *= scale
+        maxSpeed *= scale
         walkAcceleration *= scale
         legMoveSpeed *= scale
         legLiftHeight *= scale
         legDropDistance *= scale
-        stationaryTriggerZone = stationaryTriggerZone.scale(scale)
-        movingTriggerZone = movingTriggerZone.scale(scale)
         comfortZone = comfortZone.scale(scale)
-        bodyHeight *= scale
         legScanHeightBias *= scale
     }
 
-    var gallop = gallop
+    var gait = Gait.walk()
 
-    var walkSpeed = walkSpeed
+    var maxSpeed = walkSpeed
     var walkAcceleration = .15 / 4
 
     var rotateSpeed = .15
@@ -48,15 +84,15 @@ class Gait(
     var legLiftHeight = .35
     var legDropDistance = legLiftHeight
 
-    var stationaryTriggerZone = SplitDistance(.25,1.5)
-    var movingTriggerZone = SplitDistance(.8,1.5)
+//    var stationaryTriggerZone = SplitDistance(.25,1.5)
+//    var movingTriggerZone = SplitDistance(.8,1.5)
     var comfortZone = SplitDistance(1.2, 1.6)
 
     var gravityAcceleration = .08
     var airDragCoefficient = .02
     var bounceFactor = .5
 
-    var bodyHeight = 1.1
+//    var bodyHeight = 1.1
 
     var bodyHeightCorrectionAcceleration = gravityAcceleration * 4
     var bodyHeightCorrectionFactor = .25

@@ -24,12 +24,12 @@ class TargetBehaviour(val spider: Spider, val target: Vector, val distance: Doub
 
         val currentSpeed = spider.velocity.length()
 
-        val decelerateDistance = (currentSpeed * currentSpeed) / (2 * spider.gait.walkAcceleration)
+        val decelerateDistance = (currentSpeed * currentSpeed) / (2 * spider.moveGait.walkAcceleration)
 
         val currentDistance = spider.position.horizontalDistance(target)
 
         if (currentDistance > distance + decelerateDistance) {
-            spider.walkAt(direction.clone().multiply(spider.gait.walkSpeed))
+            spider.walkAt(direction.clone().multiply(spider.moveGait.maxSpeed))
         } else {
             spider.walkAt(Vector(0.0, 0.0, 0.0))
         }
@@ -39,7 +39,7 @@ class TargetBehaviour(val spider: Spider, val target: Vector, val distance: Doub
 class DirectionBehaviour(val spider: Spider, val targetDirection: Vector, val walkDirection: Vector) : SpiderComponent {
     override fun update() {
         spider.rotateTowards(targetDirection)
-        spider.walkAt(walkDirection.clone().multiply(spider.gait.walkSpeed))
+        spider.walkAt(walkDirection.clone().multiply(spider.moveGait.maxSpeed))
     }
 }
 
@@ -69,7 +69,7 @@ fun Spider.rotateTowards(target: Quaterniond) {
     targetYaw += (circle * floor((oldYaw - targetYaw + PI) / circle)).toFloat()
 
     // get yaw change speed
-    var maxYawChange = gait.rotateSpeed * body.legs.filter { it.isGrounded() }.size / body.legs.size
+    var maxYawChange = moveGait.rotateSpeed * body.legs.filter { it.isGrounded() }.size / body.legs.size
     if (body.legs.any { it.isUncomfortable && !it.isMoving }) maxYawChange = .0
 
     // apply
@@ -85,12 +85,12 @@ fun Spider.rotateTowards(target: Quaterniond) {
 }
 
 fun Spider.walkAt(targetVelocity: Vector) {
-    val acceleration = gait.walkAcceleration// * body.legs.filter { it.isGrounded() }.size / body.legs.size
+    val acceleration = moveGait.walkAcceleration// * body.legs.filter { it.isGrounded() }.size / body.legs.size
     val target = targetVelocity.clone()
 
 
     if (body.legs.any { it.isUncomfortable && !it.isMoving }) { //  && !it.targetOutsideComfortZone
-        val scaled = target.setY(velocity.y).multiply(gait.uncomfortableSpeedMultiplier)
+        val scaled = target.setY(velocity.y).multiply(moveGait.uncomfortableSpeedMultiplier)
         velocity.moveTowards(scaled, acceleration)
         isWalking = true
     } else {
