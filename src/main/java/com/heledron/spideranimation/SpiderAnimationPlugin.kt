@@ -3,9 +3,12 @@ package com.heledron.spideranimation
 import com.google.gson.Gson
 import com.heledron.spideranimation.spider.configuration.*
 import com.heledron.spideranimation.spider.misc.StayStillBehaviour
+import com.heledron.spideranimation.spider.presets.*
+import com.heledron.spideranimation.spider.rendering.BlockDisplayModelPiece
 import com.heledron.spideranimation.spider.rendering.targetModel
 import com.heledron.spideranimation.utilities.*
 import org.bukkit.Bukkit.createInventory
+import org.bukkit.Material
 import org.bukkit.plugin.java.JavaPlugin
 import java.io.Closeable
 
@@ -35,20 +38,11 @@ class SpiderAnimationPlugin : JavaPlugin() {
 
         logger.info("Enabling Spider Animation plugin")
 
-        val options = mapOf(
-            "spider" to { AppState.options },
-            "misc" to { AppState.miscOptions },
-        )
-        val defaultObjects = mapOf(
-            "spider" to { SpiderOptions().apply { scale(AppState.options.bodyPlan.scale) } },
-            "misc" to { MiscellaneousOptions() },
-        )
-
         fun saveConfig() {
-            for ((key, value) in options) {
-                instance.config.set(key, Serializer.toMap(value()))
-            }
-            instance.saveConfig()
+//            for ((key, value) in options) {
+//                instance.config.set(key, Serializer.toMap(value()))
+//            }
+//            instance.saveConfig()
         }
 
 //        config.getConfigurationSection("spider")?.getValues(true)?.let { AppState.options = Serializer.fromMap(it, SpiderOptions::class.java) }
@@ -73,9 +67,10 @@ class SpiderAnimationPlugin : JavaPlugin() {
             AppState.target = null
         }
 
-        // /summon minecraft:area_effect_cloud -26 -11 26 {Tags:["spider.chain_visualizer"]}
 
         closables += onSpawnEntity { entity, _ ->
+            // Use this command to spawn a chain visualizer
+            // /summon minecraft:area_effect_cloud ~ ~ ~ {Tags:["spider.chain_visualizer"]}
             if (!entity.scoreboardTags.contains("spider.chain_visualizer")) return@onSpawnEntity
             val location = entity.location
             AppState.chainVisualizer = if (AppState.chainVisualizer != null) null else KinematicChainVisualizer.create(3, 1.5, location)
@@ -84,6 +79,20 @@ class SpiderAnimationPlugin : JavaPlugin() {
         }
 
         getCommand("options")?.apply {
+            val options = mapOf(
+                "walkGait" to { AppState.options.walkGait },
+                "gallopGait" to { AppState.options.gallopGait },
+                "debug" to { AppState.options.debug },
+                "misc" to { AppState.miscOptions },
+            )
+
+            val defaultObjects = mapOf(
+                "walkGait" to { SpiderOptions().apply { scale(AppState.options.bodyPlan.scale) }.walkGait },
+                "gallopGait" to { SpiderOptions().apply { scale(AppState.options.bodyPlan.scale) }.gallopGait },
+                "debug" to { SpiderDebugOptions() },
+                "misc" to { MiscellaneousOptions() },
+            )
+
             setExecutor { sender, _, _, args ->
                 val obj = options[args.getOrNull(0)]?.invoke() ?: return@setExecutor false
                 val default = defaultObjects[args.getOrNull(0)]?.invoke() ?: return@setExecutor false
@@ -160,6 +169,92 @@ class SpiderAnimationPlugin : JavaPlugin() {
             }
         }
 
+        fun getPieces(mode: String): List<BlockDisplayModelPiece> {
+            val legPieces = AppState.options.bodyPlan.legs.flatMap { it.segments }.flatMap { it.model.pieces }
+            val bodyPieces = AppState.options.bodyPlan.bodyModel.pieces
+
+            if (mode == "body") {
+                return bodyPieces
+            } else if (mode == "legs") {
+                return legPieces
+            } else {
+                return legPieces + bodyPieces
+            }
+        }
+
+        getCommand("replace_material")?.apply {
+            setExecutor { _, _, _, args ->
+                val mode = args.getOrNull(0) ?: return@setExecutor false
+
+                val from = args.getOrNull(1) ?: return@setExecutor false
+
+                val to = args.drop(2).mapNotNull { Material.matchMaterial(it)?.createBlockData() }
+                if (to.isEmpty()) return@setExecutor true
+
+                var pieces = getPieces(mode)
+
+                if (from.lowercase() == "cloak") {
+                    pieces = pieces.filter { it.tags.contains("cloak") }
+                } else {
+                    val material = Material.matchMaterial(from) ?: return@setExecutor true
+                    pieces = pieces.filter { it.block.material == material }
+                }
+
+                pieces.forEach { piece ->
+                    piece.block = to.random()
+                }
+
+                return@setExecutor true
+            }
+
+            setTabCompleter { _, _, _, args ->
+                if (args.size == 1) {
+                    return@setTabCompleter listOf("body", "legs", "all").filter { it.contains(args.last(), true) }
+                }
+
+                val extra = if (args.size == 2) listOf("cloak") else emptyList()
+                val materials = extra + Material.entries
+                    .filter { it.isBlock }
+                    .map { it.key.toString() }
+                return@setTabCompleter materials.filter { it.contains(args.last(), true) }
+            }
+        }
+
+        getCommand("torso_model")?.apply {
+            setExecutor { _, _, _, args ->
+                val option = args.getOrNull(0) ?: return@setExecutor false
+
+                val model = SpiderTorsoModels.entries.find { it.name.equals(option, true) }?.model?.clone() ?: return@setExecutor false
+
+                val currentScale = AppState.options.bodyPlan.scale.toFloat()
+                AppState.options.bodyPlan.bodyModel = model.scale(currentScale)
+
+                val cloakBlock = AppState.options.bodyPlan.bodyModel.pieces.find {
+                    it.tags.contains("cloak")
+                }
+
+                if (cloakBlock != null) AppState.options.bodyPlan.legs.forEach { leg ->
+                    leg.segments.forEach { segment ->
+                        segment.model.pieces.forEach { piece ->
+                            if (piece.tags.contains("cloak")) {
+                                piece.block = cloakBlock.block
+                            }
+                        }
+                    }
+                }
+
+                saveConfig()
+
+                return@setExecutor true
+            }
+
+            setTabCompleter { _, _, _, args ->
+                return@setTabCompleter SpiderTorsoModels
+                    .entries.map { it.name.lowercase() }
+                    .filter { it.contains(args.last(), true) }
+            }
+        }
+
         getCommand("fall")?.setExecutor { sender, _, _, args ->
             val spider = AppState.spider ?: return@setExecutor true
 
@@ -182,7 +277,9 @@ class SpiderAnimationPlugin : JavaPlugin() {
                 "quadruped" to ::quadrupedBodyPlan,
                 "hexapod" to ::hexapodBodyPlan,
                 "octopod" to ::octopodBodyPlan,
-                "hexbot" to ::hexBotBodyPlan
+                "quadbot" to ::quadBotBodyPlan,
+                "hexbot" to ::hexBotBodyPlan,
+                "octobot" to ::octoBotBodyPlan,
             )
 
             setExecutor { sender, _, _, args ->
@@ -199,9 +296,8 @@ class SpiderAnimationPlugin : JavaPlugin() {
                 }
 
                 val oldScale = AppState.options.bodyPlan.scale
+                AppState.options.scale(scale / oldScale)
                 AppState.options.bodyPlan = bodyPlan(segmentCount, segmentLength).apply { scale(scale) }
-                AppState.options.walkGait.scale(scale / oldScale)
-                AppState.options.gallopGait.scale(scale / oldScale)
 
                 saveConfig()
 

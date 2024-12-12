@@ -66,7 +66,7 @@ class Spider(
     val body = SpiderBody(this)
     val tridentDetector = TridentHitDetector(this)
     val cloak = Cloak(this)
-    val sound = SoundEffects(this)
+    val sound = SoundsAndParticles(this)
     val mount = Mountable(this)
     val pointDetector = PointDetector(this)
 

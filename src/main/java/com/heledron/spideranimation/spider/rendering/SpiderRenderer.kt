@@ -3,26 +3,73 @@ package com.heledron.spideranimation.spider.rendering
 import com.heledron.spideranimation.spider.Spider
 import com.heledron.spideranimation.spider.SpiderComponent
 import com.heledron.spideranimation.utilities.MultiModelRenderer
+import com.heledron.spideranimation.utilities.SeriesScheduler
+import com.heledron.spideranimation.utilities.interval
 import com.heledron.spideranimation.utilities.spawnParticle
 import org.bukkit.Color
 import org.bukkit.Location
 import org.bukkit.Particle
+import org.bukkit.entity.Display
 import org.bukkit.util.Vector
-
+import kotlin.random.Random
 
 class SpiderRenderer(val spider: Spider): SpiderComponent {
     private val renderer = MultiModelRenderer()
 
-    val bodyModel = BodyModels.FLAT.map { it.clone().scale(spider.options.bodyPlan.scale.toFloat()) }
+    // apply eye blinking effect
+    val eyeInterval = interval(0,10) {
+        val pieces = spider.options.bodyPlan.bodyModel.pieces.filter { it.tags.contains("eye") }
+
+        if (Random.nextBoolean()) return@interval
+        for (piece in pieces) piece.block = spider.options.bodyPlan.eyePalette.random()
+    }
+
+    // apply blinking lights effect
+    val blinkingInterval = interval(0,5) {
+        val pieces = spider.options.bodyPlan.bodyModel.pieces.filter { it.tags.contains("blinking_lights") }
+
+        if (Random.nextBoolean()) return@interval
+        for (piece in pieces) {
+            val palette = spider.options.bodyPlan.blinkingPalette.random()
+            piece.block = palette.first
+            piece.brightness = palette.second
+        }
+    }
+    /*interval(0,20 * 4) {
+        val pieces = spider.options.bodyPlan.bodyModel.pieces.filter { it.tags.contains("blinking_lights") }
+
+//        val blinkBlock = spider.options.bodyPlan.blinkingPalette.random()
+        for (piece in pieces) {
+            val currentBlock = piece.block
+            val currentBrightness = piece.brightness
+
+            val scheduler = SeriesScheduler()
+            for (i in 0 until 2) {
+                scheduler.run {
+                    piece.block = spider.options.bodyPlan.blinkingPalette.random()
+                    piece.brightness = Display.Brightness(15, 15)
+                }
+                scheduler.sleep(2)
+                scheduler.run {
+                    piece.block = currentBlock
+                    piece.brightness = currentBrightness
+                }
+                scheduler.sleep(2)
+            }
+
+        }
+    }*/
 
     override fun render() {
-        renderer.render("spider", spiderModel(spider, bodyModel))
+        renderer.render("spider", spiderModel(spider))
         if (spider.showDebugVisuals) renderer.render("debug", spiderDebugModel(spider))
         renderer.flush()
     }
 
     override fun close() {
         renderer.close()
+        eyeInterval.close()
+        blinkingInterval.close()
     }
 }
 
@@ -65,3 +112,6 @@ class SpiderParticleRenderer(val spider: Spider): SpiderComponent {
         }
     }
 }
+
+
+

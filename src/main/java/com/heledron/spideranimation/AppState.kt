@@ -2,7 +2,6 @@ package com.heledron.spideranimation
 
 import com.heledron.spideranimation.spider.*
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
-import com.heledron.spideranimation.spider.configuration.hexBotBodyPlan
 import org.bukkit.Location
 
 object AppState {

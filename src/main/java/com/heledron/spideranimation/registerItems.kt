@@ -155,7 +155,7 @@ fun registerItems() {
         defaultItem = ItemStack(Material.CARROT_ON_A_STICK),
         onHeldTick = { player ->
             AppState.spider?.let { it.behaviour = TargetBehaviour(it, player.eyeLocation.toVector(), run {
-                if (it.options.bodyPlan.straightenLegs) 2.0
+                if (it.gait.straightenLegs) 2.0
                 else it.gait.bodyHeight * 5.0
             }) }
         }

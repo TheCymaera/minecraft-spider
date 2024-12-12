@@ -1,7 +1,6 @@
 package com.heledron.spideranimation.utilities
 
 import org.bukkit.Location
-import org.bukkit.Material
 import org.bukkit.World
 import org.bukkit.entity.BlockDisplay
 import org.bukkit.entity.Display
@@ -24,7 +23,6 @@ class Model {
     fun add(id: Any, part: ModelPart<out Entity>) {
         parts[id] = part
     }
-
 
     fun add(id: Any, model: Model) {
         for ((subId, part) in model.parts) {

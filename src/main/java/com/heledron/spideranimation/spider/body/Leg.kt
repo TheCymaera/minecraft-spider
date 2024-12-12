@@ -34,6 +34,7 @@ class Leg(
     // state
     var target = locateGround() ?: strandedTarget()
     var endEffector = target.position.clone()
+    var previousEndEffector = endEffector.clone()
     var chain = KinematicChain(Vector(0, 0, 0), listOf())
 
     var touchingGround = true; private set
@@ -98,6 +99,8 @@ class Leg(
     }
 
     private fun updateMovement() {
+        previousEndEffector = endEffector.clone()
+
         val gait = spider.gait
         var didStep = false
 
@@ -173,12 +176,12 @@ class Leg(
 
         chain.root.copy(attachmentPosition)
 
-        if (spider.options.bodyPlan.straightenLegs) {
+        if (spider.gait.straightenLegs) {
             val direction = endEffector.clone().subtract(attachmentPosition)
             val orientation = Quaterniond().rotationTo(FORWARD_VECTOR.toVector3d(), direction.toVector3d())
 
             orientation.stripRelativeZ(spider.orientation)
-            orientation.rotateX(spider.options.bodyPlan.legStraightenRotation)
+            orientation.rotateX(spider.gait.legStraightenRotation)
 
             chain.straightenDirection(orientation)
         }
@@ -193,10 +196,15 @@ class Leg(
     }
 
     private fun triggerZoneSize(): SplitDistance {
-        if (spider.isRotatingYaw) return spider.gait.walkingTriggerZone
+        if (spider.isRotatingYaw) return spider.gait.movingTriggerZone
 
         val fraction = min(spider.velocity.length() / spider.gait.walkSpeed, 1.0)
-        return spider.gait.stationaryTriggerZone.lerp(spider.gait.walkingTriggerZone, fraction)
+        var triggerZone = spider.gait.stationaryTriggerZone.lerp(spider.gait.movingTriggerZone, fraction)
+
+        // tripping (due to trident knock-back)
+        if (!spider.isWalking) triggerZone = triggerZone.lerp(spider.gait.stationaryTriggerZone, .5)
+
+        return triggerZone
     }
 
     private fun lookAheadPosition(restPosition: Vector, triggerZoneRadius: Double): Vector {

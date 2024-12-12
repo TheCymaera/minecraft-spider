@@ -23,11 +23,11 @@ class SpiderBody(val spider: Spider): SpiderComponent {
         spider.velocity.y *= (1 - spider.gait.airDragCoefficient)
 
         // apply ground drag
-        if (!spider.isWalking) {
-            val drag = spider.gait.groundDragCoefficient * fractionOfLegsGrounded
-            spider.velocity.x *= drag
-            spider.velocity.z *= drag
-        }
+//        if (!spider.isWalking) {
+//            val drag = spider.gait.groundDragCoefficient * fractionOfLegsGrounded
+//            spider.velocity.x *= drag
+//            spider.velocity.z *= drag
+//        }
 
         if (onGround) {
             spider.velocity.x *= .5

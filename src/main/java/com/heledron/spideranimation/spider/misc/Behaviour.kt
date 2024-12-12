@@ -88,13 +88,15 @@ fun Spider.walkAt(targetVelocity: Vector) {
     val acceleration = gait.walkAcceleration// * body.legs.filter { it.isGrounded() }.size / body.legs.size
     val target = targetVelocity.clone()
 
-    isWalking = true
 
     if (body.legs.any { it.isUncomfortable && !it.isMoving }) { //  && !it.targetOutsideComfortZone
         val scaled = target.setY(velocity.y).multiply(gait.uncomfortableSpeedMultiplier)
         velocity.moveTowards(scaled, acceleration)
+        isWalking = true
     } else {
         velocity.moveTowards(target.setY(velocity.y), acceleration)
         isWalking = velocity.x != 0.0 && velocity.z != 0.0
     }
+
+    if (this.tridentDetector.stunned && targetVelocity.isZero) isWalking = false
 }

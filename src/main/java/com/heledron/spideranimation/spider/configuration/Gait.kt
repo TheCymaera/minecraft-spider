@@ -8,6 +8,7 @@ class Gait(
     gallop: Boolean,
 ) {
     companion object {
+
         fun defaultWalk(): Gait {
             return Gait(.15, false)
         }
@@ -29,7 +30,7 @@ class Gait(
         legLiftHeight *= scale
         legDropDistance *= scale
         stationaryTriggerZone = stationaryTriggerZone.scale(scale)
-        walkingTriggerZone = walkingTriggerZone.scale(scale)
+        movingTriggerZone = movingTriggerZone.scale(scale)
         comfortZone = comfortZone.scale(scale)
         bodyHeight *= scale
         legScanHeightBias *= scale
@@ -48,7 +49,7 @@ class Gait(
     var legDropDistance = legLiftHeight
 
     var stationaryTriggerZone = SplitDistance(.25,1.5)
-    var walkingTriggerZone = SplitDistance(.8,1.5)
+    var movingTriggerZone = SplitDistance(.8,1.5)
     var comfortZone = SplitDistance(1.2, 1.6)
 
     var gravityAcceleration = .08
@@ -78,4 +79,7 @@ class Gait(
     var uncomfortableSpeedMultiplier = 0.0
 
     var disableAdvancedRotation = false
+
+    var straightenLegs = true
+    var legStraightenRotation = Math.toRadians(-80.0)
 }

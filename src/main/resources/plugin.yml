@@ -20,6 +20,14 @@ commands:
     description: Set the body plan of the spider
     usage: /body_plan <quadruped|hexapod|octopod> <scale:double?> <segment_length:double?> <segment_count:int?>
     permission: spider-animation.body_plan
+  replace_material:
+    description: Replace a material
+    usage: /replace_material <"body"|"legs"|"both"> <old_material:"CLOAK"|string> <new_material:string>*
+    permission: spider-animation.replace_material
+  torso_model:
+    description: Set the torso model of the spider
+    usage: /body_model <model:string>
+    permission: spider-animation.body_model
 
 permissions:
   spider-animation.items:
@@ -33,4 +41,10 @@ permissions:
     default: op
   spider-animation.body_plan:
     description: Allows access to the body_plan command
+    default: op
+  spider-animation.replace_material:
+    description: Allows access to the replace_material command
+    default: op
+  spider-animation.torso_model:
+    description: Allows access to the torso_model command
     default: op

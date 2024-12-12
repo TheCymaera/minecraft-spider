@@ -40,7 +40,7 @@ fun spiderDebugModel(spider: Spider): Model {
                 it.teleportDuration = 1
                 it.interpolationDuration = 1
                 it.brightness = Display.Brightness(15, 15)
-           },
+            },
             update = {
                 val material = if (leg.isUncomfortable) Material.RED_STAINED_GLASS else Material.CYAN_STAINED_GLASS
                 it.block = material.createBlockData()
