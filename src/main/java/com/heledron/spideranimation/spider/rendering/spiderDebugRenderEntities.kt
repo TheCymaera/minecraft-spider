@@ -10,14 +10,14 @@ import org.joml.Quaternionf
 import org.joml.Vector3f
 
 
-fun spiderDebugModel(spider: Spider): Model {
-    val model = Model()
+fun spiderDebugRenderEntities(spider: Spider): RenderEntityGroup {
+    val group = RenderEntityGroup()
 
     val scale = spider.options.bodyPlan.scale.toFloat()
 
     for ((legIndex, leg) in spider.body.legs.withIndex()) {
         // Render scan bars
-        if (spider.options.debug.scanBars) model.add(Pair("scanBar", legIndex), lineModel(
+        if (spider.options.debug.scanBars) group.add("scanBar" to legIndex, lineRenderEntity(
             world = spider.world,
             position = leg.scanStartPosition,
             vector = leg.scanVector,
@@ -32,7 +32,7 @@ fun spiderDebugModel(spider: Spider): Model {
         ))
 
         // Render trigger zone
-        if (spider.options.debug.triggerZones) model.add(Pair("triggerZoneVertical", legIndex), blockModel(
+        if (spider.options.debug.triggerZones) group.add("triggerZoneVertical" to legIndex, blockRenderEntity(
             world = spider.world,
             position = leg.triggerZone.center,
             init = {
@@ -55,7 +55,7 @@ fun spiderDebugModel(spider: Spider): Model {
         ))
 
         // Render trigger zone
-        if (spider.options.debug.triggerZones) model.add(Pair("triggerZoneHorizontal", legIndex), blockModel(
+        if (spider.options.debug.triggerZones) group.add("triggerZoneHorizontal" to legIndex, blockRenderEntity(
             world = spider.world,
             position = run {
                 val pos = leg.triggerZone.center.clone()
@@ -83,7 +83,7 @@ fun spiderDebugModel(spider: Spider): Model {
         ))
 
         // Render end effector
-        if (spider.options.debug.endEffectors) model.add(Pair("endEffector", legIndex), blockModel(
+        if (spider.options.debug.endEffectors) group.add("endEffector" to legIndex, blockRenderEntity(
             world = spider.world,
             position = leg.endEffector,
             init = {
@@ -103,7 +103,7 @@ fun spiderDebugModel(spider: Spider): Model {
         ))
 
         // Render target position
-        if (spider.options.debug.targetPositions) model.add(Pair("targetPosition", legIndex), blockModel(
+        if (spider.options.debug.targetPositions) group.add("targetPosition" to legIndex, blockRenderEntity(
             location = leg.target.position.toLocation(spider.world),
             init = {
                 it.teleportDuration = 1
@@ -120,7 +120,7 @@ fun spiderDebugModel(spider: Spider): Model {
     }
 
     // Render spider direction
-    if (spider.options.debug.orientation) model.add("direction", blockModel(
+    if (spider.options.debug.orientation) group.add("direction", blockRenderEntity(
         location = spider.position.toLocation(spider.world),
         init = {
             it.teleportDuration = 1
@@ -144,12 +144,13 @@ fun spiderDebugModel(spider: Spider): Model {
 
     // Render preferred orientation
     if (spider.options.debug.preferredOrientation) {
-        fun model(orientation: Quaternionf, direction: Vector, thickness: Float, length: Float, material: Material) = run {
+        fun renderEntity(orientation: Quaternionf, direction: Vector, thickness: Float, length: Float, material: Material) = run {
             val mTranslation = Vector3f(-1f, -1f, -1f).add(direction.toVector3f()).mul(.5f)
             val mScale = Vector3f(thickness, thickness, thickness).add(direction.toVector3f().mul(length))
 
-            blockModel(
-                location = spider.position.toLocation(spider.world),
+            blockRenderEntity(
+                world = spider.world,
+                position = spider.position,
                 init = {
                     it.block = material.createBlockData()
                     it.teleportDuration = 1
@@ -167,20 +168,20 @@ fun spiderDebugModel(spider: Spider): Model {
         }
 
         val thickness = .025f * scale
-        model.add("preferredForwards", model(spider.preferredOrientation, FORWARD_VECTOR, thickness, 2.0f * scale, Material.DIAMOND_BLOCK))
-        model.add("preferredRight"   , model(spider.preferredOrientation, RIGHT_VECTOR  , thickness, 1.0f * scale, Material.DIAMOND_BLOCK))
-        model.add("preferredUp"      , model(spider.preferredOrientation, UP_VECTOR     , thickness, 1.0f * scale, Material.DIAMOND_BLOCK))
+        group.add("preferredForwards", renderEntity(spider.preferredOrientation, FORWARD_VECTOR, thickness, 2.0f * scale, Material.DIAMOND_BLOCK))
+        group.add("preferredRight"   , renderEntity(spider.preferredOrientation, RIGHT_VECTOR  , thickness, 1.0f * scale, Material.DIAMOND_BLOCK))
+        group.add("preferredUp"      , renderEntity(spider.preferredOrientation, UP_VECTOR     , thickness, 1.0f * scale, Material.DIAMOND_BLOCK))
     }
 
 
-    val normal = spider.body.normal ?: return model
+    val normal = spider.body.normal ?: return group
     if (spider.options.debug.legPolygons && normal.contactPolygon != null) {
         val points = normal.contactPolygon//.map { it.toLocation(spider.world)}
         for (i in points.indices) {
             val a = points[i]
             val b = points[(i + 1) % points.size]
 
-            model.add(Pair("polygon",i), lineModel(
+            group.add(Pair("polygon",i), lineRenderEntity(
                 world = spider.world,
                 position = a,
                 vector = b.clone().subtract(a),
@@ -192,7 +193,7 @@ fun spiderDebugModel(spider: Spider): Model {
         }
     }
 
-    if (spider.options.debug.centreOfMass && normal.centreOfMass != null) model.add("centreOfMass", blockModel(
+    if (spider.options.debug.centreOfMass && normal.centreOfMass != null) group.add("centreOfMass", blockRenderEntity(
         world = spider.world,
         position = normal.centreOfMass,
         init = {
@@ -209,7 +210,7 @@ fun spiderDebugModel(spider: Spider): Model {
     ))
 
 
-    if (spider.options.debug.normalForce && normal.centreOfMass != null && normal.origin !== null) model.add("acceleration", lineModel(
+    if (spider.options.debug.normalForce && normal.centreOfMass != null && normal.origin !== null) group.add("acceleration", lineRenderEntity(
         world = spider.world,
         position = normal.origin,
         vector = normal.centreOfMass.clone().subtract(normal.origin),
@@ -222,5 +223,5 @@ fun spiderDebugModel(spider: Spider): Model {
         }
     ))
 
-    return model
+    return group
 }

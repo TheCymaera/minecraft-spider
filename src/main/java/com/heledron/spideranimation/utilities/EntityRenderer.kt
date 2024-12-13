@@ -10,51 +10,51 @@ import org.bukkit.util.Vector
 import org.joml.Matrix4f
 import java.io.Closeable
 
-class ModelPart <T : Entity> (
+class RenderEntity <T : Entity> (
     val clazz : Class<T>,
     val location : Location,
     val init : (T) -> Unit = {},
     val update : (T) -> Unit = {}
 )
 
-class Model {
-    val parts = mutableMapOf<Any, ModelPart<out Entity>>()
+class RenderEntityGroup {
+    val items = mutableMapOf<Any, RenderEntity<out Entity>>()
 
-    fun add(id: Any, part: ModelPart<out Entity>) {
-        parts[id] = part
+    fun add(id: Any, item: RenderEntity<out Entity>) {
+        items[id] = item
     }
 
-    fun add(id: Any, model: Model) {
-        for ((subId, part) in model.parts) {
-            parts[id to subId] = part
+    fun add(id: Any, item: RenderEntityGroup) {
+        for ((subId, part) in item.items) {
+            items[id to subId] = part
         }
     }
 }
 
-fun blockModel(
+fun blockRenderEntity(
     location: Location,
     init: (BlockDisplay) -> Unit = {},
     update: (BlockDisplay) -> Unit = {}
-) = ModelPart(
+) = RenderEntity(
     clazz = BlockDisplay::class.java,
     location = location,
     init = init,
     update = update
 )
 
-fun blockModel(
+fun blockRenderEntity(
     world: World,
     position: Vector,
     init: (BlockDisplay) -> Unit = {},
     update: (BlockDisplay) -> Unit = {}
-) = ModelPart(
+) = RenderEntity(
     clazz = BlockDisplay::class.java,
     location = position.toLocation(world),
     init = init,
     update = update
 )
 
-fun lineModel(
+fun lineRenderEntity(
     world: World,
     position: Vector,
     vector: Vector,
@@ -63,7 +63,7 @@ fun lineModel(
     interpolation: Int = 1,
     init: (BlockDisplay) -> Unit = {},
     update: (BlockDisplay) -> Unit = {}
-) = blockModel(
+) = blockRenderEntity(
     world = world,
     position = position,
     init = {
@@ -81,13 +81,13 @@ fun lineModel(
     }
 )
 
-fun textModel(
+fun textRenderEntity(
     location: Location,
     text: String,
     interpolation: Int,
     init: (TextDisplay) -> Unit = {},
     update: (TextDisplay) -> Unit = {},
-) = ModelPart(
+) = RenderEntity(
     clazz = TextDisplay::class.java,
     location = location,
     init = {
@@ -101,14 +101,14 @@ fun textModel(
     }
 )
 
-fun textModel(
+fun textRenderEntity(
     world: World,
     position: Vector,
     text: String,
     interpolation: Int,
     init: (TextDisplay) -> Unit = {},
     update: (TextDisplay) -> Unit = {},
-) = textModel(
+) = textRenderEntity(
     location = position.toLocation(world),
     text = text,
     interpolation = interpolation,
@@ -116,10 +116,10 @@ fun textModel(
     update = update
 )
 
-class ModelPartRenderer<T : Entity>: Closeable {
+class SingleEntityRenderer<T : Entity>: Closeable {
     var entity: T? = null
 
-    fun render(part: ModelPart<T>) {
+    fun render(part: RenderEntity<T>) {
         entity = (entity ?: spawnEntity(part.location, part.clazz) {
             part.init(it)
         }).apply {
@@ -128,8 +128,8 @@ class ModelPartRenderer<T : Entity>: Closeable {
         }
     }
 
-    fun renderIf(predicate: Boolean, template: ModelPart<T>) {
-        if (predicate) render(template) else close()
+    fun renderIf(predicate: Boolean, entity: RenderEntity<T>) {
+        if (predicate) render(entity) else close()
     }
 
     override fun close() {
@@ -138,7 +138,7 @@ class ModelPartRenderer<T : Entity>: Closeable {
     }
 }
 
-class ModelRenderer: Closeable {
+class GroupEntityRenderer: Closeable {
     val rendered = mutableMapOf<Any, Entity>()
 
     private val used = mutableSetOf<Any>()
@@ -151,8 +151,8 @@ class ModelRenderer: Closeable {
         used.clear()
     }
 
-    fun render(model: Model) {
-        for ((id, template) in model.parts) {
+    fun render(group: RenderEntityGroup) {
+        for ((id, template) in group.items) {
             renderPart(id, template)
         }
 
@@ -165,12 +165,12 @@ class ModelRenderer: Closeable {
         used.clear()
     }
 
-    fun <T: Entity>render(part: ModelPart<T>) {
-        val model = Model().apply { add(0, part) }
-        render(model)
+    fun <T: Entity>render(part: RenderEntity<T>) {
+        val group = RenderEntityGroup().apply { add(0, part) }
+        render(group)
     }
 
-    private fun <T: Entity>renderPart(id: Any, template: ModelPart<T>) {
+    private fun <T: Entity>renderPart(id: Any, template: RenderEntity<T>) {
         used.add(id)
 
         val oldEntity = rendered[id]
@@ -196,21 +196,21 @@ class ModelRenderer: Closeable {
 }
 
 
-class MultiModelRenderer: Closeable {
-    private val renderer = ModelRenderer()
-    private var model = Model()
+class MultiEntityRenderer: Closeable {
+    private val renderer = GroupEntityRenderer()
+    private var group = RenderEntityGroup()
 
-    fun render(id: Any, model: Model) {
-        this.model.add(id, model)
+    fun render(id: Any, group: RenderEntityGroup) {
+        this.group.add(id, group)
     }
 
-    fun render(id: Any, model: ModelPart<out Entity>) {
-        this.model.add(id, model)
+    fun render(id: Any, entity: RenderEntity<out Entity>) {
+        this.group.add(id, entity)
     }
 
     fun flush() {
-        renderer.render(model)
-        model = Model()
+        renderer.render(group)
+        group = RenderEntityGroup()
     }
 
     override fun close() {

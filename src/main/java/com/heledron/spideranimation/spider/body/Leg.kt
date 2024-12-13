@@ -1,13 +1,12 @@
 package com.heledron.spideranimation.spider.body
 
-import com.heledron.spideranimation.ChainSegment
-import com.heledron.spideranimation.KinematicChain
+import com.heledron.spideranimation.utilities.ChainSegment
+import com.heledron.spideranimation.utilities.KinematicChain
 import com.heledron.spideranimation.spider.Spider
 import com.heledron.spideranimation.spider.configuration.LegPlan
 import com.heledron.spideranimation.utilities.*
 import org.bukkit.Location
 import org.bukkit.util.Vector
-import org.joml.Quaterniond
 import org.joml.Quaternionf
 import kotlin.math.ceil
 import kotlin.math.floor
@@ -124,7 +123,7 @@ class Leg(
         // inherit parent velocity
         if (!isGrounded()) {
             endEffector.add(spider.velocity)
-            endEffector.rotateAroundY(spider.yawVelocity.toDouble(), spider.position)
+            endEffector.rotateAroundY(spider.rotationalVelocity.y.toDouble(), spider.position)
         }
 
         // resolve ground collision
@@ -204,7 +203,7 @@ class Leg(
         val direction = if (spider.velocity.isZero) spider.forwardDirection() else spider.velocity.clone().normalize()
 
         val lookAhead = direction.multiply(triggerZoneRadius * spider.moveGait.legLookAheadFraction).add(restPosition)
-        lookAhead.rotateAroundY(spider.yawVelocity.toDouble(), spider.position)
+        lookAhead.rotateAroundY(spider.rotationalVelocity.y.toDouble(), spider.position)
         return lookAhead
     }
 

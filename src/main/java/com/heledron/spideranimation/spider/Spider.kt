@@ -61,9 +61,7 @@ class Spider(
 //    var isRotatingPitch = false
 
     val velocity = Vector(0.0, 0.0, 0.0)
-    var yawVelocity = 0f
-    var pitchVelocity = 0f
-    var rollVelocity = 0f
+    val rotationalVelocity = Vector3f(0f,0f,0f)
 
     // components
     val body = SpiderBody(this)

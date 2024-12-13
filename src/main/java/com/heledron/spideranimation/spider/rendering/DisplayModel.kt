@@ -8,7 +8,7 @@ class BlockDisplayModelPiece (
     var block: BlockData,
     var transform: Matrix4f,
     var brightness: Display.Brightness? = null,
-    var tags: List<Any> = emptyList(),
+    var tags: List<String> = emptyList(),
 ) {
     fun scale(scale: Float) {
         transform.set(Matrix4f().scale(scale).mul(transform))

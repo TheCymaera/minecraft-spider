@@ -36,6 +36,16 @@ fun Vector.moveTowards(target: Vector, constant: Double) {
     }
 }
 
+fun Vector3f.moveTowards(target: Vector3f, constant: Float) {
+    val diff = Vector3f(target).sub(this)
+    val distance = diff.length()
+    if (distance <= constant) {
+        this.set(target)
+    } else {
+        this.add(diff.mul(constant / distance))
+    }
+}
+
 fun Vector.lerp(target: Vector, factor: Double) {
     this.add(target.clone().subtract(this).multiply(factor))
 }

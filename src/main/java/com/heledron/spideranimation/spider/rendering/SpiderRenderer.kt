@@ -1,21 +1,17 @@
 package com.heledron.spideranimation.spider.rendering
 
+import com.heledron.spideranimation.AppState
 import com.heledron.spideranimation.spider.Spider
 import com.heledron.spideranimation.spider.SpiderComponent
-import com.heledron.spideranimation.utilities.MultiModelRenderer
-import com.heledron.spideranimation.utilities.SeriesScheduler
 import com.heledron.spideranimation.utilities.interval
 import com.heledron.spideranimation.utilities.spawnParticle
 import org.bukkit.Color
 import org.bukkit.Location
 import org.bukkit.Particle
-import org.bukkit.entity.Display
 import org.bukkit.util.Vector
 import kotlin.random.Random
 
 class SpiderRenderer(val spider: Spider): SpiderComponent {
-    private val renderer = MultiModelRenderer()
-
     // apply eye blinking effect
     val eyeInterval = interval(0,10) {
         val pieces = spider.options.bodyPlan.bodyModel.pieces.filter { it.tags.contains("eye") }
@@ -61,13 +57,11 @@ class SpiderRenderer(val spider: Spider): SpiderComponent {
     }*/
 
     override fun render() {
-        renderer.render("spider", spiderModel(spider))
-        if (spider.showDebugVisuals) renderer.render("debug", spiderDebugModel(spider))
-        renderer.flush()
+        AppState.renderer.render(this, spiderRenderEntities(spider))
+        if (spider.showDebugVisuals) AppState.renderer.render(this to "debug", spiderDebugRenderEntities(spider))
     }
 
     override fun close() {
-        renderer.close()
         eyeInterval.close()
         blinkingInterval.close()
     }

@@ -73,26 +73,29 @@ private fun createRobotSegments(lengthScale: Double) = List(4) { index ->
 }
 
 
-fun quadBotBodyPlan(_segmentCount: Int, _segmentLength: Double): BodyPlan {
+fun quadBotBodyPlan(_segmentCount: Int, segmentLength: Double): BodyPlan {
     return BodyPlan().apply {
-        addLegPair(root = Vector(.2,-.2 - .15, .2), rest = Vector(1.3 * 1.0,.0, 1.0), createRobotSegments(.9 * .7))
-        addLegPair(root = Vector(.2,-.2 - .15,-.2), rest = Vector(1.3 * 1.1,.0,-1.2), createRobotSegments(1.2 * .7))
+        bodyModel = SpiderTorsoModels.FLAT.model.clone()
+        addLegPair(root = Vector(.2,-.2 - .15, .2), rest = Vector(1.3 * 1.0,.0, 1.0), createRobotSegments(.9 * .7 * segmentLength))
+        addLegPair(root = Vector(.2,-.2 - .15,-.2), rest = Vector(1.3 * 1.1,.0,-1.2), createRobotSegments(1.2 * .7 * segmentLength))
     }
 }
 
-fun hexBotBodyPlan(_segmentCount: Int, _segmentLength: Double): BodyPlan {
+fun hexBotBodyPlan(_segmentCount: Int, segmentLength: Double): BodyPlan {
     return BodyPlan().apply {
-        addLegPair(root = Vector(.2,-.2 - .15, .2), rest = Vector(1.3 * 1.0,.0, 1.3), createRobotSegments(1.1 * .7))
-        addLegPair(root = Vector(.2,-.2 - .15, .0), rest = Vector(1.3 * 1.2,.0,-0.1), createRobotSegments(1.1 * .7))
-        addLegPair(root = Vector(.2,-.2 - .15,-.2), rest = Vector(1.3 * 1.1,.0,-1.6), createRobotSegments(1.3 * .7))
+        bodyModel = SpiderTorsoModels.FLAT.model.clone()
+        addLegPair(root = Vector(.2,-.2 - .15, .2), rest = Vector(1.3 * 1.0,.0, 1.3), createRobotSegments(1.1 * .7 * segmentLength))
+        addLegPair(root = Vector(.2,-.2 - .15, .0), rest = Vector(1.3 * 1.2,.0,-0.1), createRobotSegments(1.1 * .7 * segmentLength))
+        addLegPair(root = Vector(.2,-.2 - .15,-.2), rest = Vector(1.3 * 1.1,.0,-1.6), createRobotSegments(1.3 * .7 * segmentLength))
     }
 }
 
-fun octoBotBodyPlan(_segmentCount: Int, _segmentLength: Double): BodyPlan {
+fun octoBotBodyPlan(_segmentCount: Int, segmentLength: Double): BodyPlan {
     return BodyPlan().apply {
-        addLegPair(root = Vector(.2,-.2 - .15, .3), rest = Vector(1.3 * 1.0,.0, 1.3), createRobotSegments(1.1 * .7))
-        addLegPair(root = Vector(.2,-.2 - .15, .1), rest = Vector(1.3 * 1.2,.0, 0.5), createRobotSegments(1.0 * .7))
-        addLegPair(root = Vector(.2,-.2 - .15, .1), rest = Vector(1.3 * 1.2,.0,-0.7), createRobotSegments(1.1 * .7))
-        addLegPair(root = Vector(.2,-.2 - .15,-.3), rest = Vector(1.3 * 1.1,.0,-1.6), createRobotSegments(1.3 * .7))
+        bodyModel = SpiderTorsoModels.FLAT.model.clone()
+        addLegPair(root = Vector(.2,-.2 - .15, .3), rest = Vector(1.3 * 1.0,.0, 1.3), createRobotSegments(1.1 * .7 * segmentLength))
+        addLegPair(root = Vector(.2,-.2 - .15, .1), rest = Vector(1.3 * 1.2,.0, 0.5), createRobotSegments(1.0 * .7 * segmentLength))
+        addLegPair(root = Vector(.2,-.2 - .15, .1), rest = Vector(1.3 * 1.2,.0,-0.7), createRobotSegments(1.1 * .7 * segmentLength))
+        addLegPair(root = Vector(.2,-.2 - .15,-.3), rest = Vector(1.3 * 1.1,.0,-1.6), createRobotSegments(1.3 * .7 * segmentLength))
     }
 }

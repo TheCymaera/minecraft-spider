@@ -1,9 +1,9 @@
 package com.heledron.spideranimation.spider.presets
 
-import com.heledron.spideranimation.spider.misc.runCommandSilently
 import com.heledron.spideranimation.spider.rendering.BlockDisplayModelPiece
 import com.heledron.spideranimation.spider.rendering.DisplayModel
 import com.heledron.spideranimation.utilities.matrixFromTransform
+import com.heledron.spideranimation.utilities.runCommandSilently
 import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.entity.BlockDisplay

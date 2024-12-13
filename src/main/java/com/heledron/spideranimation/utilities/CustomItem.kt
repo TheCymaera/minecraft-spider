@@ -2,6 +2,7 @@ package com.heledron.spideranimation.utilities
 
 import com.heledron.spideranimation.SpiderAnimationPlugin
 import org.bukkit.Bukkit
+import org.bukkit.ChatColor
 import org.bukkit.NamespacedKey
 import org.bukkit.entity.Player
 import org.bukkit.event.block.Action
@@ -31,7 +32,7 @@ class CustomItem(
 
 
 object CustomItemRegistry {
-    val ID_KEY; get () = NamespacedKey(SpiderAnimationPlugin.instance, "item_id")
+    val ID_KEY; get () = NamespacedKey(currentPlugin, "item_id")
 
     val items = mutableListOf<CustomItem>()
 
@@ -45,11 +46,20 @@ object CustomItemRegistry {
             if (customItem.isItem(item)) customItem.onRightClick?.invoke(player)
         }
 
-        interval(0, 1) {
+        onTick {
             for (player in Bukkit.getServer().onlinePlayers) {
                 val customItem = get(player.inventory.itemInMainHand) ?: continue
                 if (customItem.isItem(player.inventory.itemInMainHand)) customItem.onHeldTick?.invoke(player)
             }
         }
     }
+}
+
+
+fun createNamedItem(material: org.bukkit.Material, name: String): ItemStack {
+    val item = ItemStack(material)
+    val itemMeta = item.itemMeta ?: throw Exception("ItemMeta is null")
+    itemMeta.setItemName(ChatColor.RESET.toString() + name)
+    item.itemMeta = itemMeta
+    return item
 }

@@ -31,7 +31,7 @@ class KinematicChainVisualizer(
         render()
     }
 
-    val renderer = ModelRenderer()
+    val renderer = GroupEntityRenderer()
     override fun close() {
         renderer.close()
     }
@@ -138,8 +138,8 @@ class KinematicChainVisualizer(
 
     }
 
-    private fun renderNormal(): Model {
-        val model = Model()
+    private fun renderNormal(): RenderEntityGroup {
+        val group = RenderEntityGroup()
 
         val previous = previous
         for (i in segments.indices) {
@@ -153,7 +153,7 @@ class KinematicChainVisualizer(
             if (!vector.isZero) vector.normalize().multiply(segment.length)
             val position = segment.position.clone().subtract(vector.clone())//.toLocation(root.world!!)
 
-            model.add(i, lineModel(
+            group.add(i, lineRenderEntity(
                 world = root.world!!,
                 position = position,
                 vector = vector,
@@ -166,11 +166,11 @@ class KinematicChainVisualizer(
             ))
         }
 
-        return model
+        return group
     }
 
-    private fun renderDetailed(subStage: Int = 0): Model {
-        val model = Model()
+    private fun renderDetailed(subStage: Int = 0): RenderEntityGroup {
+        val group = RenderEntityGroup()
 
         val previous = previous
 
@@ -216,14 +216,14 @@ class KinematicChainVisualizer(
                 .add(arrow.clone().multiply(0.5))
                 .add(crossProduct.rotateAroundAxis(arrow, Math.toRadians(-90.0)).multiply(.5))
 
-            model.add("arrow_length", textModel(
+            group.add("arrow_length", textRenderEntity(
                 world = root.world!!,
                 position = arrowCenter,
                 text = String.format("%.2f", arrow.length()),
                 interpolation = 3,
             ))
 
-            model.add("arrow", arrowModel(
+            group.add("arrow", arrowRenderEntity(
                 world = root.world!!,
                 position = arrowStart,
                 vector = arrow,
@@ -232,17 +232,17 @@ class KinematicChainVisualizer(
             ))
         }
 
-        model.add("root", pointModel(root, Material.DIAMOND_BLOCK))
+        group.add("root", pointRenderEntity(root, Material.DIAMOND_BLOCK))
 
         for (i in renderedSegments.indices) {
             val segment = renderedSegments[i]
-            model.add("p$i", pointModel(segment.position.toLocation(root.world!!), Material.EMERALD_BLOCK))
+            group.add("p$i", pointRenderEntity(segment.position.toLocation(root.world!!), Material.EMERALD_BLOCK))
 
             val prev = renderedSegments.getOrNull(i - 1)?.position ?: root.toVector()
 
             val (a,b) = prev to segment.position
 
-            model.add(i, lineModel(
+            group.add(i, lineRenderEntity(
                 world = root.world!!,
                 position = a,
                 vector = b.clone().subtract(a),
@@ -255,11 +255,11 @@ class KinematicChainVisualizer(
             ))
         }
 
-        return model
+        return group
     }
 }
 
-fun pointModel(location: Location, block: Material) = blockModel(
+fun pointRenderEntity(location: Location, block: Material) = blockRenderEntity(
     location = location,
     init = {
         it.block = block.createBlockData()
@@ -269,14 +269,14 @@ fun pointModel(location: Location, block: Material) = blockModel(
     }
 )
 
-fun arrowModel(
+fun arrowRenderEntity(
     world: World,
     position: Vector,
     vector: Vector,
     thickness: Float,
     interpolation: Int
-): Model {
-    val line = lineModel(
+): RenderEntityGroup {
+    val line = lineRenderEntity(
         world = world,
         position = position,
         vector = vector,
@@ -296,7 +296,7 @@ fun arrowModel(
     val tipDirection = vector.clone().normalize().multiply(-tipLength)
     val tipRotation = 30.0
 
-    val top = lineModel(
+    val top = lineRenderEntity(
         world = world,
         position = tip,
         vector = tipDirection.clone().rotateAroundAxis(crossProduct, Math.toRadians(tipRotation)),
@@ -308,7 +308,7 @@ fun arrowModel(
         },
     )
 
-    val bottom = lineModel(
+    val bottom = lineRenderEntity(
         world = world,
         position = tip,
         vector = tipDirection.clone().rotateAroundAxis(crossProduct, Math.toRadians(-tipRotation)),
@@ -320,7 +320,7 @@ fun arrowModel(
         },
     )
 
-    return Model().apply {
+    return RenderEntityGroup().apply {
         add("line", line)
         add("top", top)
         add("bottom", bottom)

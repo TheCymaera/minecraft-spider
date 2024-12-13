@@ -57,8 +57,7 @@ fun Spider.rotateTowards(targetVector: Vector) {
         .getEulerAnglesYXZ(Vector3f())
 
     // clamp pitch
-    val clamp = toRadians(10f)
-    targetEuler.x = targetEuler.x.coerceIn(preferredPitch - clamp, preferredPitch + clamp)
+    targetEuler.x = targetEuler.x.coerceIn(preferredPitch - moveGait.preferredPitchLeeway, preferredPitch + moveGait.preferredPitchLeeway)
 
     // clamp roll
     targetEuler.z = preferredRoll
@@ -83,13 +82,7 @@ fun Spider.rotateTowards(targetVector: Vector) {
 
     val conjugatedEuler = conjugated.getEulerAnglesYXZ(Vector3f())
     val maxAcceleration = moveGait.rotateAcceleration * body.legs.filter { it.isGrounded() }.size / body.legs.size
-    yawVelocity = yawVelocity.moveTowards(conjugatedEuler.y, maxAcceleration)
-    pitchVelocity = pitchVelocity.moveTowards(conjugatedEuler.x, maxAcceleration)
-    rollVelocity = rollVelocity.moveTowards(conjugatedEuler.z, maxAcceleration)
-
-
-
-
+    rotationalVelocity.moveTowards(conjugatedEuler, maxAcceleration)
 }
 
 fun Spider.walkAt(targetVelocity: Vector) {

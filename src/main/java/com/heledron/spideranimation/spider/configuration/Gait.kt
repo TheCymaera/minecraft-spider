@@ -11,10 +11,9 @@ class Gait(
     var triggerZone: SplitDistance = SplitDistance(.25, 1.5)
 ) {
     fun scale(scale: Double): Gait {
-        return Gait(
-            bodyHeight = bodyHeight * scale,
-            triggerZone = triggerZone.scale(scale)
-        )
+        bodyHeight *= scale
+        triggerZone = triggerZone.scale(scale)
+        return this
     }
 
     fun clone() = Gait(
@@ -51,7 +50,6 @@ class MoveGait(
     val type: GaitType,
 ) {
     companion object {
-
         fun defaultWalk() = MoveGait(.15, GaitType.WALK)
 
         fun defaultGallop() = MoveGait(.4, GaitType.GALLOP).apply {
@@ -64,6 +62,7 @@ class MoveGait(
     }
 
     fun scale(scale: Double) {
+        gait.scale(scale)
         maxSpeed *= scale
         walkAcceleration *= scale
         legMoveSpeed *= scale
@@ -71,6 +70,7 @@ class MoveGait(
         legDropDistance *= scale
         comfortZone = comfortZone.scale(scale)
         legScanHeightBias *= scale
+        tridentRotationalKnockBack /= scale
     }
 
     var gait = Gait.walk()
@@ -103,6 +103,7 @@ class MoveGait(
     var legScanHeightBias = .5
 
     var tridentKnockBack = .3
+    var tridentRotationalKnockBack = tridentKnockBack / 4
     var legLookAheadFraction = .6
     var groundDragCoefficient = .2
 
@@ -119,6 +120,7 @@ class MoveGait(
     var uncomfortableSpeedMultiplier = 0.0
 
     var disableAdvancedRotation = false
+    var preferredPitchLeeway = toRadians(10f)
 
     var straightenLegs = true
     var legStraightenRotation = toRadians(-80f)

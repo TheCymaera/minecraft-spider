@@ -10,19 +10,22 @@ import org.bukkit.World
 import org.bukkit.entity.Display
 import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
+import org.bukkit.entity.minecart.CommandMinecart
 import org.bukkit.event.Listener
 import org.bukkit.event.block.Action
 import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.inventory.ItemStack
+import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.util.RayTraceResult
 import org.bukkit.util.Transformation
 import org.bukkit.util.Vector
 import org.joml.*
 import java.io.Closeable
 
+lateinit var currentPlugin: JavaPlugin
 
 fun runLater(delay: Long, task: () -> Unit): Closeable {
-    val plugin = SpiderAnimationPlugin.instance
+    val plugin = currentPlugin
     val handler = plugin.server.scheduler.runTaskLater(plugin, task, delay)
     return Closeable {
         handler.cancel()
@@ -30,15 +33,17 @@ fun runLater(delay: Long, task: () -> Unit): Closeable {
 }
 
 fun interval(delay: Long, period: Long, task: () -> Unit): Closeable {
-    val plugin = SpiderAnimationPlugin.instance
+    val plugin = currentPlugin
     val handler = plugin.server.scheduler.runTaskTimer(plugin, task, delay, period)
     return Closeable {
         handler.cancel()
     }
 }
 
+fun onTick(task: () -> Unit) = interval(0, 1, task)
+
 fun addEventListener(listener: Listener): Closeable {
-    val plugin = SpiderAnimationPlugin.instance
+    val plugin = currentPlugin
     plugin.server.pluginManager.registerEvents(listener, plugin)
     return Closeable {
         org.bukkit.event.HandlerList.unregisterAll(listener)
@@ -61,6 +66,15 @@ fun onSpawnEntity(listener: (Entity, World) -> Unit): Closeable {
             listener(event.entity, event.entity.world)
         }
     })
+}
+
+fun runCommandSilently(command: String, location: Location = Bukkit.getWorlds().first().spawnLocation) {
+    val server = Bukkit.getServer()
+    spawnEntity(location, CommandMinecart::class.java) {
+        it.setCommand(command)
+        server.dispatchCommand(it, command)
+        it.remove()
+    }
 }
 
 fun onGestureUseItem(listener: (Player, ItemStack) -> Unit): Closeable {
@@ -88,7 +102,7 @@ class SeriesScheduler {
 }
 
 class EventEmitter {
-    val listeners = mutableListOf<() -> Unit>()
+    private val listeners = mutableListOf<() -> Unit>()
     fun listen(listener: () -> Unit): Closeable {
         listeners.add(listener)
         return Closeable { listeners.remove(listener) }
@@ -97,15 +111,6 @@ class EventEmitter {
     fun emit() {
         for (listener in listeners) listener()
     }
-}
-
-
-fun createNamedItem(material: org.bukkit.Material, name: String): ItemStack {
-    val item = ItemStack(material)
-    val itemMeta = item.itemMeta ?: throw Exception("ItemMeta is null")
-    itemMeta.setItemName(ChatColor.RESET.toString() + name)
-    item.itemMeta = itemMeta
-    return item
 }
 
 fun firstPlayer(): Player? {

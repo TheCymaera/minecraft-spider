@@ -18,8 +18,8 @@ import org.bukkit.util.Vector
 import java.io.Closeable
 
 class Mountable(val spider: Spider): SpiderComponent {
-    val pig = ModelPartRenderer<Pig>()
-    var marker = ModelPartRenderer<ArmorStand>()
+    val pig = SingleEntityRenderer<Pig>()
+    var marker = SingleEntityRenderer<ArmorStand>()
 
     var closable = mutableListOf<Closeable>()
 
@@ -67,7 +67,7 @@ class Mountable(val spider: Spider): SpiderComponent {
         val pigLocation = location.clone().add(Vector(.0, -.4, .0))
         val markerLocation = location.clone().add(Vector(.0, .5, .0))
 
-        pig.render(ModelPart(
+        pig.render(RenderEntity(
             clazz = Pig::class.java,
             location = pigLocation,
             init = {
@@ -80,7 +80,7 @@ class Mountable(val spider: Spider): SpiderComponent {
             }
         ))
 
-        marker.render(ModelPart(
+        marker.render(RenderEntity(
             clazz = ArmorStand::class.java,
             location = markerLocation,
             init = {
@@ -104,14 +104,5 @@ class Mountable(val spider: Spider): SpiderComponent {
 
     override fun close() {
         closable.forEach { it.close() }
-    }
-}
-
-fun runCommandSilently(command: String, location: Location = Bukkit.getWorlds().first().spawnLocation) {
-    val server = Bukkit.getServer()
-    spawnEntity(location, CommandMinecart::class.java) {
-        it.setCommand(command)
-        server.dispatchCommand(it, command)
-        it.remove()
     }
 }

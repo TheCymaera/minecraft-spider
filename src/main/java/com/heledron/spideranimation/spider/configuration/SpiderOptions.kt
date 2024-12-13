@@ -12,6 +12,8 @@ class SpiderOptions {
     var debug = SpiderDebugOptions()
 
     fun scale(scale: Double) {
+        stationaryGait.scale(scale)
+        movingButNotWalkingGait.scale(scale)
         walkGait.scale(scale)
         gallopGait.scale(scale)
         bodyPlan.scale(scale)

@@ -1,10 +1,6 @@
-package com.heledron.spideranimation
+package com.heledron.spideranimation.utilities
 
-import com.heledron.spideranimation.utilities.FORWARD_VECTOR
-import com.heledron.spideranimation.utilities.rotate
-import com.heledron.spideranimation.utilities.stripRelativeZ
 import org.bukkit.util.Vector
-import org.joml.Quaterniond
 import org.joml.Quaternionf
 
 

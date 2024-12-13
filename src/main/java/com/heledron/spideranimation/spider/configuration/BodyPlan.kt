@@ -46,7 +46,7 @@ class BodyPlan {
     var scale = 1.0
     var legs = emptyList<LegPlan>()
 
-    var bodyModel = SpiderTorsoModels.FLAT.model.clone()
+    var bodyModel = SpiderTorsoModels.NONE.model.clone()
 
     val eyePalette = arrayOf(
 //        * Array(3) { Material.DIAMOND_BLOCK },

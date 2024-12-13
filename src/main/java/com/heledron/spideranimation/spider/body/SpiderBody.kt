@@ -24,7 +24,7 @@ class SpiderBody(val spider: Spider): SpiderComponent {
         spider.velocity.y *= (1 - spider.moveGait.airDragCoefficient)
 
         // apply rotational velocity
-        val rotVelocity = Quaternionf().rotationYXZ(spider.yawVelocity, spider.pitchVelocity, spider.rollVelocity)
+        val rotVelocity = Quaternionf().rotationYXZ(spider.rotationalVelocity.y, spider.rotationalVelocity.x, spider.rotationalVelocity.z)
         spider.orientation.set(rotVelocity.mul(spider.orientation))
 
         // apply drag while leg on ground
@@ -36,9 +36,7 @@ class SpiderBody(val spider: Spider): SpiderComponent {
 
         // apply rotational drag
         val rotDrag = 1 - spider.moveGait.rotationalDragCoefficient * fractionOfLegsGrounded.toFloat()
-        spider.yawVelocity *= rotDrag
-        spider.pitchVelocity *= rotDrag
-        spider.rollVelocity *= rotDrag
+        spider.rotationalVelocity.mul(rotDrag)
 
         // apply drag while body on ground
         if (onGround) {
@@ -46,9 +44,7 @@ class SpiderBody(val spider: Spider): SpiderComponent {
             spider.velocity.x *= bodyDrag
             spider.velocity.z *= bodyDrag
 
-            spider.yawVelocity *= bodyDrag
-            spider.pitchVelocity *= bodyDrag
-            spider.rollVelocity *= bodyDrag
+            spider.rotationalVelocity.mul(bodyDrag)
         }
 
         val normal = getNormal(spider)

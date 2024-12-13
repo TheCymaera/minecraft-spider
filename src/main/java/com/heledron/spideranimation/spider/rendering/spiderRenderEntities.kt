@@ -8,9 +8,9 @@ import org.bukkit.util.Vector
 import org.joml.Matrix4f
 import org.joml.Vector4f
 
-fun targetModel(
+fun targetRenderEntity(
     location: Location
-) = blockModel(
+) = blockRenderEntity(
     location = location,
     init = {
         it.block = Material.REDSTONE_BLOCK.createBlockData()
@@ -20,15 +20,15 @@ fun targetModel(
     }
 )
 
-fun spiderModel(spider: Spider): Model {
-    val model = Model()
+fun spiderRenderEntities(spider: Spider): RenderEntityGroup {
+    val group = RenderEntityGroup()
 
     // render body
     for ((index, piece) in spider.options.bodyPlan.bodyModel.pieces.withIndex()) {
         val id = "body" to index
 
         val transform = Matrix4f().rotate(spider.orientation)
-        model.add(id, pieceToModel(spider, spider.position, piece, transform))
+        group.add(id, modelPieceToRenderEntity(spider, spider.position, piece, transform))
     }
 
 
@@ -43,43 +43,49 @@ fun spiderModel(spider: Spider): Model {
             for ((pieceIndex, piece) in segmentPlan.model.pieces.withIndex()) {
                 val id = legIndex to segmentIndex to pieceIndex
                 val transform = Matrix4f().rotate(rotation)
-                model.add(id, pieceToModel(spider, parent, piece, transform))
+                group.add(id, modelPieceToRenderEntity(spider, parent, piece, transform))
             }
 
         }
     }
 
-    return model
+    return group
 }
 
 
 
-fun pieceToModel(
+fun modelPieceToRenderEntity(
     spider: Spider,
     position: Vector,
     piece: BlockDisplayModelPiece,
     transformation: Matrix4f,
 //    cloakID: Any
-) = blockModel(
+) = blockRenderEntity(
     location = position.toLocation(spider.world),
     init = {
         it.teleportDuration = 1
         it.interpolationDuration = 1
-        it.brightness = piece.brightness
     },
     update = {
         val transform = transformation.mul(piece.transform)
         it.applyTransformationWithInterpolation(transform)
 
-        it.block = if (!piece.tags.contains("cloak")) {
-            piece.block
-        } else {
+        val cloak = if (piece.tags.contains("cloak")){
             val relative = transform.transform(Vector4f(.5f, .5f, .5f, 1f))
             val pieceLocation = spider.position.clone()
             pieceLocation.x += relative.x
             pieceLocation.y += relative.y
             pieceLocation.z += relative.z
-            spider.cloak.getPiece(piece, pieceLocation) ?: piece.block
+
+            spider.cloak.getPiece(piece, pieceLocation)
+        } else null
+
+        if (cloak != null) {
+            it.block = cloak
+            it.brightness = null
+        } else {
+            it.block = piece.block
+            it.brightness = piece.brightness
         }
     }
 )
