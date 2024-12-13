@@ -59,13 +59,13 @@ private fun createRobotSegments(lengthScale: Double) = List(4) { index ->
     }
 
     val model = if (index == 0) {
-        RobotLegModel.BASE.clone().scale(1f,1f,length)
+        SpiderLegModel.BASE.clone().scale(1f,1f,length)
     } else if (index == 1) {
-        RobotLegModel.FEMUR.clone().scale(1f,1f,length)
+        SpiderLegModel.FEMUR.clone().scale(1f,1f,length)
     } else if (index == 2) {
-        RobotLegModel.TIBIA.clone().scale(1f,1f,length)
+        SpiderLegModel.TIBIA.clone().scale(1f,1f,length)
     } else {
-        RobotLegModel.TIP.clone().scale(1f,1f,length)
+        SpiderLegModel.TIP.clone().scale(1f,1f,length)
     }
 
 

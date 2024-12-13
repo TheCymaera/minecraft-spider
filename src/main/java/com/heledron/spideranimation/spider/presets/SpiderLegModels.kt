@@ -2,8 +2,7 @@ package com.heledron.spideranimation.spider.presets
 
 import org.bukkit.Material
 
-
-object RobotLegModel {
+object SpiderLegModel {
     val BASE = parseModelFromCommand(
         """/summon block_display ~-0.5 ~ ~-0.5 {Passengers:[{id:"minecraft:block_display",block_state:{Name:"minecraft:anvil",Properties:{facing:"east"}},transformation:[0f,0f,0.25f,-0.125f,0.1f,0f,0f,-0.125f,0f,1f,0f,0f,0f,0f,0f,1f]},{id:"minecraft:block_display",block_state:{Name:"minecraft:cauldron",Properties:{}},transformation:[-0.25f,0f,0f,0.125f,0f,0f,0.205f,-0.0625f,0f,1.1875f,0f,-0.1875f,0f,0f,0f,1f]}]}"""
     ).apply {
