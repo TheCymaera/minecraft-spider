@@ -20,8 +20,8 @@ class SpiderBody(val spider: Spider): SpiderComponent {
         val fractionOfLegsGrounded = groundedLegs.size.toDouble() / spider.body.legs.size
 
         // apply gravity and air resistance
-        spider.velocity.y -= spider.moveGait.gravityAcceleration
-        spider.velocity.y *= (1 - spider.moveGait.airDragCoefficient)
+        spider.velocity.y -= spider.gait.gravityAcceleration
+        spider.velocity.y *= (1 - spider.gait.airDragCoefficient)
 
         // apply rotational velocity
         val rotVelocity = Quaternionf().rotationYXZ(spider.rotationalVelocity.y, spider.rotationalVelocity.x, spider.rotationalVelocity.z)
@@ -29,13 +29,13 @@ class SpiderBody(val spider: Spider): SpiderComponent {
 
         // apply drag while leg on ground
         if (!spider.isWalking) {
-            val legDrag = 1 - spider.moveGait.groundDragCoefficient * fractionOfLegsGrounded
+            val legDrag = 1 - spider.gait.groundDragCoefficient * fractionOfLegsGrounded
             spider.velocity.x *= legDrag
             spider.velocity.z *= legDrag
         }
 
         // apply rotational drag
-        val rotDrag = 1 - spider.moveGait.rotationalDragCoefficient * fractionOfLegsGrounded.toFloat()
+        val rotDrag = 1 - spider.gait.rotationalDragCoefficient * fractionOfLegsGrounded.toFloat()
         spider.rotationalVelocity.mul(rotDrag)
 
         // apply drag while body on ground
@@ -54,7 +54,7 @@ class SpiderBody(val spider: Spider): SpiderComponent {
         if (normal != null) {
             val preferredY = getPreferredY()
             val preferredYAcceleration = (preferredY - spider.position.y - spider.velocity.y).coerceAtLeast(0.0)
-            val capableAcceleration = spider.moveGait.bodyHeightCorrectionAcceleration * fractionOfLegsGrounded
+            val capableAcceleration = spider.gait.bodyHeightCorrectionAcceleration * fractionOfLegsGrounded
             val accelerationMagnitude = min(preferredYAcceleration, capableAcceleration)
 
             normalAcceleration = normal.normal.clone().multiply(accelerationMagnitude)
@@ -74,25 +74,25 @@ class SpiderBody(val spider: Spider): SpiderComponent {
         if (collision != null) {
             onGround = true
 
-            val didHit = collision.offset.length() > (spider.moveGait.gravityAcceleration * 2) * (1 - spider.moveGait.airDragCoefficient)
+            val didHit = collision.offset.length() > (spider.gait.gravityAcceleration * 2) * (1 - spider.gait.airDragCoefficient)
             if (didHit) onHitGround.emit()
 
             spider.position.y = collision.position.y
-            if (spider.velocity.y < 0) spider.velocity.y *= -spider.moveGait.bounceFactor
-            if (spider.velocity.y < spider.moveGait.gravityAcceleration) spider.velocity.y = .0
+            if (spider.velocity.y < 0) spider.velocity.y *= -spider.gait.bounceFactor
+            if (spider.velocity.y < spider.gait.gravityAcceleration) spider.velocity.y = .0
         } else {
             onGround = spider.world.isOnGround(spider.position, DOWN_VECTOR.rotate(spider.orientation))
         }
 
-        val updateOrder = getLegsInUpdateOrder(spider)
+        val updateOrder = spider.gait.type.getLegsInUpdateOrder(spider)
         for (leg in updateOrder) leg.updateMemo()
         for (leg in updateOrder) leg.update()
     }
 
     private fun getPreferredY(): Double {
-        val averageY = spider.body.legs.map { it.target.position.y }.average() + spider.gait.bodyHeight
+        val averageY = spider.body.legs.map { it.target.position.y }.average() + spider.lerpedGait.bodyHeight
         val targetY = averageY //max(averageY, groundY)
-        val stabilizedY = spider.position.y.lerp(targetY, spider.moveGait.bodyHeightCorrectionFactor)
+        val stabilizedY = spider.position.y.lerp(targetY, spider.gait.bodyHeightCorrectionFactor)
         return stabilizedY
     }
 
@@ -100,13 +100,6 @@ class SpiderBody(val spider: Spider): SpiderComponent {
         val lefts = legs.indices.filter { LegLookUp.isLeftLeg(it) }
         val rights = legs.indices.filter { LegLookUp.isRightLeg(it) }
         return lefts + rights.reversed()
-    }
-
-    private fun getLegsInUpdateOrder(spider: Spider): List<Leg> {
-        val diagonal1 = legs.indices.filter { LegLookUp.isDiagonal1(it) }
-        val diagonal2 = legs.indices.filter { LegLookUp.isDiagonal2(it) }
-        val indices = diagonal1 + diagonal2
-        return indices.map { spider.body.legs[it] }
     }
 
     private fun getLegacyNormal(): NormalInfo? {
@@ -119,7 +112,7 @@ class SpiderBody(val spider: Spider): SpiderComponent {
     }
 
     private fun getNormal(spider: Spider): NormalInfo? {
-        if (spider.moveGait.useLegacyNormalForce) return getLegacyNormal()
+        if (spider.gait.useLegacyNormalForce) return getLegacyNormal()
 
         val centreOfMass = spider.body.legs.map { it.endEffector }.average()
         centreOfMass.lerp(spider.position, 0.5)
@@ -167,13 +160,13 @@ class SpiderBody(val spider: Spider): SpiderComponent {
         if (normal.origin == null) return
         if (normal.centreOfMass == null) return
 
-        if (normal.origin.horizontalDistance(normal.centreOfMass) < spider.moveGait.polygonLeeway) {
+        if (normal.origin.horizontalDistance(normal.centreOfMass) < spider.gait.polygonLeeway) {
             normal.origin.x = normal.centreOfMass.x
             normal.origin.z = normal.centreOfMass.z
         }
 
         val stabilizationTarget = normal.origin.clone().setY(normal.centreOfMass.y)
-        normal.centreOfMass.lerp(stabilizationTarget, spider.moveGait.stabilizationFactor)
+        normal.centreOfMass.lerp(stabilizationTarget, spider.gait.stabilizationFactor)
 
         normal.normal.copy(normal.centreOfMass).subtract(normal.origin).normalize()
     }

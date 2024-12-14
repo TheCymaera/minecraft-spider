@@ -1,10 +1,11 @@
 package com.heledron.spideranimation
 
 import com.google.gson.Gson
+import com.heledron.spideranimation.spider.configuration.CloakOptions
 import com.heledron.spideranimation.spider.configuration.SpiderDebugOptions
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.spider.presets.*
-import com.heledron.spideranimation.spider.rendering.BlockDisplayModelPiece
+import com.heledron.spideranimation.utilities.BlockDisplayModelPiece
 import com.heledron.spideranimation.utilities.CustomItemRegistry
 import com.heledron.spideranimation.utilities.Serializer
 import org.bukkit.Bukkit.createInventory
@@ -12,19 +13,25 @@ import org.bukkit.Material
 import org.bukkit.entity.Display
 
 fun registerCommands(plugin: SpiderAnimationPlugin) {
-    plugin.getCommand("options")?.apply {
+    fun getCommand(name: String) = plugin.getCommand(name) ?: throw Exception("Command $name not found")
+
+    getCommand("options").apply {
         val options = mapOf(
             "walkGait" to { AppState.options.walkGait },
             "gallopGait" to { AppState.options.gallopGait },
+
             "debug" to { AppState.options.debug },
             "misc" to { AppState.miscOptions },
+            "cloak" to { AppState.options.cloak },
         )
 
         val defaultObjects = mapOf(
             "walkGait" to { SpiderOptions().apply { scale(AppState.options.bodyPlan.scale) }.walkGait },
             "gallopGait" to { SpiderOptions().apply { scale(AppState.options.bodyPlan.scale) }.gallopGait },
+
             "debug" to { SpiderDebugOptions() },
             "misc" to { MiscellaneousOptions() },
+            "cloak" to { CloakOptions() },
         )
 
         setExecutor { sender, _, _, args ->
@@ -103,12 +110,12 @@ fun registerCommands(plugin: SpiderAnimationPlugin) {
         }
     }
 
-    fun getLegPieces() = AppState.options.bodyPlan.legs.flatMap { it.segments }.flatMap { it.model.pieces }
-    fun getBodyPieces() = AppState.options.bodyPlan.bodyModel.pieces
-    fun getAllPieces() = getLegPieces() + getBodyPieces()
-    fun getAvailableTags() = getAllPieces().flatMap { it.tags }.distinct()
+    getCommand("modify_model").apply {
+        fun getLegPieces() = AppState.options.bodyPlan.legs.flatMap { it.segments }.flatMap { it.model.pieces }
+        fun getBodyPieces() = AppState.options.bodyPlan.bodyModel.pieces
+        fun getAllPieces() = getLegPieces() + getBodyPieces()
+        fun getAvailableTags() = getAllPieces().flatMap { it.tags }.distinct()
 
-    plugin.getCommand("replace_material")?.apply {
         setExecutor { sender, _, _, args ->
             val orGroups = mutableListOf<MutableList<String>>()
             val changes = mutableListOf<(piece: BlockDisplayModelPiece) -> Unit>()
@@ -189,7 +196,7 @@ fun registerCommands(plugin: SpiderAnimationPlugin) {
         }
     }
 
-    plugin.getCommand("torso_model")?.apply {
+    getCommand("torso_model").apply {
         setExecutor { _, _, _, args ->
             val option = args.getOrNull(0) ?: return@setExecutor false
 
@@ -197,7 +204,6 @@ fun registerCommands(plugin: SpiderAnimationPlugin) {
 
             val currentScale = AppState.options.bodyPlan.scale.toFloat()
             AppState.options.bodyPlan.bodyModel = model.scale(currentScale)
-
             plugin.writeAndSaveConfig()
 
             return@setExecutor true
@@ -210,7 +216,46 @@ fun registerCommands(plugin: SpiderAnimationPlugin) {
         }
     }
 
-    plugin.getCommand("fall")?.setExecutor { sender, _, _, args ->
+    getCommand("leg_model").apply {
+        setExecutor { sender, _, _, args ->
+            val option = args.getOrNull(0) ?: return@setExecutor false
+
+            when (option) {
+                "empty" -> applyEmptyLegModel(AppState.options.bodyPlan)
+                "mechanical" -> applyMechanicalLegModel(AppState.options.bodyPlan)
+                "line" -> {
+                    val materialName = args.getOrNull(1) ?: "minecraft:netherite_block"
+                    val material = Material.matchMaterial(materialName)?.createBlockData() ?: run {
+                        sender.sendMessage("Invalid material: $materialName")
+                        return@setExecutor true
+                    }
+
+                    applyLineLegModel(AppState.options.bodyPlan, material)
+                }
+                else -> {
+                    sender.sendMessage("Invalid leg model: $option")
+                    return@setExecutor true
+                }
+            }
+
+            plugin.writeAndSaveConfig()
+
+            sender.sendMessage("Set leg model to $option")
+
+            return@setExecutor true
+        }
+
+        setTabCompleter { _, _, _, args ->
+            var options = listOf<String>()
+
+            if (args.size == 1) options = listOf("empty", "mechanical", "line")
+            if (args.getOrNull(0) == "line") options = Material.entries.map { it.key.toString() }
+
+            return@setTabCompleter options.filter { it.contains(args.last(), true) }
+        }
+    }
+
+    getCommand("fall").setExecutor { sender, _, _, args ->
         val spider = AppState.spider ?: return@setExecutor true
 
         val height = args[0].toDoubleOrNull()
@@ -226,56 +271,69 @@ fun registerCommands(plugin: SpiderAnimationPlugin) {
         return@setExecutor true
     }
 
-    plugin.getCommand("body_plan")?.apply {
-        val bodyPlanTypes = mapOf(
-            "biped" to ::bipedBodyPlan,
-            "quadruped" to ::quadrupedBodyPlan,
-            "hexapod" to ::hexapodBodyPlan,
-            "octopod" to ::octopodBodyPlan,
-            "quadbot" to ::quadBotBodyPlan,
-            "hexbot" to ::hexBotBodyPlan,
-            "octobot" to ::octoBotBodyPlan,
+    getCommand("preset").apply {
+        val presets = mapOf(
+            "biped" to ::biped,
+            "quadruped" to ::quadruped,
+            "hexapod" to ::hexapod,
+            "octopod" to ::octopod,
+            "quadbot" to ::quadBot,
+            "hexbot" to ::hexBot,
+            "octobot" to ::octoBot,
         )
 
         setExecutor { sender, _, _, args ->
-            val option = args.getOrNull(0) ?: return@setExecutor false
+            val name = args.getOrNull(0) ?: return@setExecutor false
 
-            val scale = args.getOrNull(1)?.toDoubleOrNull() ?: 1.0
-            val segmentCount = args.getOrNull(2)?.toIntOrNull() ?: 3
-            val segmentLength = args.getOrNull(3)?.toDoubleOrNull() ?: 1.0
+            val segmentCount = args.getOrNull(1)?.toIntOrNull() ?: 4
+            val segmentLength = args.getOrNull(2)?.toDoubleOrNull() ?: 1.0
 
-            val bodyPlan = bodyPlanTypes[option]
-            if (bodyPlan == null) {
-                sender.sendMessage("Invalid body plan: $option")
+            val createPreset = presets[name]
+            if (createPreset == null) {
+                sender.sendMessage("Invalid preset: $name")
                 return@setExecutor true
             }
 
-            val oldScale = AppState.options.bodyPlan.scale
-            AppState.options.scale(scale / oldScale)
-            AppState.options.bodyPlan = bodyPlan(segmentCount, segmentLength).apply { scale(scale) }
-
+            AppState.options = createPreset(segmentCount, segmentLength)
             plugin.writeAndSaveConfig()
 
-            // recreate spider
-            val spider = AppState.spider
-            if (spider != null) {
-                AppState.spider = AppState.createSpider(spider.location())
-            }
+            AppState.recreateSpider()
 
-            sender.sendMessage("Set body plan to $option")
+
+            sender.sendMessage("Applied preset: $name")
 
             return@setExecutor true
         }
 
         setTabCompleter { _, _, _, args ->
             if (args.size == 1) {
-                return@setTabCompleter bodyPlanTypes.keys.filter { it.contains(args.last(), true) }
+                return@setTabCompleter presets.keys.filter { it.contains(args.last(), true) }
             }
             return@setTabCompleter emptyList()
         }
     }
 
-    plugin.getCommand("items")?.setExecutor { sender, _, _, _ ->
+    getCommand("scale").setExecutor { sender, _, _, args ->
+        val scale = args[0].toDoubleOrNull()
+
+        if (scale == null) {
+            sender.sendMessage("Usage: /spider:scale <scale>")
+            return@setExecutor true
+        }
+
+        val oldScale = AppState.options.bodyPlan.scale
+        AppState.options.scale(scale / oldScale)
+
+        plugin.writeAndSaveConfig()
+
+        AppState.recreateSpider()
+
+        sender.sendMessage("Set scale to $scale")
+
+        return@setExecutor true
+    }
+
+    getCommand("items").setExecutor { sender, _, _, _ ->
         val player = sender as? org.bukkit.entity.Player ?: return@setExecutor true
 
         val inventory = createInventory(null, 9 * 3, "Items")

@@ -1,4 +1,4 @@
-package com.heledron.spideranimation.spider.rendering
+package com.heledron.spideranimation.utilities
 
 import org.bukkit.block.data.BlockData
 import org.bukkit.entity.Display
@@ -36,4 +36,8 @@ class DisplayModel(var pieces: List<BlockDisplayModelPiece>) {
     }
 
     fun clone() = DisplayModel(pieces.map { it.clone() })
+
+    companion object {
+        fun empty() = DisplayModel(emptyList())
+    }
 }

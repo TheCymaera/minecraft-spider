@@ -26,7 +26,7 @@ fun Float.moveTowards(target: Float, speed: Float): Float {
     return if (abs(distance) < speed) target else this + speed * distance.sign
 }
 
-fun Vector.moveTowards(target: Vector, constant: Double) {
+fun Vector.moveTowards(target: Vector, constant: Double): Vector {
     val diff = target.clone().subtract(this)
     val distance = diff.length()
     if (distance <= constant) {
@@ -34,9 +34,10 @@ fun Vector.moveTowards(target: Vector, constant: Double) {
     } else {
         this.add(diff.multiply(constant / distance))
     }
+    return this
 }
 
-fun Vector3f.moveTowards(target: Vector3f, constant: Float) {
+fun Vector3f.moveTowards(target: Vector3f, constant: Float): Vector3f {
     val diff = Vector3f(target).sub(this)
     val distance = diff.length()
     if (distance <= constant) {
@@ -44,10 +45,12 @@ fun Vector3f.moveTowards(target: Vector3f, constant: Float) {
     } else {
         this.add(diff.mul(constant / distance))
     }
+    return this
 }
 
-fun Vector.lerp(target: Vector, factor: Double) {
+fun Vector.lerp(target: Vector, factor: Double): Vector {
     this.add(target.clone().subtract(this).multiply(factor))
+    return this
 }
 
 fun Vector.copy(vec: Vector3d) {
@@ -167,8 +170,8 @@ class SplitDistanceZone(
     val size: SplitDistance
 ) {
     fun contains(point: Vector): Boolean {
-//        return point.distance(center) <= radius.horizontal
-        return center.horizontalDistance(point) <= size.horizontal && center.verticalDistance(point) <= size.vertical
+//        return point.distance(center) <= size.horizontal
+        return center.distance(point) <= size.horizontal && center.verticalDistance(point) <= size.vertical
     }
 
     val horizontal: Double; get() = size.horizontal

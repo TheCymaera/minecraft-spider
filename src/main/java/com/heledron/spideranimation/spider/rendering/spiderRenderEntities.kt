@@ -35,7 +35,8 @@ fun spiderRenderEntities(spider: Spider): RenderEntityGroup {
     for ((legIndex, leg) in spider.body.legs.withIndex()) {
         val chain = leg.chain
 
-        for ((segmentIndex, rotation) in chain.getRotations(spider.orientation).withIndex()) {
+        val pivot = spider.gait.legChainPivotMode.get(spider)
+        for ((segmentIndex, rotation) in chain.getRotations(pivot).withIndex()) {
             val segmentPlan = spider.options.bodyPlan.legs.getOrNull(legIndex)?.segments?.getOrNull(segmentIndex) ?: continue
 
             val parent = chain.segments.getOrNull(segmentIndex - 1)?.position ?: chain.root
@@ -77,12 +78,12 @@ fun modelPieceToRenderEntity(
             pieceLocation.y += relative.y
             pieceLocation.z += relative.z
 
-            spider.cloak.getPiece(piece, pieceLocation)
+            spider.cloak.getPiece(piece, pieceLocation, piece.block, piece.brightness)
         } else null
 
         if (cloak != null) {
-            it.block = cloak
-            it.brightness = null
+            it.block = cloak.first
+            it.brightness = cloak.second
         } else {
             it.block = piece.block
             it.brightness = piece.brightness

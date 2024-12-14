@@ -43,10 +43,10 @@ class Spider(
 
     fun forwardDirection() = FORWARD_VECTOR.rotate(orientation)
 
-    val moveGait get() = if (gallop) options.gallopGait else options.walkGait
+    val gait get() = if (gallop) options.gallopGait else options.walkGait
 
     // memo
-    var gait = options.stationaryGait.clone()
+    var lerpedGait = options.walkGait.stationary.clone()
     var preferredPitch = orientation.getEulerAnglesYXZ(Vector3f()).x
     var preferredRoll = orientation.getEulerAnglesYXZ(Vector3f()).z
     var preferredOrientation = Quaternionf(orientation)
@@ -108,31 +108,31 @@ class Spider(
     fun update() {
         updatePreferredAngles()
         for (component in getComponents()) {
-            updateGait()
+            updateLerpedGait()
             component.update()
         }
         for (component in getComponents()) component.render()
     }
 
-    private fun updateGait() {
+    private fun updateLerpedGait() {
         if (isRotatingYaw) {
-            gait = moveGait.gait.clone()
+            lerpedGait = gait.moving.clone()
             return
         }
 
-        if (!isWalking && !velocity.isZero) {
-            gait = options.movingButNotWalkingGait.clone()
-            return
-        }
+//        if (!isWalking && !velocity.isZero) {
+//            gaitLerped = moveGait.movingButNotWalking.clone()
+//            return
+//        }
 
-        val speedFraction = velocity.length() / moveGait.maxSpeed
-        gait = options.stationaryGait.clone().lerp(moveGait.gait, speedFraction)
+        val speedFraction = velocity.length() / gait.maxSpeed
+        lerpedGait = gait.stationary.clone().lerp(gait.moving, speedFraction)
     }
 
     private fun updatePreferredAngles() {
         val currentEuler = orientation.getEulerAnglesYXZ(Vector3f())
 
-        if (moveGait.disableAdvancedRotation) {
+        if (gait.disableAdvancedRotation) {
             preferredPitch = .0f
             preferredRoll = .0f
             preferredOrientation = Quaternionf().rotationYXZ(currentEuler.y, .0f, .0f)
@@ -153,8 +153,6 @@ class Spider(
         val forwardRight = frontRight.clone().subtract(backRight)
         val forward = listOf(forwardLeft, forwardRight).average()
 
-        preferredPitch = forward.getPitch()//.lerp(currentEuler.x, .3f)
-
         val sideways = Vector(0.0,0.0,0.0)
         for (i in 0 until body.legs.size step 2) {
             val left = body.legs.getOrNull(i) ?: continue
@@ -163,7 +161,12 @@ class Spider(
             sideways.add(getPos(right).clone().subtract(getPos(left)))
         }
 
-        preferredRoll = sideways.getPitch()//.lerp(currentEuler.z, .3f)
+        preferredPitch = forward.getPitch().lerp(preferredPitch, gait.preferredRotationLerpFraction)
+        preferredRoll = sideways.getPitch().lerp(preferredRoll, gait.preferredRotationLerpFraction)
+
+        if (preferredPitch < gait.preferLevelBreakpoint) preferredPitch *= 1 - gait.preferLevelBias
+        if (preferredRoll < gait.preferLevelBreakpoint) preferredRoll *= 1 - gait.preferLevelBias
+
 
         preferredOrientation = Quaternionf().rotationYXZ(currentEuler.y, preferredPitch, preferredRoll)
     }

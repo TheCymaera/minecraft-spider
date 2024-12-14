@@ -27,7 +27,7 @@ fun registerItems() {
 
                 hitLocation.yaw = yawRounded
                 playSound(hitLocation, Sound.BLOCK_NETHERITE_BLOCK_PLACE, 1.0f, 1.0f)
-                AppState.spider = AppState.createSpider(hitLocation)
+                AppState.createSpider(hitLocation)
                 sendActionBar(player, "Spider created")
             } else {
                 playSound(player.location, Sound.ENTITY_ITEM_FRAME_REMOVE_ITEM, 1.0f, 0.0f)
@@ -145,7 +145,7 @@ fun registerItems() {
                     it.resetIterator()
                 }
 
-                AppState.spider?.let { it.behaviour = TargetBehaviour(it, targetVal.toVector(), it.gait.bodyHeight) }
+                AppState.spider?.let { it.behaviour = TargetBehaviour(it, targetVal.toVector(), it.lerpedGait.bodyHeight) }
             }
         }
     )
@@ -155,8 +155,8 @@ fun registerItems() {
         defaultItem = ItemStack(Material.CARROT_ON_A_STICK),
         onHeldTick = { player ->
             AppState.spider?.let { it.behaviour = TargetBehaviour(it, player.eyeLocation.toVector(), run {
-                if (it.moveGait.straightenLegs) 2.0
-                else it.gait.bodyHeight * 5.0
+                if (it.gait.straightenLegs) it.lerpedGait.bodyHeight * 2.0
+                else it.lerpedGait.bodyHeight * 5.0
             }) }
         }
     )

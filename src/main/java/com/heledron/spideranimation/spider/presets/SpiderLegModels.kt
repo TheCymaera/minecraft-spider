@@ -1,5 +1,6 @@
 package com.heledron.spideranimation.spider.presets
 
+import com.heledron.spideranimation.utilities.parseModelFromCommand
 import org.bukkit.Material
 
 object SpiderLegModel {

@@ -46,7 +46,7 @@ fun spiderDebugRenderEntities(spider: Spider): RenderEntityGroup {
 
                 val thickness = .07f * scale
                 val transform = Matrix4f()
-                    .rotate(spider.preferredOrientation)
+                    .rotate(spider.gait.scanPivotMode.get(spider))
                     .scale(thickness, 2 * leg.triggerZone.vertical.toFloat(), thickness)
                     .translate(-.5f,-.5f,-.5f)
 
@@ -74,7 +74,7 @@ fun spiderDebugRenderEntities(spider: Spider): RenderEntityGroup {
                 val size = 2 * leg.triggerZone.horizontal.toFloat()
                 val ySize = 0.02f
                 val transform = Matrix4f()
-                    .rotate(spider.preferredOrientation)
+                    .rotate(spider.gait.scanPivotMode.get(spider))
                     .scale(size, ySize, size)
                     .translate(-.5f,-.5f,-.5f)
 
@@ -181,7 +181,7 @@ fun spiderDebugRenderEntities(spider: Spider): RenderEntityGroup {
             val a = points[i]
             val b = points[(i + 1) % points.size]
 
-            group.add(Pair("polygon",i), lineRenderEntity(
+            group.add("polygon" to i, lineRenderEntity(
                 world = spider.world,
                 position = a,
                 vector = b.clone().subtract(a),

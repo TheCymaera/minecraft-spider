@@ -1,19 +1,22 @@
 package com.heledron.spideranimation
 
 import com.heledron.spideranimation.spider.*
-import com.heledron.spideranimation.spider.configuration.SpiderOptions
+import com.heledron.spideranimation.spider.presets.hexBot
 import com.heledron.spideranimation.utilities.MultiEntityRenderer
 import org.bukkit.Location
 
 object AppState {
     val renderer = MultiEntityRenderer()
 
+    var options = hexBot(4, 1.0)
+    var miscOptions = MiscellaneousOptions()
+
     var showDebugVisuals = true
     var gallop = false
 
     var spider: Spider? = null
     set (value) {
-        field?.close()
+        if (field != value) field?.close()
         field = value
     }
 
@@ -21,16 +24,20 @@ object AppState {
 
     var chainVisualizer: KinematicChainVisualizer? = null
     set (value) {
-        field?.close()
+        if (field != value) field?.close()
         field = value
     }
 
-    var options = SpiderOptions()
-    var miscOptions = MiscellaneousOptions()
-
     fun createSpider(location: Location): Spider {
-        location.y += options.stationaryGait.bodyHeight
-        return Spider.fromLocation(location, options)
+        location.y += options.walkGait.stationary.bodyHeight
+        val spider = Spider.fromLocation(location, options)
+        this.spider = spider
+        return spider
+    }
+
+    fun recreateSpider() {
+        val location = this.spider?.location() ?: return
+        createSpider(location)
     }
 }
 

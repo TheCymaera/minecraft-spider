@@ -8,14 +8,15 @@ class KinematicChain(
         val root: Vector,
         val segments: List<ChainSegment>
 ) {
-    fun fabrik(target: Vector) {
-        val tolerance = 0.01
+    var maxIterations = 20
+    var tolerance = 0.01
 
-        for (i in 0 until 10) {
+    fun fabrik(target: Vector) {
+        for (i in 0 until maxIterations) {
             fabrikForward(target)
             fabrikBackward()
 
-            if (getEndEffector().distance(target) < tolerance) {
+            if (getEndEffector().distanceSquared(target) < tolerance) {
                 break
             }
         }

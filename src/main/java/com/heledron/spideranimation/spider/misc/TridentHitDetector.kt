@@ -31,14 +31,14 @@ class TridentHitDetector(val spider: Spider): SpiderComponent {
                 trident.velocity = tridentDirection.clone().multiply(-.3)
                 onHit.emit()
 
-                spider.velocity.add(tridentDirection.multiply(spider.moveGait.tridentKnockBack))
+                spider.velocity.add(tridentDirection.multiply(spider.gait.tridentKnockBack))
 
                 // apply rotational acceleration
                 val hitDirection = spider.position.clone().subtract(trident.location.toVector()).normalize()
                 val axis = UP_VECTOR.crossProduct(tridentDirection)
                 val angle = hitDirection.angle(UP_VECTOR)
 
-                val accelerationMagnitude = angle * spider.moveGait.tridentRotationalKnockBack
+                val accelerationMagnitude = angle * spider.gait.tridentRotationalKnockBack
 
                 val acceleration = Quaternionf().rotateAxis(accelerationMagnitude.toFloat(), axis.toVector3f())
                 val oldVelocity = Quaternionf().rotationYXZ(spider.rotationalVelocity.y, spider.rotationalVelocity.x, spider.rotationalVelocity.z)

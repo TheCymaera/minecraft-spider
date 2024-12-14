@@ -22,7 +22,7 @@ class PointDetector(val spider: Spider) : SpiderComponent {
         val locationAsVector = location.toVector()
         val direction = location.direction
         for (leg in spider.body.legs) {
-            val lookingAt = lookingAtPoint(locationAsVector, direction, leg.endEffector, spider.gait.bodyHeight * .15)
+            val lookingAt = lookingAtPoint(locationAsVector, direction, leg.endEffector, spider.lerpedGait.bodyHeight * .15)
             if (lookingAt) return leg
         }
         return null
