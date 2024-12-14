@@ -1,5 +1,6 @@
 package com.heledron.spideranimation.utilities.block_colors
 
+import com.heledron.spideranimation.utilities.Serializer.gson
 import com.heledron.spideranimation.utilities.currentPlugin
 import org.bukkit.Color
 import org.bukkit.Material
@@ -7,10 +8,29 @@ import org.bukkit.block.data.BlockData
 import kotlin.math.pow
 import kotlin.math.sqrt
 
+private fun String.parseJSONColors(): Map<Material, Color> {
+    val colorMap = mutableMapOf<Material, Color>()
 
-private val materialsWithBrightness = mutableMapOf<Color, Pair<Material,Int>>().apply {
+    @Suppress("UNCHECKED_CAST")
+    val json = gson.fromJson(this, Map::class.java) as Map<String, List<Int>>
+
+    for ((key, value) in json) {
+        val material = Material.matchMaterial("minecraft:$key") ?: continue
+        colorMap[material] = Color.fromRGB(value[0], value[1], value[2])
+    }
+
+    return colorMap
+}
+
+private val blocks = currentPlugin.getResource("block_colors.json")
+    ?.bufferedReader()
+    ?.use { it.readText() }
+    ?.parseJSONColors()
+    ?: throw IllegalStateException("Failed to load block_colors.json")
+
+private val blocksWithBrightness = mutableMapOf<Color, Pair<Material,Int>>().apply {
     for (brightness in 15 downTo 0) {
-        for ((material, color) in ColorMap.blocks) {
+        for ((material, color) in blocks) {
             if (!material.isOccluding) continue
 
             val newColor = Color.fromRGB(
@@ -37,7 +57,7 @@ private val materialsWithBrightness = mutableMapOf<Color, Pair<Material,Int>>().
     }
 }
 
-private val materialToColor = ColorMap.blocks.toMutableMap().apply {
+private val blockToColor = blocks.toMutableMap().apply {
     this[Material.GRASS_BLOCK] = this[Material.MOSS_BLOCK]!!
     this[Material.MOSS_CARPET] = this[Material.MOSS_BLOCK]!!
 
@@ -48,7 +68,6 @@ private val materialToColor = ColorMap.blocks.toMutableMap().apply {
     // replace partial blocks with their full block counterparts
     for (material in Material.entries) {
         if (!material.isBlock) continue
-
         val id = material.key.toString()
 
         if (this.containsKey(material)) continue
@@ -73,15 +92,7 @@ private val materialToColor = ColorMap.blocks.toMutableMap().apply {
 }
 
 fun getColorFromBlock(block: BlockData): Color? {
-    return materialToColor[block.material]
-}
-
-private fun Color.distanceTo(other: Color): Double {
-    return sqrt(
-        (red - other.red).toDouble().pow(2) +
-        (green - other.green).toDouble().pow(2) +
-        (blue - other.blue).toDouble().pow(2)
-    )
+    return blockToColor[block.material]
 }
 
 class MatchInfo(
@@ -92,7 +103,7 @@ class MatchInfo(
 )
 
 fun getBestMatchFromColor(color: Color, allowCustomBrightness: Boolean): MatchInfo {
-    val map = if (allowCustomBrightness) materialsWithBrightness else materialsWithBrightness.filterValues { it.second == 15 }
+    val map = if (allowCustomBrightness) blocksWithBrightness else blocksWithBrightness.filterValues { it.second == 15 }
 
     val bestMatch = map.minBy { it.key.distanceTo(color) }
     return MatchInfo(bestMatch.value.first.createBlockData(), bestMatch.key, color.distanceTo(bestMatch.key), bestMatch.value.second)
@@ -104,4 +115,12 @@ private fun String.replaceEnd(suffix: String, with: String): String {
     } else {
         this
     }
+}
+
+private fun Color.distanceTo(other: Color): Double {
+    return sqrt(
+        (red - other.red).toDouble().pow(2) +
+                (green - other.green).toDouble().pow(2) +
+                (blue - other.blue).toDouble().pow(2)
+    )
 }

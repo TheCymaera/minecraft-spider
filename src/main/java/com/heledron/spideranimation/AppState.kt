@@ -11,7 +11,7 @@ object AppState {
     var options = hexBot(4, 1.0)
     var miscOptions = MiscellaneousOptions()
 
-    var showDebugVisuals = true
+    var showDebugVisuals = false
     var gallop = false
 
     var spider: Spider? = null

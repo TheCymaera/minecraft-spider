@@ -171,7 +171,7 @@ class SplitDistanceZone(
 ) {
     fun contains(point: Vector): Boolean {
 //        return point.distance(center) <= size.horizontal
-        return center.distance(point) <= size.horizontal && center.verticalDistance(point) <= size.vertical
+        return center.horizontalDistance(point) <= size.horizontal && center.verticalDistance(point) <= size.vertical
     }
 
     val horizontal: Double; get() = size.horizontal
