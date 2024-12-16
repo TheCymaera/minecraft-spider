@@ -28,6 +28,9 @@ commands:
   leg_model:
     description: Set the leg model of the spider
     permission: spider-animation.leg_model
+  animated_palette:
+    description: Modify animated palette
+    permission: spider-animation.animated_palette
 
 permissions:
   spider-animation.items:
@@ -53,4 +56,7 @@ permissions:
     default: op
   spider-animation.leg_model:
     description: Allows access to the leg_model command
+    default: op
+  spider-animation.animated_palette:
+    description: Allows access to the animated_palette command
     default: op

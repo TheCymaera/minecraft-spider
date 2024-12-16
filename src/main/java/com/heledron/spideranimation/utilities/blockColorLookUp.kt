@@ -1,7 +1,6 @@
-package com.heledron.spideranimation.utilities.block_colors
+package com.heledron.spideranimation.utilities
 
 import com.heledron.spideranimation.utilities.Serializer.gson
-import com.heledron.spideranimation.utilities.currentPlugin
 import org.bukkit.Color
 import org.bukkit.Material
 import org.bukkit.block.data.BlockData
@@ -33,11 +32,7 @@ private val blocksWithBrightness = mutableMapOf<Color, Pair<Material,Int>>().app
         for ((material, color) in blocks) {
             if (!material.isOccluding) continue
 
-            val newColor = Color.fromRGB(
-                (color.red * brightness.toDouble() / 15).toInt(),
-                (color.green * brightness.toDouble() / 15).toInt(),
-                (color.blue * brightness.toDouble() / 15).toInt(),
-            )
+            val newColor = color.withBrightness(brightness)
 
             if (newColor in this) continue
 
@@ -60,6 +55,7 @@ private val blocksWithBrightness = mutableMapOf<Color, Pair<Material,Int>>().app
 private val blockToColor = blocks.toMutableMap().apply {
     this[Material.GRASS_BLOCK] = this[Material.MOSS_BLOCK]!!
     this[Material.MOSS_CARPET] = this[Material.MOSS_BLOCK]!!
+    this[Material.OAK_LEAVES] = this[Material.MOSS_BLOCK]!!
 
     this[Material.WARPED_TRAPDOOR] = this[Material.WARPED_PLANKS]!!
 
@@ -89,10 +85,16 @@ private val blockToColor = blocks.toMutableMap().apply {
 
         this[material] = this[fullBlockMaterial] ?: continue
     }
+
+    this[Material.CAMPFIRE] = this[Material.OAK_LOG]!!
 }
 
 fun getColorFromBlock(block: BlockData): Color? {
     return blockToColor[block.material]
+}
+
+fun getColorFromBlock(block: BlockData, brightness: Int): Color? {
+    return getColorFromBlock(block)?.withBrightness(brightness)
 }
 
 class MatchInfo(
@@ -122,5 +124,13 @@ private fun Color.distanceTo(other: Color): Double {
         (red - other.red).toDouble().pow(2) +
                 (green - other.green).toDouble().pow(2) +
                 (blue - other.blue).toDouble().pow(2)
+    )
+}
+
+private fun Color.withBrightness(brightness: Int): Color {
+    return Color.fromRGB(
+        (red * brightness.toDouble() / 15).toInt(),
+        (green * brightness.toDouble() / 15).toInt(),
+        (blue * brightness.toDouble() / 15).toInt(),
     )
 }

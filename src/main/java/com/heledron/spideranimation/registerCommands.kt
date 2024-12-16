@@ -10,7 +10,9 @@ import com.heledron.spideranimation.utilities.CustomItemRegistry
 import com.heledron.spideranimation.utilities.Serializer
 import org.bukkit.Bukkit.createInventory
 import org.bukkit.Material
+import org.bukkit.block.data.BlockData
 import org.bukkit.entity.Display
+import org.bukkit.entity.Display.Brightness
 
 fun registerCommands(plugin: SpiderAnimationPlugin) {
     fun getCommand(name: String) = plugin.getCommand(name) ?: throw Exception("Command $name not found")
@@ -117,24 +119,31 @@ fun registerCommands(plugin: SpiderAnimationPlugin) {
         fun getAvailableTags() = getAllPieces().flatMap { it.tags }.distinct()
 
         setExecutor { sender, _, _, args ->
-            val orGroups = mutableListOf<MutableList<String>>()
             val changes = mutableListOf<(piece: BlockDisplayModelPiece) -> Unit>()
 
+            val availableTags = getAvailableTags()
+            val orGroups = mutableListOf<MutableList<(piece: BlockDisplayModelPiece)->Boolean>>()
+
             var clause = "or"
-            orGroups += mutableListOf<String>()
+            orGroups.addLast(mutableListOf())
             for ((index,arg) in args.withIndex()) {
                 if (arg == "or") {
                     clause = "or"
-                    orGroups += mutableListOf<String>()
+                    orGroups.addLast(mutableListOf())
                     continue
                 }
 
-                if (arg == "to") {
-                    clause = "to"
+                if (arg == "set_block") {
+                    clause = "set_block"
 
-                    val blockID = args.getOrNull(index + 1) ?: return@setExecutor false
-                    val block = Material.matchMaterial(blockID)?.createBlockData() ?: return@setExecutor false
-                    changes.add { piece -> piece.block = block }
+                    val palette = mutableListOf<BlockData>()
+                    while (true) {
+                        val blockID = args.getOrNull(index + palette.size + 1) ?: break
+                        val block = Material.matchMaterial(blockID)?.createBlockData() ?: break
+                        palette.add(block)
+                    }
+
+                    changes.add { piece -> piece.block = palette.random() }
                     continue
                 }
 
@@ -156,20 +165,29 @@ fun registerCommands(plugin: SpiderAnimationPlugin) {
                     continue
                 }
 
-                if (clause == "or") orGroups.last().add(arg)
-            }
+                if (clause == "or") {
+                    val material = Material.matchMaterial(arg)
+                    if (material != null) {
+                        orGroups.last().add { piece -> piece.block.material.key.toString() == arg }
+                        continue
+                    }
 
+                    if (arg in availableTags) {
+                        orGroups.last().add { piece -> piece.tags.contains(arg) }
+                        continue
+                    }
 
-            fun matches(piece: BlockDisplayModelPiece): Boolean {
-                return orGroups.any { andGroup ->
-                    andGroup.all { selector ->
-                        piece.block.material.key.toString() == selector ||
-                                piece.tags.contains(selector)
+                    if (arg == "random") {
+                        val chance = args.getOrNull(index + 1)?.toDoubleOrNull() ?: run {
+                            sender.sendMessage("Missing chance for random condition")
+                            return@setExecutor true
+                        }
+                        orGroups.last().add { _ -> Math.random() < chance }
                     }
                 }
             }
 
-            val pieces = getAllPieces().filter { matches(it) }
+            val pieces = getAllPieces().filter { piece -> orGroups.any { andGroup -> andGroup.all { it(piece) } } }
 
             pieces.forEach { piece -> changes.forEach { it(piece) } }
 
@@ -179,18 +197,88 @@ fun registerCommands(plugin: SpiderAnimationPlugin) {
         }
 
         setTabCompleter { _, _, _, args ->
-            val clauses = listOf("or", "to", "brightness")
-            val clause = args.findLast { it in clauses } ?: "or"
+            val clauses = listOf("or", "set_block", "brightness")
+            val currentClauseIndex = args.indexOfLast { it in clauses }
+            val currentClauseLength = if (currentClauseIndex == -1) args.size else args.size - currentClauseIndex - 1
+            val currentClause = if (currentClauseIndex == -1) "or" else args[currentClauseIndex]
 
             val tags = getAvailableTags()
             val materials = Material.entries.filter { it.isBlock }.map { it.key.toString() }
 
-            var options = listOf<String>()
+            val options = mutableListOf<String>()
 
-            if (clause == "or") options = tags + materials + clauses
-            if (clause == "to") options = materials + clauses
-            if (clause == "brightness") options = List(16) { it.toString() } + clauses
-            if (clause == "scale") options = clauses
+            if (currentClause == "or") {
+                if (currentClauseLength > 1) options += clauses
+                options += tags + materials
+            }
+            if (currentClause == "set_block") {
+                if (currentClauseLength > 1) options += clauses
+                options += materials
+            }
+            if (currentClause == "brightness") {
+                options += if (currentClauseLength > 2)
+                    clauses else List(16) { it.toString() }
+            }
+            if (currentClause == "scale") {
+                if (currentClauseLength > 3) options += clauses
+            }
+
+            return@setTabCompleter options.filter { it.contains(args.last(), true) }
+        }
+    }
+
+    getCommand("animated_palette").apply {
+        setExecutor { sender, _, _, args ->
+            val target = args.getOrNull(0) ?: return@setExecutor false
+            val preset = args.getOrNull(1)?.let {
+                AnimatedPalettes.entries.find { match -> match.name.equals(it, true) }
+            }?.palette?.toMutableList()
+
+            val palette = preset ?: mutableListOf()
+
+
+            for (i in 2 until args.size step 3) {
+                val blockID = args[i]
+                val block = Material.matchMaterial(blockID)?.createBlockData() ?: run {
+                    sender.sendMessage("Invalid material: $blockID")
+                    return@setExecutor false
+                }
+
+                val blockLight = args.getOrNull(i + 1)?.toIntOrNull() ?: 0
+                val skyLight = args.getOrNull(i + 2)?.toIntOrNull() ?: 15
+                val brightness = Brightness(blockLight, skyLight)
+
+                palette.add(block to brightness)
+            }
+
+            when (target) {
+                "eye" -> AppState.options.bodyPlan.eyePalette = palette
+                "blinking_lights" -> AppState.options.bodyPlan.blinkingPalette = palette
+                else -> return@setExecutor false
+            }
+
+            sender.sendMessage("Set $target palette to ${palette.size} blocks")
+
+
+            return@setExecutor true
+        }
+
+        setTabCompleter { _, _, _, args ->
+            val options = mutableListOf<String>()
+            val presets = AnimatedPalettes.entries.map { it.name.lowercase() }
+
+            if (args.size == 1) options += listOf("eye", "blinking_lights")
+
+            if (args.size == 2) options += presets + "custom"
+
+            if (args.size > 1 && args.getOrNull(1) == "custom") {
+                val materials = Material.entries.filter { it.isBlock }.map { it.key.toString() }
+                val brightness = List(16) { it.toString() }
+                val size = args.size - 3
+                if (size % 3 == 0) options += materials
+                if (size % 3 == 1) options += brightness
+                if (size % 3 == 2) options += brightness
+            }
 
             return@setTabCompleter options.filter { it.contains(args.last(), true) }
         }

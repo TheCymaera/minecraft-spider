@@ -52,6 +52,7 @@ class Gait(
     fun scale(scale: Double) {
         stationary.scale(scale)
         moving.scale(scale)
+        maxBodyDistanceFromGround *= scale
         maxSpeed *= scale
         moveAcceleration *= scale
         legMoveSpeed *= scale
@@ -71,6 +72,8 @@ class Gait(
         bodyHeight = 1.1,
         triggerZone = SplitDistance(.8,1.5)
     )
+
+    var maxBodyDistanceFromGround = .25
 
     var maxSpeed = walkSpeed
     var moveAcceleration = .15 / 4

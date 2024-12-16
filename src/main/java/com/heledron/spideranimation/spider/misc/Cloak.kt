@@ -3,8 +3,8 @@ package com.heledron.spideranimation.spider.misc
 import com.heledron.spideranimation.spider.Spider
 import com.heledron.spideranimation.spider.SpiderComponent
 import com.heledron.spideranimation.utilities.*
-import com.heledron.spideranimation.utilities.block_colors.getBestMatchFromColor
-import com.heledron.spideranimation.utilities.block_colors.getColorFromBlock
+import com.heledron.spideranimation.utilities.getBestMatchFromColor
+import com.heledron.spideranimation.utilities.getColorFromBlock
 import org.bukkit.*
 import org.bukkit.Color
 import org.bukkit.block.data.BlockData
@@ -45,7 +45,7 @@ class Cloak(var  spider: Spider) : SpiderComponent {
     }
 
     fun getPiece(id: Any, position: Vector, originalBlock: BlockData, originalBrightness: Display.Brightness?): Pair<BlockData, Display.Brightness?> {
-        applyCloak(id, position, originalBlock)
+        applyCloak(id, position, originalBlock, originalBrightness?.skyLight ?: 15)
 
         val override = cloakOverride[id]
         if (override != null) return override to Display.Brightness(0, 15)
@@ -55,7 +55,7 @@ class Cloak(var  spider: Spider) : SpiderComponent {
         return match.block to Display.Brightness(0, match.brightness)
     }
 
-    private fun applyCloak(id: Any, position: Vector, originalBlock: BlockData) {
+    private fun applyCloak(id: Any, position: Vector, originalBlock: BlockData, originalBrightness: Int) {
         val location = position.toLocation(spider.world)
 
         if (cloakGlitching) return
@@ -72,20 +72,22 @@ class Cloak(var  spider: Spider) : SpiderComponent {
             return rayCast
         }
 
-        fun getTargetBlock(): BlockData {
-            if (!active) return originalBlock
-            val rayTrace = cast() ?: return originalBlock
-            return rayTrace.hitBlock?.blockData ?: originalBlock
-        }
-
-        val targetBlock = getTargetBlock()
-        val targetColor = getColorFromBlock(targetBlock) ?: return
-        val originalColor = getColorFromBlock(originalBlock)?.toVector() ?: return
+        val originalColor = getColorFromBlock(originalBlock, originalBrightness)?.toVector() ?: return
         val currentColor = cloakColor[id] ?: originalColor
 
+        val targetColor = run getTargetColor@{
+            if (!active) return@getTargetColor originalColor
+
+            val rayTrace = cast() ?: return@getTargetColor currentColor
+            val block = rayTrace.hitBlock?.blockData ?: return@getTargetColor currentColor
+            val lightLevel = 15
+            getColorFromBlock(block, lightLevel)?.toVector() ?: currentColor
+        }
+
+
         val newColor = currentColor.clone()
-            .lerp(targetColor.toVector(), spider.options.cloak.lerpSpeed)
-            .moveTowards(targetColor.toVector(), spider.options.cloak.moveSpeed)
+            .lerp(targetColor, spider.options.cloak.lerpSpeed)
+            .moveTowards(targetColor, spider.options.cloak.moveSpeed)
 
         if (newColor == originalColor) cloakColor.remove(id)
         else cloakColor[id] = newColor

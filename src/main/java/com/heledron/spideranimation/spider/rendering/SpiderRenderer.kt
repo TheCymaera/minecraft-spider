@@ -17,7 +17,11 @@ class SpiderRenderer(val spider: Spider): SpiderComponent {
         val pieces = spider.options.bodyPlan.bodyModel.pieces.filter { it.tags.contains("eye") }
 
         if (Random.nextBoolean()) return@interval
-        for (piece in pieces) piece.block = spider.options.bodyPlan.eyePalette.random()
+        for (piece in pieces) {
+            val block = spider.options.bodyPlan.eyePalette.random()
+            piece.block = block.first
+            piece.brightness = block.second
+        }
     }
 
     // apply blinking lights effect
@@ -26,9 +30,9 @@ class SpiderRenderer(val spider: Spider): SpiderComponent {
 
         if (Random.nextBoolean()) return@interval
         for (piece in pieces) {
-            val palette = spider.options.bodyPlan.blinkingPalette.random()
-            piece.block = palette.first
-            piece.brightness = palette.second
+            val block = spider.options.bodyPlan.blinkingPalette.random()
+            piece.block = block.first
+            piece.brightness = block.second
         }
     }
     /*interval(0,20 * 4) {

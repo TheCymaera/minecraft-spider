@@ -23,13 +23,8 @@ fun targetRenderEntity(
 fun spiderRenderEntities(spider: Spider): RenderEntityGroup {
     val group = RenderEntityGroup()
 
-    // render body
-    for ((index, piece) in spider.options.bodyPlan.bodyModel.pieces.withIndex()) {
-        val id = "body" to index
-
-        val transform = Matrix4f().rotate(spider.orientation)
-        group.add(id, modelPieceToRenderEntity(spider, spider.position, piece, transform))
-    }
+    val transform = Matrix4f().rotate(spider.orientation)
+    group.add(spider.body, modelToRenderEntity(spider, spider.position, spider.options.bodyPlan.bodyModel, transform))
 
 
     for ((legIndex, leg) in spider.body.legs.withIndex()) {
@@ -41,11 +36,8 @@ fun spiderRenderEntities(spider: Spider): RenderEntityGroup {
 
             val parent = chain.segments.getOrNull(segmentIndex - 1)?.position ?: chain.root
 
-            for ((pieceIndex, piece) in segmentPlan.model.pieces.withIndex()) {
-                val id = legIndex to segmentIndex to pieceIndex
-                val transform = Matrix4f().rotate(rotation)
-                group.add(id, modelPieceToRenderEntity(spider, parent, piece, transform))
-            }
+            val segmentTransform = Matrix4f().rotate(rotation)
+            group.add(legIndex to segmentIndex, modelToRenderEntity(spider, parent, segmentPlan.model, segmentTransform))
 
         }
     }
@@ -53,9 +45,23 @@ fun spiderRenderEntities(spider: Spider): RenderEntityGroup {
     return group
 }
 
+private fun modelToRenderEntity(
+    spider: Spider,
+    position: Vector,
+    model: DisplayModel,
+    transformation: Matrix4f
+): RenderEntityGroup {
+    val group = RenderEntityGroup()
+
+    for ((index, piece) in model.pieces.withIndex()) {
+        group.add(index, modelPieceToRenderEntity(spider, position, piece, transformation))
+    }
+
+    return group
+}
 
 
-fun modelPieceToRenderEntity(
+private fun modelPieceToRenderEntity(
     spider: Spider,
     position: Vector,
     piece: BlockDisplayModelPiece,
@@ -68,17 +74,17 @@ fun modelPieceToRenderEntity(
         it.interpolationDuration = 1
     },
     update = {
-        val transform = transformation.mul(piece.transform)
+        val transform = Matrix4f(transformation).mul(piece.transform)
         it.applyTransformationWithInterpolation(transform)
 
-        val cloak = if (piece.tags.contains("cloak")){
+        val cloak = if (piece.tags.contains("cloak")) {
             val relative = transform.transform(Vector4f(.5f, .5f, .5f, 1f))
-            val pieceLocation = spider.position.clone()
-            pieceLocation.x += relative.x
-            pieceLocation.y += relative.y
-            pieceLocation.z += relative.z
+            val piecePosition = position.clone()
+            piecePosition.x += relative.x
+            piecePosition.y += relative.y
+            piecePosition.z += relative.z
 
-            spider.cloak.getPiece(piece, pieceLocation, piece.block, piece.brightness)
+            spider.cloak.getPiece(piece, piecePosition, piece.block, piece.brightness)
         } else null
 
         if (cloak != null) {
