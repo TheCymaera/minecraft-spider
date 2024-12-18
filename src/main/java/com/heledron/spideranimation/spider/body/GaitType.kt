@@ -25,16 +25,15 @@ object WalkGaitType {
 
         leg.isPrimary = true
 
-        // ensure adjacent legs are grounded
-        // ignore if disabled
-        // ignore if target is not grounded
-        val adjacent = unIndexLeg(spider, LegLookUp.adjacent(index))
-        if (adjacent.any { !it.isGrounded() && !it.isDisabled && it.target.isGrounded }) return false
+        // ensure other pair is grounded
+        // ignore if disabled, ignore if target is not grounded
+        val crossPair = unIndexLeg(spider, LegLookUp.adjacent(index))
+        if (crossPair.any { !it.isGrounded() && !it.isDisabled && it.target.isGrounded }) return false
 
         // cooldown
-        if (adjacent.any { it.target.isGrounded && it.timeSinceBeginMove < spider.gait.samePairCooldown }) return false
-        val diagonal = unIndexLeg(spider, LegLookUp.diagonal(index))
-        if (diagonal.any { it.target.isGrounded && it.timeSinceStopMove < spider.gait.crossPairCooldown }) return false
+        if (crossPair.any { it.target.isGrounded && it.timeSinceStopMove < spider.gait.crossPairCooldown }) return false
+        val samePair = unIndexLeg(spider, LegLookUp.diagonal(index))
+        if (samePair.any { it.target.isGrounded && it.timeSinceBeginMove < spider.gait.samePairCooldown }) return false
 
         val wantsToMove = leg.isOutsideTriggerZone || !leg.touchingGround
         val alreadyAtTarget = leg.endEffector.distanceSquared(leg.target.position) < 0.01
@@ -61,7 +60,7 @@ object GallopGaitType {
 
         if (!spider.isWalking) return WalkGaitType.canMoveLeg(leg)
 
-        if (spider.velocity.length() < spider.gait.maxSpeed * 0.5) return WalkGaitType.canMoveLeg(leg)
+//        if (spider.velocity.length() < spider.gait.maxSpeed * 0.5) return WalkGaitType.canMoveLeg(leg)
 
         // always move if the target is not on ground
         if (!leg.target.isGrounded) return true

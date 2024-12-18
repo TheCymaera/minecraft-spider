@@ -1,7 +1,9 @@
 package com.heledron.spideranimation
 
+import com.google.common.collect.Lists
 import com.google.gson.Gson
 import com.heledron.spideranimation.spider.configuration.CloakOptions
+import com.heledron.spideranimation.spider.configuration.SoundPlayer
 import com.heledron.spideranimation.spider.configuration.SpiderDebugOptions
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.spider.presets.*
@@ -10,6 +12,9 @@ import com.heledron.spideranimation.utilities.CustomItemRegistry
 import com.heledron.spideranimation.utilities.Serializer
 import org.bukkit.Bukkit.createInventory
 import org.bukkit.Material
+import org.bukkit.NamespacedKey
+import org.bukkit.Registry
+import org.bukkit.Sound
 import org.bukkit.block.data.BlockData
 import org.bukkit.entity.Display
 import org.bukkit.entity.Display.Brightness
@@ -432,5 +437,46 @@ fun registerCommands(plugin: SpiderAnimationPlugin) {
         player.openInventory(inventory)
 
         return@setExecutor true
+    }
+
+    getCommand("set_sound").apply {
+        setExecutor() { sender, _, _, args ->
+            val kind = args.getOrNull(0) ?: return@setExecutor false
+            val soundString = args.getOrNull(1) ?: return@setExecutor false
+            val soundID = NamespacedKey.fromString(soundString) ?: return@setExecutor false
+            val sound = Registry.SOUNDS.get(soundID) ?: return@setExecutor false
+
+            val volume = args.getOrNull(2)?.toFloatOrNull() ?: 1.0f
+            val pitch = args.getOrNull(3)?.toFloatOrNull() ?: 1.0f
+            val volumeVary = args.getOrNull(4)?.toFloatOrNull() ?: 0.1f
+            val pitchVary = args.getOrNull(5)?.toFloatOrNull() ?: 0.1f
+
+            val soundPlayer = SoundPlayer(
+                sound = sound,
+                volume = volume,
+                pitch = pitch,
+                volumeVary = volumeVary,
+                pitchVary = pitchVary
+            )
+
+
+            when (kind) {
+                "step" -> AppState.options.sound.step = soundPlayer
+                else -> return@setExecutor false
+            }
+
+            sender.sendMessage("Set $kind to $soundString")
+
+            return@setExecutor true
+        }
+
+        setTabCompleter { _, _, _, args ->
+            val options = mutableListOf<String>()
+
+            if (args.size == 1) options += "step"
+            if (args.size == 2) options += Lists.newArrayList<Sound>(Registry.SOUNDS).map { it.key.toString() }
+
+            return@setTabCompleter options.filter { it.contains(args.last(), true) }
+        }
     }
 }

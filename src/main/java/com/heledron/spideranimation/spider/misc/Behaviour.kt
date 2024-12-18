@@ -70,7 +70,7 @@ fun Spider.rotateTowards(targetVector: Vector) {
     if (diffEuler.y < -PI) diffEuler.y += 2 * PI.toFloat()
 
     isRotatingYaw = (diffEuler.x + diffEuler.y + diffEuler.z) > 0.001f
-    diffEuler.lerp(Vector3f(), 0.3f)
+    diffEuler.lerp(Vector3f(), gait.rotationLerp)
 
 
     val diff = Quaternionf().rotationYXZ(diffEuler.y, diffEuler.x, diffEuler.z)

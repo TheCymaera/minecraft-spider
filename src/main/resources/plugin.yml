@@ -31,6 +31,9 @@ commands:
   animated_palette:
     description: Modify animated palette
     permission: spider-animation.animated_palette
+  set_sound:
+    description: Set the sound of the spider
+    permission: spider-animation.set_sound
 
 permissions:
   spider-animation.items:
@@ -59,4 +62,7 @@ permissions:
     default: op
   spider-animation.animated_palette:
     description: Allows access to the animated_palette command
+    default: op
+  spider-animation.set_sound:
+    description: Allows access to the set_sound command
     default: op

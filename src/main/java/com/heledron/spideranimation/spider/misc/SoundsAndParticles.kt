@@ -3,6 +3,7 @@ package com.heledron.spideranimation.spider.misc
 import com.heledron.spideranimation.spider.Spider
 import com.heledron.spideranimation.spider.SpiderComponent
 import com.heledron.spideranimation.spider.body.Leg
+import com.heledron.spideranimation.spider.configuration.SoundPlayer
 import com.heledron.spideranimation.utilities.playSound
 import org.bukkit.Particle
 import org.bukkit.Sound
@@ -14,6 +15,14 @@ import kotlin.random.Random
 
 class SoundsAndParticles(val spider: Spider) : SpiderComponent {
     var closeables = mutableListOf<Closeable>()
+
+    val underwaterStepSound: SoundPlayer; get() = SoundPlayer(
+        sound = spider.options.sound.step.sound,
+        volume = spider.options.sound.step.volume * .5f,
+        pitch = spider.options.sound.step.pitch * .75f,
+        volumeVary = spider.options.sound.step.volumeVary,
+        pitchVary = spider.options.sound.step.pitchVary
+    )
 
     override fun close() {
         closeables.forEach { it.close() }
@@ -42,16 +51,9 @@ class SoundsAndParticles(val spider: Spider) : SpiderComponent {
         for (leg in spider.body.legs) {
             closeables += leg.onStep.listen {
                 val isUnderWater = spider.world.getBlockAt(leg.endEffector.toLocation(spider.world)).isLiquid
+                val sound = if (isUnderWater) underwaterStepSound else spider.options.sound.step
 
-                var volume = .3f
-                var pitch = 1.0f + Math.random().toFloat() * 0.1f
-
-                if (isUnderWater) {
-                    volume *= .5f
-                    pitch *= .75f
-                }
-
-                spider.world.playSound(leg.endEffector, Sound.BLOCK_NETHERITE_BLOCK_STEP, volume, pitch)
+                sound.play(spider.world, leg.endEffector)
             }
         }
     }

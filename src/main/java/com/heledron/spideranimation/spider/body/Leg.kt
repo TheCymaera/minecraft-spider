@@ -83,7 +83,7 @@ class Leg(
         comfortZoneCenter.y = restPosition.y.lerp(spider.position.y, .5)
         val comfortZoneSize = SplitDistance(
             horizontal = spider.gait.comfortZone.horizontal,
-            vertical = spider.gait.comfortZone.vertical + (spider.position.y - restPosition.y)
+            vertical = spider.gait.comfortZone.vertical + (spider.position.y - restPosition.y).coerceAtLeast(.0)
         )
         comfortZone = SplitDistanceZone(comfortZoneCenter, comfortZoneSize)
 
@@ -299,6 +299,7 @@ class Leg(
 
         val target = strandedTarget()
         target.position.add(upVector.clone().multiply(spider.lerpedGait.bodyHeight * .5))
+        target.position.y = target.position.y.coerceAtLeast((groundPosition?.y ?: - Double.MAX_VALUE) + spider.lerpedGait.bodyHeight * .1)
 
         return target
     }

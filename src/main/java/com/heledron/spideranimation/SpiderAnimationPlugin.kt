@@ -1,5 +1,6 @@
 package com.heledron.spideranimation
 
+import com.heledron.spideranimation.kinematic_chain_visualizer.KinematicChainVisualizer
 import com.heledron.spideranimation.spider.misc.StayStillBehaviour
 import com.heledron.spideranimation.spider.rendering.targetRenderEntity
 import com.heledron.spideranimation.utilities.*

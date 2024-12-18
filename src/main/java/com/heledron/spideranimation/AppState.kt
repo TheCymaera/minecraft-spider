@@ -1,5 +1,6 @@
 package com.heledron.spideranimation
 
+import com.heledron.spideranimation.kinematic_chain_visualizer.KinematicChainVisualizer
 import com.heledron.spideranimation.spider.*
 import com.heledron.spideranimation.spider.presets.hexBot
 import com.heledron.spideranimation.utilities.MultiEntityRenderer

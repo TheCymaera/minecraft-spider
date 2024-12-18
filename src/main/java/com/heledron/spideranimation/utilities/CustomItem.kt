@@ -48,8 +48,8 @@ object CustomItemRegistry {
 
         onTick {
             for (player in Bukkit.getServer().onlinePlayers) {
-                val customItem = get(player.inventory.itemInMainHand) ?: continue
-                if (customItem.isItem(player.inventory.itemInMainHand)) customItem.onHeldTick?.invoke(player)
+                get(player.inventory.itemInMainHand)?.onHeldTick?.invoke(player)
+                get(player.inventory.itemInOffHand)?.onHeldTick?.invoke(player)
             }
         }
     }

@@ -1,4 +1,4 @@
-package com.heledron.spideranimation
+package com.heledron.spideranimation.kinematic_chain_visualizer
 
 import com.heledron.spideranimation.utilities.*
 import org.bukkit.Location
@@ -229,7 +229,8 @@ class KinematicChainVisualizer(
                 vector = arrow,
                 thickness = .101f,
                 interpolation = 3,
-            ))
+            )
+            )
         }
 
         group.add("root", pointRenderEntity(root, Material.DIAMOND_BLOCK))

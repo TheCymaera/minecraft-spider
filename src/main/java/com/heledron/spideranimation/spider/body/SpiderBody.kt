@@ -2,7 +2,6 @@ package com.heledron.spideranimation.spider.body
 
 import com.heledron.spideranimation.spider.Spider
 import com.heledron.spideranimation.spider.SpiderComponent
-import com.heledron.spideranimation.spider.rendering.spiderRenderEntities
 import com.heledron.spideranimation.utilities.*
 import org.bukkit.util.Vector
 import org.joml.Quaternionf
@@ -91,11 +90,15 @@ class SpiderBody(val spider: Spider): SpiderComponent {
     }
 
     private fun getPreferredY(): Double {
-        val ground = spider.world.raycastGround(spider.position, DOWN_VECTOR.rotate(spider.preferredOrientation), spider.lerpedGait.bodyHeight)
+        val lookAhead = spider.position.clone().add(spider.velocity)
+        val ground = spider.world.raycastGround(lookAhead, DOWN_VECTOR.rotate(spider.preferredOrientation), spider.lerpedGait.bodyHeight)
         val groundY = ground?.hitPosition?.y ?: -Double.MAX_VALUE
+
         val averageY = spider.body.legs.map { it.target.position.y }.average() + spider.lerpedGait.bodyHeight
+
         val targetY = max(averageY, groundY + spider.gait.maxBodyDistanceFromGround)
         val stabilizedY = spider.position.y.lerp(targetY, spider.gait.bodyHeightCorrectionFactor)
+
         return stabilizedY
     }
 

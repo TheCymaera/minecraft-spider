@@ -104,7 +104,7 @@ class Gait(
     var groundDragCoefficient = .2
 
     var samePairCooldown = 1
-    var crossPairCooldown = 4
+    var crossPairCooldown = 1
 
     var useLegacyNormalForce = false
     var polygonLeeway = .0
@@ -124,8 +124,10 @@ class Gait(
     var legChainPivotMode = PivotMode.SpiderOrientation
 
     var preferLevelBreakpoint = toRadians(45f)
-    var preferLevelBias = .2f
+    var preferLevelBias = .0f //.2f
     var preferredRotationLerpFraction = .3f
+
+    var rotationLerp = .3f
 }
 
 
