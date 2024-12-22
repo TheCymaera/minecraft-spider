@@ -29,7 +29,7 @@ class Spider(
         fun fromLocation(location: Location, options: SpiderOptions): Spider {
             val world = location.world!!
             val position = location.toVector()
-            val orientation = Quaternionf().rotationYXZ(toRadians(-location.yaw), toRadians(location.pitch), 0f)
+            val orientation = Quaternionf().rotationYXZ(location.yawRadians(), location.pitchRadians(), 0f)
             return Spider(world, position, orientation, options)
         }
     }
@@ -62,6 +62,16 @@ class Spider(
 
     val velocity = Vector(0.0, 0.0, 0.0)
     val rotationalVelocity = Vector3f(0f,0f,0f)
+
+    fun accelerateRotation(axis: Vector, angle: Float) {
+        val acceleration = Quaternionf().rotateAxis(angle, axis.toVector3f())
+        val oldVelocity = Quaternionf().rotationYXZ(rotationalVelocity.y, rotationalVelocity.x, rotationalVelocity.z)
+
+        val rotVelocity = acceleration.mul(oldVelocity)
+
+        val rotEuler = rotVelocity.getEulerAnglesYXZ(Vector3f())
+        rotationalVelocity.set(rotEuler)
+    }
 
     // components
     val body = SpiderBody(this)

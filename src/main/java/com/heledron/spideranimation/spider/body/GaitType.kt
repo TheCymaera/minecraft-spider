@@ -77,12 +77,12 @@ object GallopGaitType {
             // check cooldown
             val front = spider.body.legs.getOrNull(LegLookUp.diagonalFront(index))
             val back = spider.body.legs.getOrNull(LegLookUp.diagonalBack(index))
-            if (listOfNotNull(front, back).any { leg.target.isGrounded && leg.timeSinceBeginMove < spider.gait.crossPairCooldown }) return false
+            if (listOfNotNull(front).any { leg.target.isGrounded && (leg.timeSinceBeginMove < spider.gait.crossPairCooldown) }) return false
 
             return leg.isOutsideTriggerZone || !leg.touchingGround
         } else {
-            val pairHasCooldown = (pair.target.isGrounded && pair.timeSinceBeginMove < spider.gait.samePairCooldown)
-            return pair.isMoving && !pairHasCooldown
+            val hasCooldown = pair.target.isGrounded && (pair.timeSinceBeginMove < spider.gait.samePairCooldown)
+            return pair.isMoving && !hasCooldown
         }
     }
 }

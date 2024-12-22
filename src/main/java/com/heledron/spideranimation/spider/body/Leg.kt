@@ -186,11 +186,13 @@ class Leg(
         chain.root.copy(attachmentPosition)
 
         if (spider.gait.straightenLegs) {
-            val direction = endEffector.clone().subtract(attachmentPosition)
-            val orientation = Quaternionf().rotationTo(FORWARD_VECTOR.toVector3f(), direction.toVector3f())
+            val pivot = Quaternionf(spider.gait.legChainPivotMode.get(spider))
 
-            orientation.stripRelativeZ(spider.gait.legChainPivotMode.get(spider))
-            orientation.rotateX(spider.gait.legStraightenRotation)
+            val direction = endEffector.clone().subtract(attachmentPosition)
+            val rotation = direction.getRotationAroundAxis(pivot)
+
+            rotation.x += spider.gait.legStraightenRotation
+            val orientation = pivot.rotateYXZ(rotation.y, rotation.x, .0f)
 
             chain.straightenDirection(orientation)
         }
@@ -299,7 +301,9 @@ class Leg(
 
         val target = strandedTarget()
         target.position.add(upVector.clone().multiply(spider.lerpedGait.bodyHeight * .5))
-        target.position.y = target.position.y.coerceAtLeast((groundPosition?.y ?: - Double.MAX_VALUE) + spider.lerpedGait.bodyHeight * .1)
+
+        val minY = (groundPosition?.y ?: -Double.MAX_VALUE) + spider.lerpedGait.bodyHeight * .1
+        target.position.y = target.position.y.coerceAtLeast(minY)
 
         return target
     }

@@ -143,6 +143,10 @@ class GroupEntityRenderer: Closeable {
 
     private val used = mutableSetOf<Any>()
 
+    fun detachEntity(id: Any) {
+        rendered.remove(id)
+    }
+
     override fun close() {
         for (entity in rendered.values) {
             entity.remove()
@@ -211,6 +215,12 @@ class MultiEntityRenderer: Closeable {
     fun flush() {
         renderer.render(group)
         group = RenderEntityGroup()
+    }
+
+    val rendered: Map<Any, Entity> get() = renderer.rendered
+
+    fun detach(id: Any) {
+        renderer.detachEntity(id)
     }
 
     override fun close() {

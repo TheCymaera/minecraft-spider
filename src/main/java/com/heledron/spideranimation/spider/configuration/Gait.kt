@@ -40,7 +40,7 @@ class Gait(
 
         fun defaultGallop() = Gait(.4, GaitType.GALLOP).apply {
             moving.bodyHeight = 1.6
-            legMoveSpeed = .55
+            legMoveSpeed = .5
             rotateAcceleration = .25f / 4
             uncomfortableSpeedMultiplier = .6
             samePairCooldown = 2
@@ -81,7 +81,7 @@ class Gait(
     var rotateAcceleration = .15f / 4
     var rotationalDragCoefficient = .2f
 
-    var legMoveSpeed = walkSpeed * 3
+    var legMoveSpeed = walkSpeed * 2.5
 
     var legLiftHeight = .35
     var legDropDistance = legLiftHeight

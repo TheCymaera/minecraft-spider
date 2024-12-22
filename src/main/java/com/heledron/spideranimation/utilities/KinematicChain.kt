@@ -70,26 +70,29 @@ class KinematicChain(
         }
     }
 
-    fun getRotations(pivot: Quaternionf): List<Quaternionf> {
+    fun getRelativeRotations(pivot: Quaternionf): List<Quaternionf> {
         val vectors = getVectors()
 
-        val firstRotation = Quaternionf()
-            .rotationTo(FORWARD_VECTOR.toVector3f(), vectors.first().toVector3f())
-            .stripRelativeZ(pivot)
+        val firstEuler = vectors.first().getRotationAroundAxis(pivot)
+        val firstRotation = Quaternionf(pivot).rotateYXZ(firstEuler.y, firstEuler.x, .0f)
 
-        // get relative rotations
         val rotations = vectors.mapIndexed { i, current ->
             val previous = vectors.getOrNull(i - 1) ?: return@mapIndexed firstRotation
 
             Quaternionf().rotationTo(previous.toVector3f(), current.toVector3f())
         }
 
-        // cumulate rotations
+        return rotations
+    }
+
+    fun getRotations(pivot: Quaternionf): List<Quaternionf> {
+        return getRelativeRotations(pivot).apply { cumulateRotations(this) }
+    }
+
+    private fun cumulateRotations(rotations: List<Quaternionf>) {
         for (i in 1 until rotations.size) {
             rotations[i].mul(rotations[i - 1])
         }
-
-        return rotations
     }
 }
 
@@ -97,4 +100,8 @@ class ChainSegment(
         var position: Vector,
         var length: Double,
         var initDirection: Vector,
-)
+) {
+    fun clone(): ChainSegment {
+        return ChainSegment(position.clone(), length, initDirection.clone())
+    }
+}

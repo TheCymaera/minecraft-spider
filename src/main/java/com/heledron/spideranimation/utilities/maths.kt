@@ -1,5 +1,6 @@
 package com.heledron.spideranimation.utilities
 
+import org.bukkit.Location
 import org.bukkit.util.Vector
 import org.joml.*
 import java.lang.Math
@@ -95,20 +96,28 @@ fun Vector.getYaw(): Float {
     return yaw.toFloat()
 }
 
+fun Location.yawRadians(): Float {
+    return -toRadians(yaw)
+}
+
+fun Location.pitchRadians(): Float {
+    return toRadians(pitch)
+}
+
 //fun Quaterniond.rotationToYX(fromDir: Vector3d, toDir: Vector3d): Quaterniond {
 //    this.rotationTo(fromDir, toDir)
 //    val euler = this.getEulerAnglesYXZ(Vector3d())
 //    return this.rotationYXZ(euler.y, euler.x, .0)
 //}
 
-fun Quaternionf.stripRelativeZ(pivot: Quaternionf): Quaternionf {
+fun Quaternionf.getYXZRelative(pivot: Quaternionf): Vector3f {
     val relative = Quaternionf(pivot).difference(this)
+    return relative.getEulerAnglesYXZ(Vector3f())
+}
 
-    // remove z rotation
-    val euler = relative.getEulerAnglesYXZ(Vector3f())
-    relative.rotationYXZ(euler.y, euler.x, .0f)
-
-    return this.set(pivot).mul(relative)
+fun Vector.getRotationAroundAxis(pivot: Quaternionf): Vector3f {
+    val orientation = Quaternionf().rotationTo(FORWARD_VECTOR.toVector3f(), this.toVector3f())
+    return orientation.getYXZRelative(pivot)
 }
 
 fun toDegrees(radians: Double): Double {

@@ -38,15 +38,9 @@ class TridentHitDetector(val spider: Spider): SpiderComponent {
                 val axis = UP_VECTOR.crossProduct(tridentDirection)
                 val angle = hitDirection.angle(UP_VECTOR)
 
-                val accelerationMagnitude = angle * spider.gait.tridentRotationalKnockBack
+                val accelerationMagnitude = angle * spider.gait.tridentRotationalKnockBack.toFloat()
 
-                val acceleration = Quaternionf().rotateAxis(accelerationMagnitude.toFloat(), axis.toVector3f())
-                val oldVelocity = Quaternionf().rotationYXZ(spider.rotationalVelocity.y, spider.rotationalVelocity.x, spider.rotationalVelocity.z)
-
-                val rotVelocity = acceleration.mul(oldVelocity)
-
-                val rotEuler = rotVelocity.getEulerAnglesYXZ(Vector3f())
-                spider.rotationalVelocity.set(rotEuler)
+                spider.accelerateRotation(axis, accelerationMagnitude)
             }
         }
     }

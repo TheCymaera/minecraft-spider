@@ -32,15 +32,15 @@ fun runLater(delay: Long, task: () -> Unit): Closeable {
     }
 }
 
-fun interval(delay: Long, period: Long, task: () -> Unit): Closeable {
+fun interval(delay: Long, period: Long, task: (it: Closeable) -> Unit): Closeable {
     val plugin = currentPlugin
-    val handler = plugin.server.scheduler.runTaskTimer(plugin, task, delay, period)
-    return Closeable {
-        handler.cancel()
-    }
+    lateinit var handler: org.bukkit.scheduler.BukkitTask
+    val closeable = Closeable { handler.cancel() }
+    handler = plugin.server.scheduler.runTaskTimer(plugin, Runnable { task(closeable) }, delay, period)
+    return closeable
 }
 
-fun onTick(task: () -> Unit) = interval(0, 1, task)
+fun onTick(task: (it: Closeable) -> Unit) = interval(0, 1, task)
 
 fun addEventListener(listener: Listener): Closeable {
     val plugin = currentPlugin
@@ -68,13 +68,17 @@ fun onSpawnEntity(listener: (Entity, World) -> Unit): Closeable {
     })
 }
 
+
+private var commandBlockMinecart: CommandMinecart? = null
 fun runCommandSilently(command: String, location: Location = Bukkit.getWorlds().first().spawnLocation) {
     val server = Bukkit.getServer()
-    spawnEntity(location, CommandMinecart::class.java) {
-        it.setCommand(command)
-        server.dispatchCommand(it, command)
+
+    val commandBlockMinecart = commandBlockMinecart ?: spawnEntity(location, CommandMinecart::class.java) {
+        commandBlockMinecart = it
         it.remove()
     }
+
+    server.dispatchCommand(commandBlockMinecart, command)
 }
 
 fun onGestureUseItem(listener: (Player, ItemStack) -> Unit): Closeable {

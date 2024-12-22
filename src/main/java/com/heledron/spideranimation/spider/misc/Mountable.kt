@@ -3,18 +3,17 @@ package com.heledron.spideranimation.spider.misc
 import com.heledron.spideranimation.spider.Spider
 import com.heledron.spideranimation.spider.SpiderComponent
 import com.heledron.spideranimation.utilities.*
-import org.bukkit.Bukkit
-import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.Sound
 import org.bukkit.entity.ArmorStand
 import org.bukkit.entity.Pig
-import org.bukkit.entity.minecart.CommandMinecart
+import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.vehicle.VehicleEnterEvent
 import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.util.Vector
+import org.joml.Quaternionf
 import java.io.Closeable
 
 class Mountable(val spider: Spider): SpiderComponent {
@@ -23,7 +22,7 @@ class Mountable(val spider: Spider): SpiderComponent {
 
     var closable = mutableListOf<Closeable>()
 
-    fun getRider() = marker.entity?.passengers?.firstOrNull()
+    fun getRider() = marker.entity?.passengers?.firstOrNull() as? Player
 
     init {
         closable += pig
@@ -59,13 +58,29 @@ class Mountable(val spider: Spider): SpiderComponent {
                 marker.addPassenger(player)
             }
         })
+
+        closable += onTick {
+            val player = getRider() ?: return@onTick
+
+            val input = Vector()
+            if (player.currentInput.isLeft) input.x += 1.0
+            if (player.currentInput.isRight) input.x -= 1.0
+            if (player.currentInput.isForward) input.z += 1.0
+            if (player.currentInput.isBackward) input.z -= 1.0
+
+            val rotation = Quaternionf().rotationYXZ(player.location.yawRadians(), .0f, .0f)
+            val direction = if (input.isZero) input else input.rotate(rotation).normalize()
+
+            spider.behaviour = DirectionBehaviour(spider, player.location.direction, direction)
+
+        }
     }
 
     override fun render() {
-        val location = spider.position.clone().add(spider.velocity).toLocation(spider.world)
+        val location = spider.location().add(spider.velocity)
 
-        val pigLocation = location.clone().add(Vector(.0, -.4, .0))
-        val markerLocation = location.clone().add(Vector(.0, .5, .0))
+        val pigLocation = location.clone().add(Vector(.0, -.6, .0))
+        val markerLocation = location.clone().add(Vector(.0, .3, .0))
 
         pig.render(RenderEntity(
             clazz = Pig::class.java,

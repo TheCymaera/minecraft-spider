@@ -6,18 +6,22 @@ import com.heledron.spideranimation.spider.configuration.CloakOptions
 import com.heledron.spideranimation.spider.configuration.SoundPlayer
 import com.heledron.spideranimation.spider.configuration.SpiderDebugOptions
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
+import com.heledron.spideranimation.spider.misc.splay
 import com.heledron.spideranimation.spider.presets.*
 import com.heledron.spideranimation.utilities.BlockDisplayModelPiece
 import com.heledron.spideranimation.utilities.CustomItemRegistry
 import com.heledron.spideranimation.utilities.Serializer
+import com.heledron.spideranimation.utilities.runLater
 import org.bukkit.Bukkit.createInventory
 import org.bukkit.Material
 import org.bukkit.NamespacedKey
 import org.bukkit.Registry
 import org.bukkit.Sound
 import org.bukkit.block.data.BlockData
+import org.bukkit.command.BlockCommandSender
 import org.bukkit.entity.Display
 import org.bukkit.entity.Display.Brightness
+import org.bukkit.entity.Player
 
 fun registerCommands(plugin: SpiderAnimationPlugin) {
     fun getCommand(name: String) = plugin.getCommand(name) ?: throw Exception("Command $name not found")
@@ -150,6 +154,32 @@ fun registerCommands(plugin: SpiderAnimationPlugin) {
 
                     changes.add { piece -> piece.block = palette.random() }
                     continue
+                }
+
+                if (arg == "copy_block") {
+                    clause = "copy_block"
+
+                    val location = (sender as? Player)?.location ?: (sender as? BlockCommandSender)?.block?.location ?: run {
+                        sender.sendMessage("Cannot copy block without location")
+                        return@setExecutor true
+                    }
+
+                    fun resolveCoord(string: String, baseLocation: Double): Double {
+                        if (string.startsWith("~")) {
+                            val offset = string.substring(1).toDoubleOrNull() ?: 0.0
+                            return baseLocation + offset
+                        }
+
+                        return string.toDoubleOrNull() ?: baseLocation
+                    }
+
+                    val x = resolveCoord(args.getOrNull(index + 1) ?: "~0", location.x)
+                    val y = resolveCoord(args.getOrNull(index + 2) ?: "~0", location.y)
+                    val z = resolveCoord(args.getOrNull(index + 3) ?: "~0", location.z)
+
+                    val block = location.world!!.getBlockAt(x.toInt(), y.toInt(), z.toInt()).blockData
+
+                    changes.add { piece -> piece.block = block }
                 }
 
                 if (arg == "brightness") {
@@ -477,6 +507,17 @@ fun registerCommands(plugin: SpiderAnimationPlugin) {
             if (args.size == 2) options += Lists.newArrayList<Sound>(Registry.SOUNDS).map { it.key.toString() }
 
             return@setTabCompleter options.filter { it.contains(args.last(), true) }
+        }
+    }
+
+    getCommand("splay").apply {
+        setExecutor { _, _, _, args ->
+            val delay = args.getOrNull(0)?.toLongOrNull() ?: 0
+
+            runLater(delay) {
+                splay()
+            }
+            return@setExecutor true
         }
     }
 }

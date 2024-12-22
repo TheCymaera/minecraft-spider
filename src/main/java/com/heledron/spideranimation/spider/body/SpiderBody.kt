@@ -6,6 +6,7 @@ import com.heledron.spideranimation.utilities.*
 import org.bukkit.util.Vector
 import org.joml.Quaternionf
 import org.joml.Vector2d
+import org.joml.Vector3f
 import kotlin.math.*
 
 class SpiderBody(val spider: Spider): SpiderComponent {
@@ -96,7 +97,9 @@ class SpiderBody(val spider: Spider): SpiderComponent {
 
         val averageY = spider.body.legs.map { it.target.position.y }.average() + spider.lerpedGait.bodyHeight
 
-        val targetY = max(averageY, groundY + spider.gait.maxBodyDistanceFromGround)
+        val pivot = spider.gait.legChainPivotMode.get(spider)
+        val target = UP_VECTOR.rotate(pivot).multiply(spider.gait.maxBodyDistanceFromGround)
+        val targetY = max(averageY, groundY + target.y)
         val stabilizedY = spider.position.y.lerp(targetY, spider.gait.bodyHeightCorrectionFactor)
 
         return stabilizedY

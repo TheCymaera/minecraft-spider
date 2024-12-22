@@ -9,7 +9,7 @@ import java.io.Closeable
 
 @Suppress("unused")
 class SpiderAnimationPlugin : JavaPlugin() {
-    val closables = mutableListOf<Closeable>()
+    val closeables = mutableListOf<Closeable>()
 
     fun writeAndSaveConfig() {
 //            for ((key, value) in options) {
@@ -20,13 +20,14 @@ class SpiderAnimationPlugin : JavaPlugin() {
 
     override fun onDisable() {
         logger.info("Disabling Spider Animation plugin")
-        closables.forEach { it.close() }
+        closeables.forEach { it.close() }
+        AppState.closeables.forEach { it.close() }
     }
 
     override fun onEnable() {
         currentPlugin = this
 
-        closables += Closeable {
+        closeables += Closeable {
             AppState.spider?.close()
             AppState.chainVisualizer?.close()
             AppState.renderer.close()
@@ -51,7 +52,7 @@ class SpiderAnimationPlugin : JavaPlugin() {
             }
 
             // render target
-            val target = if (AppState.miscOptions.showLaser) AppState.target else null ?: AppState.chainVisualizer?.target
+            val target = (if (AppState.miscOptions.showLaser) AppState.target else null) ?: AppState.chainVisualizer?.target
             if (target != null) AppState.renderer.render("target", targetRenderEntity(target))
 
             // flush renderer
@@ -61,12 +62,19 @@ class SpiderAnimationPlugin : JavaPlugin() {
         }
 
 
-        closables += onSpawnEntity { entity, _ ->
+        closeables += onSpawnEntity { entity, _ ->
             // Use this command to spawn a chain visualizer
             // /summon minecraft:area_effect_cloud ~ ~ ~ {Tags:["spider.chain_visualizer"]}
             if (!entity.scoreboardTags.contains("spider.chain_visualizer")) return@onSpawnEntity
-            val location = entity.location
-            AppState.chainVisualizer = if (AppState.chainVisualizer != null) null else KinematicChainVisualizer.create(3, 1.5, location)
+            val segmentPlans = AppState.options.bodyPlan.legs.lastOrNull()?.segments ?: return@onSpawnEntity
+
+            AppState.chainVisualizer = if (AppState.chainVisualizer != null) null else KinematicChainVisualizer.create(
+                segmentPlans = segmentPlans,
+                root = entity.location.toVector(),
+                world = entity.world,
+                straightenRotation = AppState.options.walkGait.legStraightenRotation,
+            )
+
             AppState.chainVisualizer?.detailed = AppState.showDebugVisuals
             entity.remove()
         }

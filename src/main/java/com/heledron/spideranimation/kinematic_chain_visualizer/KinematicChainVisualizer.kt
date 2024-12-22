@@ -1,17 +1,24 @@
 package com.heledron.spideranimation.kinematic_chain_visualizer
 
+import com.heledron.spideranimation.spider.configuration.SegmentPlan
 import com.heledron.spideranimation.utilities.*
 import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.World
 import org.bukkit.entity.Display
 import org.bukkit.util.Vector
+import org.joml.Matrix4f
+import org.joml.Quaternionf
 import java.io.Closeable
 
 
 class KinematicChainVisualizer(
-    val root: Location,
-    val segments: List<ChainSegment>
+//    val root: Location,
+    val world: World,
+    val root: Vector,
+    val segments: List<ChainSegment>,
+    val segmentPlans: List<SegmentPlan>,
+    val straightenRotation: Float
 ): Closeable {
     enum class Stage {
         Backwards,
@@ -42,9 +49,14 @@ class KinematicChainVisualizer(
     }
 
     companion object {
-        fun create(segments: Int, length: Double, root: Location): KinematicChainVisualizer {
-            val segmentList = (0 until segments).map { ChainSegment(root.toVector(), length, FORWARD_VECTOR) }
-            return KinematicChainVisualizer(root.clone(), segmentList)
+        fun create(
+            segmentPlans: List<SegmentPlan>,
+            root: Vector,
+            world: World,
+            straightenRotation: Float
+        ): KinematicChainVisualizer {
+            val segments = segmentPlans.map { ChainSegment(root.clone(), it.length, it.initDirection) }
+            return KinematicChainVisualizer(world, root, segments, segmentPlans, straightenRotation)
         }
     }
 
@@ -63,7 +75,7 @@ class KinematicChainVisualizer(
         val direction = Vector(0, 1, 0)
         val rotAxis = Vector(1, 0, -1)
         val rotation = -0.2
-        val pos = root.toVector()
+        val pos = root.clone()
         for (segment in segments) {
             direction.rotateAroundAxis(rotAxis, rotation)
             pos.add(direction.clone().multiply(segment.length))
@@ -81,7 +93,7 @@ class KinematicChainVisualizer(
 
         val target = target?.toVector() ?: return
 
-        previous = Triple(stage, iterator, segments.map { ChainSegment(it.position.clone(), it.length, it.initDirection) })
+        previous = Triple(stage, iterator, segments.map { it.clone() })
 
         if (stage == Stage.Forwards) {
             val segment = segments[iterator]
@@ -97,7 +109,7 @@ class KinematicChainVisualizer(
             else iterator--
         } else {
             val segment = segments[iterator]
-            val prevPosition = segments.getOrNull(iterator - 1)?.position ?: root.toVector()
+            val prevPosition = segments.getOrNull(iterator - 1)?.position ?: root
 
             fabrik_moveSegment(segment.position, prevPosition, segment.length)
 
@@ -111,15 +123,15 @@ class KinematicChainVisualizer(
     fun straighten(target: Vector) {
         resetIterator()
 
-        val direction = target.clone().subtract(root.toVector()).normalize()
-        direction.y = 0.5
-        direction.normalize()
+        val pivot = Quaternionf()
 
-        val position = root.toVector()
-        for (segment in segments) {
-            position.add(direction.clone().multiply(segment.length))
-            segment.position.copy(position)
-        }
+        val direction = target.clone().subtract(root).normalize()
+        val rotation = direction.getRotationAroundAxis(pivot)
+
+        rotation.x += straightenRotation
+        val orientation = pivot.rotateYXZ(rotation.y, rotation.x, .0f)
+
+        KinematicChain(root, segments).straightenDirection(orientation)
 
         render()
     }
@@ -133,7 +145,8 @@ class KinematicChainVisualizer(
         if (detailed) {
             renderer.render(renderDetailed())
         } else {
-            renderer.render(renderNormal())
+            val model = renderNormal()
+            renderer.render(model)
         }
 
     }
@@ -141,29 +154,39 @@ class KinematicChainVisualizer(
     private fun renderNormal(): RenderEntityGroup {
         val group = RenderEntityGroup()
 
+        val pivot = Quaternionf()
+
         val previous = previous
         for (i in segments.indices) {
-            val thickness = (segments.size - i) * 1.5f/16f
+            val segmentPlan = segmentPlans[i]
+            val segment = segments[i]
 
             val list = if (previous == null || i == previous.second) segments else previous.third
 
-            val segment = list[i]
-            val prev = list.getOrNull(i - 1)?.position ?: root.toVector()
+            val prev = list.getOrNull(i - 1)?.position ?: root.clone()
             val vector = segment.position.clone().subtract(prev)
             if (!vector.isZero) vector.normalize().multiply(segment.length)
-            val position = segment.position.clone().subtract(vector.clone())//.toLocation(root.world!!)
+            val position = segment.position.clone().subtract(vector.clone())
 
-            group.add(i, lineRenderEntity(
-                world = root.world!!,
-                position = position,
-                vector = vector,
-                thickness = thickness,
-                interpolation = 3,
-                update = {
-                    it.brightness = Display.Brightness(0, 15)
-                    it.block = Material.NETHERITE_BLOCK.createBlockData()
-                }
-            ))
+            val rotation = KinematicChain(root, list).getRotations(pivot)[i]
+            val transform = Matrix4f().rotate(rotation)
+
+            for (piece in segmentPlan.model.pieces) {
+                group.add(i to piece, blockRenderEntity(
+                    world = world,
+                    position = position,
+                    init = {
+                        it.teleportDuration = 3
+                        it.interpolationDuration = 3
+                    },
+                    update = {
+                        val pieceTransform = Matrix4f(transform).mul(piece.transform)
+                        it.applyTransformationWithInterpolation(pieceTransform)
+                        it.block = piece.block
+                        it.brightness = piece.brightness
+                    }
+                ))
+            }
         }
 
         return group
@@ -181,7 +204,7 @@ class KinematicChainVisualizer(
 
             val arrowStart = if (stage == Stage.Forwards)
                 segments.getOrNull(iterator + 1)?.position else
-                segments.getOrNull(iterator - 1)?.position ?: root.toVector()
+                segments.getOrNull(iterator - 1)?.position ?: root
 
             if (arrowStart == null) return@arrow
             renderedSegments = segments
@@ -217,34 +240,33 @@ class KinematicChainVisualizer(
                 .add(crossProduct.rotateAroundAxis(arrow, Math.toRadians(-90.0)).multiply(.5))
 
             group.add("arrow_length", textRenderEntity(
-                world = root.world!!,
+                world = world,
                 position = arrowCenter,
                 text = String.format("%.2f", arrow.length()),
                 interpolation = 3,
             ))
 
             group.add("arrow", arrowRenderEntity(
-                world = root.world!!,
+                world = world,
                 position = arrowStart,
                 vector = arrow,
                 thickness = .101f,
                 interpolation = 3,
-            )
-            )
+            ))
         }
 
-        group.add("root", pointRenderEntity(root, Material.DIAMOND_BLOCK))
+        group.add("root", pointRenderEntity(world, root, Material.DIAMOND_BLOCK))
 
         for (i in renderedSegments.indices) {
             val segment = renderedSegments[i]
-            group.add("p$i", pointRenderEntity(segment.position.toLocation(root.world!!), Material.EMERALD_BLOCK))
+            group.add("p$i", pointRenderEntity(world, segment.position, Material.EMERALD_BLOCK))
 
-            val prev = renderedSegments.getOrNull(i - 1)?.position ?: root.toVector()
+            val prev = renderedSegments.getOrNull(i - 1)?.position ?: root
 
             val (a,b) = prev to segment.position
 
             group.add(i, lineRenderEntity(
-                world = root.world!!,
+                world = world,
                 position = a,
                 vector = b.clone().subtract(a),
                 thickness = .1f,
@@ -260,8 +282,9 @@ class KinematicChainVisualizer(
     }
 }
 
-fun pointRenderEntity(location: Location, block: Material) = blockRenderEntity(
-    location = location,
+fun pointRenderEntity(world: World, position: Vector, block: Material) = blockRenderEntity(
+    world = world,
+    position = position,
     init = {
         it.block = block.createBlockData()
         it.teleportDuration = 3

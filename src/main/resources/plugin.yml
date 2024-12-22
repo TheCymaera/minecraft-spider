@@ -34,6 +34,9 @@ commands:
   set_sound:
     description: Set the sound of the spider
     permission: spider-animation.set_sound
+  splay:
+    description: Splay
+    permission: spider-animation.splay
 
 permissions:
   spider-animation.items:
@@ -65,4 +68,7 @@ permissions:
     default: op
   spider-animation.set_sound:
     description: Allows access to the set_sound command
+    default: op
+  spider-animation.splay:
+    description: Allows access to the splay command
     default: op
