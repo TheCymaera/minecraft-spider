@@ -3,7 +3,7 @@
 This plugin was developed for a video series about procedural animations.
 1. Procedural Walking Animation: https://youtu.be/Hc9x1e85L0w
 2. Procedural Galloping Animation: https://youtu.be/r70xJytj0sw
-3. 
+3. Procedurally Animated Robots: https://youtu.be/PSnPOYeTW-0
 
 
 This plugin is very experimental and untested with multiplayer. Use at your own risk.
