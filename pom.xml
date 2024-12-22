@@ -6,7 +6,7 @@
 
     <groupId>com.heledron</groupId>
     <artifactId>SpiderAnimation</artifactId>
-    <version>2.1-SNAPSHOT</version>
+    <version>3.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>SpiderAnimation</name>

@@ -408,7 +408,7 @@ fun registerCommands(plugin: SpiderAnimationPlugin) {
         setExecutor { sender, _, _, args ->
             val name = args.getOrNull(0) ?: return@setExecutor false
 
-            val segmentCount = args.getOrNull(1)?.toIntOrNull() ?: 4
+            val segmentCount = args.getOrNull(1)?.toIntOrNull() ?: if (name.contains("bot")) 4 else 3
             val segmentLength = args.getOrNull(2)?.toDoubleOrNull() ?: 1.0
 
             val createPreset = presets[name]
