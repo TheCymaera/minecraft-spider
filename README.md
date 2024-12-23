@@ -6,7 +6,7 @@ This plugin was developed for a video series about procedural animations.
 3. Procedurally Animated Robots: https://youtu.be/PSnPOYeTW-0
 
 
-This plugin is very experimental and untested with multiplayer. Use at your own risk.
+This plugin is very experimental and untested in multiplayer. Use at your own risk.
 
 
 
@@ -102,6 +102,14 @@ Stealth Variant Example:
 
 # You may need to pick a different brightness depending on your shaders
 ```
+
+Copy block examples used in the video:
+```
+/modify_model cloak torso copy_block ~ ~1 ~
+/modify_model cloak tibia copy_block ~ ~1 ~
+/modify_model cloak tip copy_block ~ ~1 ~
+```
+
 ## Development
 1. Clone or download the repo.
 2. Run Maven `package` to build the plugin. The resulting JAR will be in the `target` folder.
