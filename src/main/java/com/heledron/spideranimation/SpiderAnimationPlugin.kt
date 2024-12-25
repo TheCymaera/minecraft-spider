@@ -1,6 +1,7 @@
 package com.heledron.spideranimation
 
 import com.heledron.spideranimation.kinematic_chain_visualizer.KinematicChainVisualizer
+import com.heledron.spideranimation.spider.misc.MoveAimlesslyBehaviour
 import com.heledron.spideranimation.spider.misc.StayStillBehaviour
 import com.heledron.spideranimation.spider.rendering.targetRenderEntity
 import com.heledron.spideranimation.utilities.*
@@ -48,7 +49,14 @@ class SpiderAnimationPlugin : JavaPlugin() {
                 spider.gallop = AppState.gallop
 
                 spider.update()
-                if (spider.mount.getRider() == null) spider.behaviour = StayStillBehaviour(spider)
+                if (spider.mount.getRider() == null) {
+                    spider.behaviour = StayStillBehaviour(spider)
+
+                    val r = (0..20).random() > 1;
+                    if(r) {
+                        spider.behaviour = MoveAimlesslyBehaviour(spider)
+                    }
+                }
             }
 
             // render target

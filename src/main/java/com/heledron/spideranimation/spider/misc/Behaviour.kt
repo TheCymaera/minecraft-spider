@@ -8,6 +8,14 @@ import org.joml.Quaternionf
 import org.joml.Vector3f
 import kotlin.math.PI
 
+class MoveAimlesslyBehaviour(val spider: Spider) : SpiderComponent {
+    override fun update() {
+        // Choose a random direction to walk in
+        val direction = Vector((Math.random() - 0.5) * 2, 0.0, (Math.random() - 0.5) * 2)
+        spider.walkAt(direction)
+    }
+}
+
 class StayStillBehaviour(val spider: Spider) : SpiderComponent {
     override fun update() {
         spider.walkAt(Vector(0.0, 0.0, 0.0))
