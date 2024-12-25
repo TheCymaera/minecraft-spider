@@ -112,7 +112,7 @@ class Mountable(val spider: Spider): SpiderComponent {
                 // This is the only way to preserve passengers when teleporting.
                 // Paper has a TeleportFlag, but it is not supported by Spigot.
                 // https://jd.papermc.io/paper/1.21/io/papermc/paper/entity/TeleportFlag.EntityState.html
-                runCommandSilently("execute as ${it.uniqueId} at @s run tp ${markerLocation.x} ${markerLocation.y} ${markerLocation.z}")
+                runCommandSilently("execute as ${it.uniqueId} at @s run minecraft:tp ${markerLocation.x} ${markerLocation.y} ${markerLocation.z}")
             }
         ))
     }
