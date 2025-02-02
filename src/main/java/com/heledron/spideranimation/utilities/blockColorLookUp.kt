@@ -1,6 +1,6 @@
 package com.heledron.spideranimation.utilities
 
-import com.heledron.spideranimation.utilities.Serializer.gson
+import com.google.gson.Gson
 import org.bukkit.Color
 import org.bukkit.Material
 import org.bukkit.block.data.BlockData
@@ -11,7 +11,7 @@ private fun String.parseJSONColors(): Map<Material, Color> {
     val colorMap = mutableMapOf<Material, Color>()
 
     @Suppress("UNCHECKED_CAST")
-    val json = gson.fromJson(this, Map::class.java) as Map<String, List<Int>>
+    val json = Gson().fromJson(this, Map::class.java) as Map<String, List<Int>>
 
     for ((key, value) in json) {
         val material = Material.matchMaterial("minecraft:$key") ?: continue
