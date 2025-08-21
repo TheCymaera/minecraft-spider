@@ -3,7 +3,7 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
         import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 val kotlinVersion = "2.0.0"
-val paperVersion = "1.21-R0.1-SNAPSHOT"
+val paperVersion = "1.21.8-R0.1-SNAPSHOT"
 
 plugins {
     id("org.jetbrains.kotlin.jvm") version "2.0.0"
