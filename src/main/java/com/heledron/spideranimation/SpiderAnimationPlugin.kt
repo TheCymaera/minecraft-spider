@@ -4,10 +4,10 @@ import com.heledron.spideranimation.kinematic_chain_visualizer.KinematicChainVis
 import com.heledron.spideranimation.spider.misc.StayStillBehaviour
 import com.heledron.spideranimation.spider.rendering.targetRenderEntity
 import com.heledron.spideranimation.utilities.*
+import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents
 import org.bukkit.plugin.java.JavaPlugin
 import java.io.Closeable
 
-@Suppress("unused")
 class SpiderAnimationPlugin : JavaPlugin() {
     val closeables = mutableListOf<Closeable>()
 
@@ -37,7 +37,14 @@ class SpiderAnimationPlugin : JavaPlugin() {
 
 //        config.getConfigurationSection("spider")?.getValues(true)?.let { AppState.options = Serializer.fromMap(it, SpiderOptions::class.java) }
 
-        registerCommands(this)
+        this.lifecycleManager.registerEventHandler(LifecycleEvents.COMMANDS) { event ->
+            // Get the command registrar from the event object
+            val commands = event.registrar()
+
+            // Now, pass the correct object to your registration function
+            registerCommands(this, commands)
+        }
+
         registerItems()
 
         onTick {
