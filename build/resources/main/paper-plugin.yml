@@ -1,7 +1,7 @@
 name: spider-animation
-version: '${project.version}'
+version: '3.0-SNAPSHOT'
 main: com.heledron.spideranimation.SpiderAnimationPlugin
-api-version: '1.20'
+api-version: '1.21'
 
 commands:
   items:

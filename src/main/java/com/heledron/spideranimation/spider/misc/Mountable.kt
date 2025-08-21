@@ -62,17 +62,12 @@ class Mountable(val spider: Spider): SpiderComponent {
         closable += onTick {
             val player = getRider() ?: return@onTick
 
-            val input = Vector()
-            if (player.currentInput.isLeft) input.x += 1.0
-            if (player.currentInput.isRight) input.x -= 1.0
-            if (player.currentInput.isForward) input.z += 1.0
-            if (player.currentInput.isBackward) input.z -= 1.0
+            val input = Vector(player.sidewaysMovement.toDouble(), 0.0, player.forwardsMovement.toDouble())
 
             val rotation = Quaternionf().rotationYXZ(player.location.yawRadians(), .0f, .0f)
             val direction = if (input.isZero) input else input.rotate(rotation).normalize()
 
             spider.behaviour = DirectionBehaviour(spider, player.location.direction, direction)
-
         }
     }
 

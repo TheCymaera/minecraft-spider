@@ -1,9 +1,7 @@
 package com.heledron.spideranimation.utilities
 
-import com.heledron.spideranimation.SpiderAnimationPlugin
-import net.md_5.bungee.api.ChatMessageType
+import net.kyori.adventure.text.Component
 import org.bukkit.Bukkit
-import org.bukkit.ChatColor
 import org.bukkit.FluidCollisionMode
 import org.bukkit.Location
 import org.bukkit.World
@@ -11,6 +9,7 @@ import org.bukkit.entity.Display
 import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
 import org.bukkit.entity.minecart.CommandMinecart
+import org.bukkit.event.Event
 import org.bukkit.event.Listener
 import org.bukkit.event.block.Action
 import org.bukkit.inventory.EquipmentSlot
@@ -19,7 +18,9 @@ import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.util.RayTraceResult
 import org.bukkit.util.Transformation
 import org.bukkit.util.Vector
-import org.joml.*
+import org.joml.AxisAngle4f
+import org.joml.Matrix4f
+import org.joml.Vector3f
 import java.io.Closeable
 
 lateinit var currentPlugin: JavaPlugin
@@ -86,7 +87,7 @@ fun onGestureUseItem(listener: (Player, ItemStack) -> Unit): Closeable {
         @org.bukkit.event.EventHandler
         fun onPlayerInteract(event: org.bukkit.event.player.PlayerInteractEvent) {
             if (event.action != Action.RIGHT_CLICK_AIR && event.action != Action.RIGHT_CLICK_BLOCK) return
-            if (event.action == Action.RIGHT_CLICK_BLOCK && !(event.clickedBlock?.type?.isInteractable == false || event.player.isSneaking)) return
+            if (event.useInteractedBlock() == Event.Result.ALLOW && !event.player.isSneaking) return
             listener(event.player, event.item ?: return)
         }
     })
@@ -126,8 +127,7 @@ fun sendDebugMessage(message: String) {
 }
 
 fun sendActionBar(player: Player, message: String) {
-//    player.sendActionBar(message)
-    player.spigot().sendMessage(ChatMessageType.ACTION_BAR, net.md_5.bungee.api.chat.TextComponent(message))
+    player.sendActionBar(Component.text(message))
 }
 
 fun raycastGround(location: Location, direction: Vector, maxDistance: Double): RayTraceResult? {

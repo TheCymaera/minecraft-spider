@@ -1,15 +1,12 @@
 package com.heledron.spideranimation.utilities
 
-import com.heledron.spideranimation.SpiderAnimationPlugin
+import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.format.TextDecoration
 import org.bukkit.Bukkit
-import org.bukkit.ChatColor
 import org.bukkit.NamespacedKey
 import org.bukkit.entity.Player
-import org.bukkit.event.block.Action
-import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.inventory.ItemStack
 import org.bukkit.persistence.PersistentDataType
-import org.bukkit.plugin.Plugin
 
 class CustomItem(
     val id: String,
@@ -58,8 +55,13 @@ object CustomItemRegistry {
 
 fun createNamedItem(material: org.bukkit.Material, name: String): ItemStack {
     val item = ItemStack(material)
-    val itemMeta = item.itemMeta ?: throw Exception("ItemMeta is null")
-    itemMeta.setItemName(ChatColor.RESET.toString() + name)
-    item.itemMeta = itemMeta
+    // Use .editMeta for a safer and more concise way to modify meta
+    item.editMeta { itemMeta ->
+        // Create a text component and disable the default italic style
+        val nameComponent = Component.text(name).decoration(TextDecoration.ITALIC, false)
+
+        // Set the component as the item's display name
+        itemMeta.displayName(nameComponent)
+    }
     return item
 }

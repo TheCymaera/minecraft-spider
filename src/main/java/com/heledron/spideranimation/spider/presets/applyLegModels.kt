@@ -1,6 +1,5 @@
 package com.heledron.spideranimation.spider.presets
 
-import com.heledron.spideranimation.spider.Spider
 import com.heledron.spideranimation.spider.configuration.BodyPlan
 import com.heledron.spideranimation.utilities.BlockDisplayModelPiece
 import com.heledron.spideranimation.utilities.DisplayModel

@@ -102,7 +102,7 @@ class KinematicChainVisualizer(
             if (nextSegment == null) {
                 segment.position.copy(target)
             } else {
-                fabrik_moveSegment(segment.position, nextSegment.position, nextSegment.length)
+                fabrikMovesegment(segment.position, nextSegment.position, nextSegment.length)
             }
 
             if (iterator == 0) stage = Stage.Backwards
@@ -111,7 +111,7 @@ class KinematicChainVisualizer(
             val segment = segments[iterator]
             val prevPosition = segments.getOrNull(iterator - 1)?.position ?: root
 
-            fabrik_moveSegment(segment.position, prevPosition, segment.length)
+            fabrikMovesegment(segment.position, prevPosition, segment.length)
 
             if (iterator == segments.size - 1) stage = Stage.Forwards
             else iterator++
@@ -136,7 +136,7 @@ class KinematicChainVisualizer(
         render()
     }
 
-    fun fabrik_moveSegment(point: Vector, pullTowards: Vector, segment: Double) {
+    fun fabrikMovesegment(point: Vector, pullTowards: Vector, segment: Double) {
         val direction = pullTowards.clone().subtract(point).normalize()
         point.copy(pullTowards).subtract(direction.multiply(segment))
     }

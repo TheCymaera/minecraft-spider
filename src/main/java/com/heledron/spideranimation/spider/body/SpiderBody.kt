@@ -6,8 +6,9 @@ import com.heledron.spideranimation.utilities.*
 import org.bukkit.util.Vector
 import org.joml.Quaternionf
 import org.joml.Vector2d
-import org.joml.Vector3f
-import kotlin.math.*
+import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
 
 class SpiderBody(val spider: Spider): SpiderComponent {
     val onHitGround = EventEmitter()

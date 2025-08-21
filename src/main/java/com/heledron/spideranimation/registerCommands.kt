@@ -12,6 +12,7 @@ import com.heledron.spideranimation.utilities.BlockDisplayModelPiece
 import com.heledron.spideranimation.utilities.CustomItemRegistry
 import com.heledron.spideranimation.utilities.Serializer
 import com.heledron.spideranimation.utilities.runLater
+import net.kyori.adventure.text.Component
 import org.bukkit.Bukkit.createInventory
 import org.bukkit.Material
 import org.bukkit.NamespacedKey
@@ -19,7 +20,6 @@ import org.bukkit.Registry
 import org.bukkit.Sound
 import org.bukkit.block.data.BlockData
 import org.bukkit.command.BlockCommandSender
-import org.bukkit.entity.Display
 import org.bukkit.entity.Display.Brightness
 import org.bukkit.entity.Player
 
@@ -67,7 +67,7 @@ fun registerCommands(plugin: SpiderAnimationPlugin) {
             } else {
                 val parsed = try {
                     Gson().fromJson(valueUnParsed, Any::class.java)
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     sender.sendMessage("Could not parse: $valueUnParsed")
                     return@setExecutor true
                 }
@@ -186,7 +186,7 @@ fun registerCommands(plugin: SpiderAnimationPlugin) {
                     clause = "brightness"
                     val blockLight = args.getOrNull(index + 1)?.toIntOrNull() ?: 0
                     val skyLight = args.getOrNull(index + 2)?.toIntOrNull() ?: 15
-                    val brightness = Display.Brightness(blockLight, skyLight)
+                    val brightness = Brightness(blockLight, skyLight)
                     changes.add { piece -> piece.brightness = brightness }
                     continue
                 }
@@ -457,9 +457,9 @@ fun registerCommands(plugin: SpiderAnimationPlugin) {
     }
 
     getCommand("items").setExecutor { sender, _, _, _ ->
-        val player = sender as? org.bukkit.entity.Player ?: return@setExecutor true
+        val player = sender as? Player ?: return@setExecutor true
 
-        val inventory = createInventory(null, 9 * 3, "Items")
+        val inventory = createInventory(null, 9 * 3, Component.text("Items"))
         for (item in CustomItemRegistry.items) {
             inventory.addItem(item.defaultItem.clone())
         }
@@ -470,7 +470,7 @@ fun registerCommands(plugin: SpiderAnimationPlugin) {
     }
 
     getCommand("set_sound").apply {
-        setExecutor() { sender, _, _, args ->
+        setExecutor { sender, _, _, args ->
             val kind = args.getOrNull(0) ?: return@setExecutor false
             val soundString = args.getOrNull(1) ?: return@setExecutor false
             val soundID = NamespacedKey.fromString(soundString) ?: return@setExecutor false

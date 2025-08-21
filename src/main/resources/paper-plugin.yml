@@ -1,0 +1,74 @@
+name: spider-animation
+version: '${project.version}'
+main: com.heledron.spideranimation.SpiderAnimationPlugin
+api-version: '1.21'
+
+commands:
+  items:
+    description: Open the items menu
+    permission: spider-animation.items
+  options:
+    description: Set gait options
+    permission: spider-animation.options
+  fall:
+    description: Teleport the spider up by the specified height
+    permission: spider-animation.fall
+  preset:
+    description: Apply a preset
+    permission: spider-animation.preset
+  scale:
+    description: Scale the spider
+    permission: spider-animation.scale
+  modify_model:
+    description: Modify model
+    permission: spider-animation.modify_model
+  torso_model:
+    description: Set the torso model of the spider
+    permission: spider-animation.body_model
+  leg_model:
+    description: Set the leg model of the spider
+    permission: spider-animation.leg_model
+  animated_palette:
+    description: Modify animated palette
+    permission: spider-animation.animated_palette
+  set_sound:
+    description: Set the sound of the spider
+    permission: spider-animation.set_sound
+  splay:
+    description: Splay
+    permission: spider-animation.splay
+
+permissions:
+  spider-animation.items:
+    description: Allows access to the items command
+    default: op
+  spider-animation.options:
+    description: Allows access to the options command
+    default: op
+  spider-animation.fall:
+    description: Allows access to the fall command
+    default: op
+  spider-animation.preset:
+    description: Allows access to the preset command
+    default: op
+  spider-animation.scale:
+    description: Allows access to the scale command
+    default: op
+  spider-animation.modify_model:
+    description: Allows access to the modify_model command
+    default: op
+  spider-animation.torso_model:
+    description: Allows access to the torso_model command
+    default: op
+  spider-animation.leg_model:
+    description: Allows access to the leg_model command
+    default: op
+  spider-animation.animated_palette:
+    description: Allows access to the animated_palette command
+    default: op
+  spider-animation.set_sound:
+    description: Allows access to the set_sound command
+    default: op
+  spider-animation.splay:
+    description: Allows access to the splay command
+    default: op

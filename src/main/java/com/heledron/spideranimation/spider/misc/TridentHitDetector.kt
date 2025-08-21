@@ -6,8 +6,6 @@ import com.heledron.spideranimation.utilities.EventEmitter
 import com.heledron.spideranimation.utilities.UP_VECTOR
 import com.heledron.spideranimation.utilities.runLater
 import org.bukkit.entity.Trident
-import org.joml.Quaternionf
-import org.joml.Vector3f
 
 class TridentHitDetector(val spider: Spider): SpiderComponent {
     val onHit = EventEmitter()
