@@ -304,7 +304,7 @@ fun registerCommands(plugin: SpiderAnimationPlugin, commands: Commands) {
         }
     }
 
-    // Command: /modify_model <...query>
+// Command: /spider modify_model <...query>
     val modifyModelCommand = LiteralArgumentBuilder.literal<CommandSourceStack>("modify_model")
         .requires { it.sender.hasPermission("spider-animation.modify_model") }
         .then(RequiredArgumentBuilder.argument<CommandSourceStack, String>("query", StringArgumentType.greedyString())
@@ -322,7 +322,8 @@ fun registerCommands(plugin: SpiderAnimationPlugin, commands: Commands) {
                 val currentClause = if (currentClauseIndex == -1) "or" else args[currentClauseIndex]
 
                 val tags = getAvailableTags()
-                val materials = Material.entries.filter { it.isBlock }.map { it.key.toString() }
+
+                val materials = Registry.BLOCK.mapNotNull { Registry.BLOCK.getKey(it)?.toString() }
 
                 val options = mutableListOf<String>()
 
@@ -349,12 +350,12 @@ fun registerCommands(plugin: SpiderAnimationPlugin, commands: Commands) {
                 val args = query.split(" ").toTypedArray()
 
                 val changes = mutableListOf<(piece: BlockDisplayModelPiece) -> Unit>()
-                fun getLegPieces() = AppState.options.bodyPlan.legs.flatMap { it -> it.segments }.flatMap { it -> it.model.pieces }
+                fun getLegPieces() = AppState.options.bodyPlan.legs.flatMap { it.segments }.flatMap { it.model.pieces }
                 fun getBodyPieces() = AppState.options.bodyPlan.bodyModel.pieces
                 fun getAllPieces() = getLegPieces() + getBodyPieces()
-                fun getAvailableTags() = getAllPieces().flatMap { it -> it.tags }.distinct()
+                fun getAvailableTags() = getAllPieces().flatMap { it.tags }.distinct()
                 val availableTags = getAvailableTags()
-                val orGroups = mutableListOf<MutableList<(piece: BlockDisplayModelPiece)->Boolean>>()
+                val orGroups = mutableListOf<MutableList<(piece: BlockDisplayModelPiece) -> Boolean>>()
 
                 var clause = "or"
                 orGroups.add(mutableListOf())
@@ -421,9 +422,9 @@ fun registerCommands(plugin: SpiderAnimationPlugin, commands: Commands) {
                     }
                     i++
                 }
-                val finalOrGroups = orGroups.filter { it -> it.isNotEmpty() }
-                val pieces = getAllPieces().filter { piece -> finalOrGroups.isEmpty() || finalOrGroups.any { andGroup -> andGroup.all { it -> it(piece) } } }
-                pieces.forEach { piece -> changes.forEach { it -> it(piece) } }
+                val finalOrGroups = orGroups.filter { it.isNotEmpty() }
+                val pieces = getAllPieces().filter { piece -> finalOrGroups.isEmpty() || finalOrGroups.any { andGroup -> andGroup.all { it(piece) } } }
+                pieces.forEach { piece -> changes.forEach { it(piece) } }
                 sender.sendMessage(Component.text("Modified ${pieces.size} blocks with ${changes.size} changes"))
                 1
             }
