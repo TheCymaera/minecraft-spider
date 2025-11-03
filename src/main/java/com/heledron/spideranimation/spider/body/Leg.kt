@@ -5,8 +5,18 @@ import com.heledron.spideranimation.utilities.KinematicChain
 import com.heledron.spideranimation.spider.Spider
 import com.heledron.spideranimation.spider.configuration.LegPlan
 import com.heledron.spideranimation.utilities.*
+import com.heledron.spideranimation.utilities.deprecated.EventEmitter
+import com.heledron.spideranimation.utilities.deprecated.isOnGround
+import com.heledron.spideranimation.utilities.deprecated.raycastGround
+import com.heledron.spideranimation.utilities.deprecated.resolveCollision
+import com.heledron.spideranimation.utilities.maths.DOWN_VECTOR
+import com.heledron.spideranimation.utilities.maths.UP_VECTOR
+import com.heledron.spideranimation.utilities.maths.lerp
+import com.heledron.spideranimation.utilities.maths.moveTowards
+import com.heledron.spideranimation.utilities.maths.rotate
 import org.bukkit.Location
 import org.bukkit.util.Vector
+import org.joml.Quaterniond
 import org.joml.Quaternionf
 import kotlin.math.ceil
 import kotlin.math.floor
@@ -64,7 +74,7 @@ class Leg(
     fun updateMemo() {
         val orientation = spider.gait.scanPivotMode.get(spider)
 
-        val upVector = UP_VECTOR.rotate(orientation)
+        val upVector = UP_VECTOR.rotate(Quaterniond(orientation))
         val scanStartAxis = upVector.clone().multiply(spider.lerpedGait.bodyHeight * 1.6)
         val scanAxis = upVector.clone().multiply(-spider.lerpedGait.bodyHeight * 3.5)
 

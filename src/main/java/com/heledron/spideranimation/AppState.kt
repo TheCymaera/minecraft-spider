@@ -3,15 +3,9 @@ package com.heledron.spideranimation
 import com.heledron.spideranimation.kinematic_chain_visualizer.KinematicChainVisualizer
 import com.heledron.spideranimation.spider.*
 import com.heledron.spideranimation.spider.presets.hexBot
-import com.heledron.spideranimation.utilities.MultiEntityRenderer
 import org.bukkit.Location
-import java.io.Closeable
 
 object AppState {
-    var closeables = mutableListOf<Closeable>()
-
-    val renderer = MultiEntityRenderer()
-
     var options = hexBot(4, 1.0)
     var miscOptions = MiscellaneousOptions()
 

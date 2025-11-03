@@ -1,6 +1,5 @@
 package com.heledron.spideranimation.spider.configuration
 
-import com.heledron.spideranimation.utilities.playSound
 import org.bukkit.Sound
 import org.bukkit.util.Vector
 import kotlin.random.Random
@@ -44,6 +43,6 @@ class SoundPlayer(
     fun play(world: org.bukkit.World, position: Vector) {
         val volume = volume + Random.nextFloat() * volumeVary
         val pitch = pitch + Random.nextFloat() * pitchVary
-        world.playSound(position, sound, volume, pitch)
+        world.playSound(position.toLocation(world), sound, volume, pitch)
     }
 }

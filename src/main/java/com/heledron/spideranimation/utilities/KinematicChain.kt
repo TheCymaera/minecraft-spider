@@ -1,5 +1,6 @@
 package com.heledron.spideranimation.utilities
 
+import com.heledron.spideranimation.utilities.maths.rotate
 import org.bukkit.util.Vector
 import org.joml.Quaternionf
 

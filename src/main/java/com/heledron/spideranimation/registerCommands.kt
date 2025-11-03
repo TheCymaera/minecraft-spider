@@ -9,10 +9,9 @@ import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.spider.misc.splay
 import com.heledron.spideranimation.spider.presets.*
 import com.heledron.spideranimation.utilities.BlockDisplayModelPiece
-import com.heledron.spideranimation.utilities.CustomItemRegistry
 import com.heledron.spideranimation.utilities.Serializer
-import com.heledron.spideranimation.utilities.runLater
-import org.bukkit.Bukkit.createInventory
+import com.heledron.spideranimation.utilities.custom_items.setupCustomItemCommand
+import com.heledron.spideranimation.utilities.events.runLater
 import org.bukkit.Material
 import org.bukkit.NamespacedKey
 import org.bukkit.Registry
@@ -456,18 +455,20 @@ fun registerCommands(plugin: SpiderAnimationPlugin) {
         return@setExecutor true
     }
 
-    getCommand("items").setExecutor { sender, _, _, _ ->
-        val player = sender as? org.bukkit.entity.Player ?: return@setExecutor true
+//    getCommand("items").setExecutor { sender, _, _, _ ->
+//        val player = sender as? org.bukkit.entity.Player ?: return@setExecutor true
+//
+//        val inventory = createInventory(null, 9 * 3, "Items")
+//        for (item in CustomItemRegistry.items) {
+//            inventory.addItem(item.defaultItem.clone())
+//        }
+//
+//        player.openInventory(inventory)
+//
+//        return@setExecutor true
+//    }
 
-        val inventory = createInventory(null, 9 * 3, "Items")
-        for (item in CustomItemRegistry.items) {
-            inventory.addItem(item.defaultItem.clone())
-        }
-
-        player.openInventory(inventory)
-
-        return@setExecutor true
-    }
+    setupCustomItemCommand()
 
     getCommand("set_sound").apply {
         setExecutor() { sender, _, _, args ->

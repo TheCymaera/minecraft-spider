@@ -1,6 +1,7 @@
 package com.heledron.spideranimation.utilities
 
 import com.google.gson.Gson
+import com.heledron.spideranimation.utilities.deprecated.matrixFromTransform
 import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.Material
@@ -70,7 +71,7 @@ fun parseModelFromCommand(command: String): DisplayModel {
 
 
         pieces += BlockDisplayModelPiece(
-            block = blockData ?: throw IllegalArgumentException("Unknown block name: $blockName"),
+            block = blockData,
             transform = matrix,
             tags = passenger["Tags"] as? List<String> ?: emptyList()
         )

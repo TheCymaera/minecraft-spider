@@ -1,16 +1,20 @@
 package com.heledron.spideranimation.spider.rendering
 
+import com.heledron.hologram.utilities.rendering.interpolateTransform
+import com.heledron.hologram.utilities.rendering.renderBlock
 import com.heledron.spideranimation.spider.Spider
 import com.heledron.spideranimation.utilities.*
+import com.heledron.spideranimation.utilities.deprecated.centredTransform
+import com.heledron.spideranimation.utilities.rendering.RenderGroup
 import org.bukkit.*
 import org.bukkit.entity.Display
 import org.bukkit.util.Vector
 import org.joml.Matrix4f
 import org.joml.Vector4f
 
-fun targetRenderEntity(
+fun renderTarget(
     location: Location
-) = blockRenderEntity(
+) = renderBlock(
     location = location,
     init = {
         it.block = Material.REDSTONE_BLOCK.createBlockData()
@@ -20,11 +24,11 @@ fun targetRenderEntity(
     }
 )
 
-fun spiderRenderEntities(spider: Spider): RenderEntityGroup {
-    val group = RenderEntityGroup()
+fun renderSpider(spider: Spider): RenderGroup {
+    val group = RenderGroup()
 
     val transform = Matrix4f().rotate(spider.orientation)
-    group.add(spider.body, modelToRenderEntity(spider, spider.position, spider.options.bodyPlan.bodyModel, transform))
+    group[spider.body] = renderModel(spider, spider.position, spider.options.bodyPlan.bodyModel, transform)
 
 
     for ((legIndex, leg) in spider.body.legs.withIndex()) {
@@ -37,7 +41,7 @@ fun spiderRenderEntities(spider: Spider): RenderEntityGroup {
             val parent = chain.segments.getOrNull(segmentIndex - 1)?.position ?: chain.root
 
             val segmentTransform = Matrix4f().rotate(rotation)
-            group.add(legIndex to segmentIndex, modelToRenderEntity(spider, parent, segmentPlan.model, segmentTransform))
+            group[legIndex to segmentIndex] = renderModel(spider, parent, segmentPlan.model, segmentTransform)
 
         }
     }
@@ -45,29 +49,29 @@ fun spiderRenderEntities(spider: Spider): RenderEntityGroup {
     return group
 }
 
-private fun modelToRenderEntity(
+private fun renderModel(
     spider: Spider,
     position: Vector,
     model: DisplayModel,
     transformation: Matrix4f
-): RenderEntityGroup {
-    val group = RenderEntityGroup()
+): RenderGroup {
+    val group = RenderGroup()
 
     for ((index, piece) in model.pieces.withIndex()) {
-        group.add(index, modelPieceToRenderEntity(spider, position, piece, transformation))
+        group[index] = renderModelPiece(spider, position, piece, transformation)
     }
 
     return group
 }
 
 
-private fun modelPieceToRenderEntity(
+private fun renderModelPiece(
     spider: Spider,
     position: Vector,
     piece: BlockDisplayModelPiece,
     transformation: Matrix4f,
 //    cloakID: Any
-) = blockRenderEntity(
+) = renderBlock(
     location = position.toLocation(spider.world),
     init = {
         it.teleportDuration = 1
@@ -75,7 +79,7 @@ private fun modelPieceToRenderEntity(
     },
     update = {
         val transform = Matrix4f(transformation).mul(piece.transform)
-        it.applyTransformationWithInterpolation(transform)
+        it.interpolateTransform(transform)
 
         val cloak = if (piece.tags.contains("cloak")) {
             val relative = transform.transform(Vector4f(.5f, .5f, .5f, 1f))

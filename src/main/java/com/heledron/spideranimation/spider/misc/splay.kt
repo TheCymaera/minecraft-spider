@@ -2,11 +2,15 @@ package com.heledron.spideranimation.spider.misc
 
 import com.heledron.spideranimation.AppState
 import com.heledron.spideranimation.utilities.*
+import com.heledron.spideranimation.utilities.events.interval
+import com.heledron.spideranimation.utilities.events.runLater
+import com.heledron.spideranimation.utilities.maths.eased
+import com.heledron.spideranimation.utilities.maths.moveTowards
+import com.heledron.spideranimation.utilities.rendering.RenderEntityTracker
 import org.bukkit.entity.BlockDisplay
 import org.bukkit.util.Transformation
 import org.joml.Quaternionf
 import org.joml.Vector3f
-import java.io.Closeable
 import kotlin.random.Random
 
 private fun Transformation.lerp(newTransform: Transformation, lerpAmount: Float): Transformation {
@@ -32,11 +36,14 @@ fun splay() {
 
     // detach and get entities
     val entities = mutableListOf<BlockDisplay>()
-    for ((id, entity) in AppState.renderer.rendered.toList()) {
+    for ((id, entity) in RenderEntityTracker.getAll()) {
         if (entity !is BlockDisplay) continue
         entities += entity
-        AppState.renderer.detach(id)
-        AppState.closeables += Closeable { entity.remove() }
+        RenderEntityTracker.detach(id)
+    }
+
+    onPluginShutdown {
+        for (entity in entities) entity.remove()
     }
 
     AppState.spider = null
@@ -55,47 +62,38 @@ fun splay() {
     }
 
     for ((i, entity) in entities.withIndex().shuffled()) {
-        val offset = entity.location.toVector().subtract(spider.position)
-
-        // normalize position
-        entity.teleportDuration = 0
-        entity.interpolationDuration = 0
-        entity.interpolationDelay = 100
-
-        val transformation = entity.transformation
-        runLater(2) {
-            entity.teleport(spider.position.toLocation(spider.world))
-
-            transformation.translation.add(offset.toVector3f())
-            entity.transformation = transformation
-        }
-
+        val offset = entity.location.toVector().subtract(spider.position).toVector3f()
         runLater(3L + i / 4) {
-            splay(entity)
+            splay(entity, offset)
         }
     }
 }
 
-private fun splay(entity: BlockDisplay) {
-    val targetTransformation = entity.transformation
-    targetTransformation.translation.apply {
-        normalize().mul(Random.nextDouble(1.0, 3.0).toFloat())
+private fun splay(entity: BlockDisplay, offset: Vector3f) {
+    val start = entity.transformation
+
+    val end = entity.transformation
+    end.translation.apply {
+        this
+        .add(offset)
+        .normalize()
+        .mul(Random.nextDouble(1.0, 3.0).toFloat())
+        .sub(offset)
     }
-    targetTransformation.scale.set(.35f)
-    targetTransformation.leftRotation.identity()
-    targetTransformation.rightRotation.identity()
+    end.scale.set(.35f)
+    end.leftRotation.identity()
+    end.rightRotation.identity()
 
     entity.interpolationDuration = 1
     entity.interpolationDelay = 0
 
-    var lerpAmount = .0f
+    var t = .0f
     interval(0, 1) {
-        lerpAmount = lerpAmount.moveTowards(1f, .1f)
+        t = t.moveTowards(1f, .07f)
 
-        val eased = lerpAmount * lerpAmount * (3 - 2 * lerpAmount)
-        entity.transformation = entity.transformation.lerp(targetTransformation, eased)
+        entity.transformation = start.lerp(end, t.eased())
         entity.interpolationDelay = 0
 
-        if (lerpAmount >= 1) it.close()
+        if (t >= 1) it.close()
     }
 }

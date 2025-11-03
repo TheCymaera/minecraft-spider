@@ -31,21 +31,21 @@ class SoundsAndParticles(val spider: Spider) : SpiderComponent {
 
     init {
         closeables += spider.body.onHitGround.listen {
-            spider.world.playSound(spider.position, Sound.BLOCK_NETHERITE_BLOCK_FALL, 1.0f, .8f)
+            playSound(spider.location(), Sound.BLOCK_NETHERITE_BLOCK_FALL, 1.0f, .8f)
         }
 
         closeables += spider.tridentDetector.onHit.listen {
-            spider.world.playSound(spider.position, Sound.ENTITY_ZOMBIE_ATTACK_IRON_DOOR, .5f, 1.0f)
+            playSound(spider.location(), Sound.ENTITY_ZOMBIE_ATTACK_IRON_DOOR, .5f, 1.0f)
         }
 
         closeables += spider.cloak.onToggle.listen {
-            spider.world.playSound(spider.position, Sound.BLOCK_LODESTONE_PLACE, 1.0f, 0.0f)
+            playSound(spider.location(), Sound.BLOCK_LODESTONE_PLACE, 1.0f, 0.0f)
         }
 
         closeables += spider.cloak.onCloakDamage.listen {
-            spider.world.playSound(spider.position, Sound.BLOCK_RESPAWN_ANCHOR_DEPLETE, .5f, 1.5f)
-            spider.world.playSound(spider.position, Sound.BLOCK_LODESTONE_PLACE, 0.1f, 0.0f)
-            spider.world.playSound(spider.position, Sound.ENTITY_ZOMBIE_VILLAGER_CURE, .02f, 1.5f)
+            playSound(spider.location(), Sound.BLOCK_RESPAWN_ANCHOR_DEPLETE, .5f, 1.5f)
+            playSound(spider.location(), Sound.BLOCK_LODESTONE_PLACE, 0.1f, 0.0f)
+            playSound(spider.location(), Sound.ENTITY_ZOMBIE_VILLAGER_CURE, .02f, 1.5f)
         }
 
         for (leg in spider.body.legs) {
@@ -84,19 +84,19 @@ class SoundsAndParticles(val spider: Spider) : SpiderComponent {
                 if (justEnteredWater) {
                     val volume = .3f
                     val pitch = 1.0f + Random.nextFloat() * 0.1f
-                    spider.world.playSound(leg.endEffector, Sound.ENTITY_PLAYER_SPLASH, volume, pitch)
+                    playSound(leg.endEffector.toLocation(spider.world), Sound.ENTITY_PLAYER_SPLASH, volume, pitch)
                     timeSinceLastSound = 0
                 }
                 else if (justExitedWater) {
                     val volume = .3f
                     val pitch = 1f + Random.nextFloat() * 0.1f
-                    spider.world.playSound(leg.endEffector, Sound.AMBIENT_UNDERWATER_EXIT, volume, pitch)
+                    playSound(leg.endEffector.toLocation(spider.world), Sound.AMBIENT_UNDERWATER_EXIT, volume, pitch)
                     timeSinceLastSound = 0
                 }
                 else if (justBegunMoving && isUnderWater) {
                     val volume = .3f
                     val pitch = .7f + Random.nextFloat() * 0.1f
-                    spider.world.playSound(leg.endEffector, Sound.ENTITY_PLAYER_SWIM, volume, pitch)
+                    playSound(leg.endEffector.toLocation(spider.world), Sound.ENTITY_PLAYER_SWIM, volume, pitch)
                     timeSinceLastSound = 0
                 }
             }

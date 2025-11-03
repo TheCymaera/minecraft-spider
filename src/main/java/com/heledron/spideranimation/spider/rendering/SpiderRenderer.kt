@@ -1,10 +1,8 @@
 package com.heledron.spideranimation.spider.rendering
 
-import com.heledron.spideranimation.AppState
 import com.heledron.spideranimation.spider.Spider
 import com.heledron.spideranimation.spider.SpiderComponent
-import com.heledron.spideranimation.utilities.interval
-import com.heledron.spideranimation.utilities.spawnParticle
+import com.heledron.spideranimation.utilities.events.interval
 import org.bukkit.Color
 import org.bukkit.Location
 import org.bukkit.Particle
@@ -61,8 +59,8 @@ class SpiderRenderer(val spider: Spider): SpiderComponent {
     }*/
 
     override fun render() {
-        AppState.renderer.render(this, spiderRenderEntities(spider))
-        if (spider.showDebugVisuals) AppState.renderer.render(this to "debug", spiderDebugRenderEntities(spider))
+        renderSpider(spider).submit(this)
+        if (spider.showDebugVisuals) spiderDebugRenderEntities(spider).submit(this to "debug")
     }
 
     override fun close() {
@@ -78,7 +76,7 @@ class SpiderParticleRenderer(val spider: Spider): SpiderComponent {
 
     companion object {
         fun renderTarget(location: Location) {
-            spawnParticle(Particle.DUST, location, 1, 0.0, 0.0, 0.0, 0.0, Particle.DustOptions(Color.RED, 1f))
+            location.world?.spawnParticle(Particle.DUST, location, 1, 0.0, 0.0, 0.0, 0.0, Particle.DustOptions(Color.RED, 1f))
         }
 
         fun renderSpider(spider: Spider) {
@@ -104,7 +102,7 @@ class SpiderParticleRenderer(val spider: Spider): SpiderComponent {
             val current = point1.clone()
 
             for (i in 0..amount.toInt()) {
-                spawnParticle(Particle.BUBBLE, current, 1, thickness, thickness, thickness, 0.0)
+                point1.world?.spawnParticle(Particle.BUBBLE, current, 1, thickness, thickness, thickness, 0.0)
                 current.add(step)
             }
         }

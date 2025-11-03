@@ -3,6 +3,12 @@ package com.heledron.spideranimation.spider.misc
 import com.heledron.spideranimation.spider.Spider
 import com.heledron.spideranimation.spider.SpiderComponent
 import com.heledron.spideranimation.utilities.*
+import com.heledron.spideranimation.utilities.events.addEventListener
+import com.heledron.spideranimation.utilities.events.onInteractEntity
+import com.heledron.spideranimation.utilities.events.onTick
+import com.heledron.spideranimation.utilities.maths.rotate
+import com.heledron.spideranimation.utilities.maths.yawRadians
+import com.heledron.spideranimation.utilities.rendering.RenderEntity
 import org.bukkit.Material
 import org.bukkit.Sound
 import org.bukkit.entity.ArmorStand
@@ -16,32 +22,29 @@ import org.bukkit.util.Vector
 import org.joml.Quaternionf
 import java.io.Closeable
 
+@Suppress("UnstableApiUsage")
 class Mountable(val spider: Spider): SpiderComponent {
-    val pig = SingleEntityRenderer<Pig>()
-    var marker = SingleEntityRenderer<ArmorStand>()
-
+    var currentMarker: ArmorStand? = null
+    var currentPig: Pig? = null
     var closable = mutableListOf<Closeable>()
 
-    fun getRider() = marker.entity?.passengers?.firstOrNull() as? Player
+    fun getRider() = currentMarker?.passengers?.firstOrNull() as? Player
 
     init {
-        closable += pig
-        closable += marker
-
         closable += onInteractEntity { player, entity, hand ->
-            val pigEntity = pig.entity
-            if (entity != pigEntity) return@onInteractEntity
+            val currentPig = currentPig ?: return@onInteractEntity
+            if (entity != currentPig) return@onInteractEntity
             if (hand != EquipmentSlot.HAND) return@onInteractEntity
 
             // if right click with saddle, add saddle (automatic)
-            if (player.inventory.itemInMainHand.type == Material.SADDLE && !pigEntity.hasSaddle()) {
-                playSound(pigEntity.location, Sound.ENTITY_PIG_SADDLE, 1.0f, 1.0f)
+            if (player.inventory.itemInMainHand.type == Material.SADDLE && !currentPig.hasSaddle()) {
+                playSound(currentPig.location, Sound.ENTITY_PIG_SADDLE, 1.0f, 1.0f)
             }
 
             // if right click with empty hand, remove saddle
             if (player.inventory.itemInMainHand.type.isAir && getRider() == null) {
                 if (player.isSneaking) {
-                    pigEntity.setSaddle(false)
+                    currentPig.setSaddle(false)
                 }
             }
         }
@@ -50,12 +53,14 @@ class Mountable(val spider: Spider): SpiderComponent {
         closable += addEventListener(object : Listener {
             @EventHandler
             fun onMount(event: VehicleEnterEvent) {
-                if (event.vehicle != pig.entity) return
+                val currentPig = currentPig ?: return
+                val currentMarker = currentMarker ?: return
+
+                if (event.vehicle != currentPig) return
                 val player = event.entered
-                val marker = marker.entity ?: return
 
                 event.isCancelled = true
-                marker.addPassenger(player)
+                currentMarker.addPassenger(player)
             }
         })
 
@@ -82,7 +87,7 @@ class Mountable(val spider: Spider): SpiderComponent {
         val pigLocation = location.clone().add(Vector(.0, -.6, .0))
         val markerLocation = location.clone().add(Vector(.0, .3, .0))
 
-        pig.render(RenderEntity(
+        RenderEntity(
             clazz = Pig::class.java,
             location = pigLocation,
             init = {
@@ -92,10 +97,13 @@ class Mountable(val spider: Spider): SpiderComponent {
                 it.isInvulnerable = true
                 it.isSilent = true
                 it.isCollidable = false
+            },
+            update = {
+                currentPig = it
             }
-        ))
+        ).submit(spider to "mountable.pig")
 
-        marker.render(RenderEntity(
+        RenderEntity(
             clazz = ArmorStand::class.java,
             location = markerLocation,
             init = {
@@ -107,6 +115,7 @@ class Mountable(val spider: Spider): SpiderComponent {
                 it.isMarker = true
             },
             update = update@{
+                currentMarker = it
                 if (getRider() == null) return@update
 
                 // This is the only way to preserve passengers when teleporting.
@@ -114,7 +123,7 @@ class Mountable(val spider: Spider): SpiderComponent {
                 // https://jd.papermc.io/paper/1.21/io/papermc/paper/entity/TeleportFlag.EntityState.html
                 runCommandSilently("execute as ${it.uniqueId} at @s run tp ${markerLocation.x} ${markerLocation.y} ${markerLocation.z}")
             }
-        ))
+        ).submit(spider to "mountable.marker")
     }
 
     override fun close() {

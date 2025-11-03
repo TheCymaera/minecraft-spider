@@ -3,10 +3,17 @@ package com.heledron.spideranimation.spider.body
 import com.heledron.spideranimation.spider.Spider
 import com.heledron.spideranimation.spider.SpiderComponent
 import com.heledron.spideranimation.utilities.*
+import com.heledron.spideranimation.utilities.deprecated.EventEmitter
+import com.heledron.spideranimation.utilities.deprecated.isOnGround
+import com.heledron.spideranimation.utilities.deprecated.raycastGround
+import com.heledron.spideranimation.utilities.deprecated.resolveCollision
+import com.heledron.spideranimation.utilities.maths.DOWN_VECTOR
+import com.heledron.spideranimation.utilities.maths.UP_VECTOR
+import com.heledron.spideranimation.utilities.maths.lerp
+import com.heledron.spideranimation.utilities.maths.rotate
 import org.bukkit.util.Vector
 import org.joml.Quaternionf
 import org.joml.Vector2d
-import org.joml.Vector3f
 import kotlin.math.*
 
 class SpiderBody(val spider: Spider): SpiderComponent {

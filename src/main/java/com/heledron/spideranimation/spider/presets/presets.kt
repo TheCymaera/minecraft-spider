@@ -4,7 +4,7 @@ import com.heledron.spideranimation.spider.configuration.BodyPlan
 import com.heledron.spideranimation.spider.configuration.LegPlan
 import com.heledron.spideranimation.spider.configuration.SegmentPlan
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
-import com.heledron.spideranimation.utilities.FORWARD_VECTOR
+import com.heledron.spideranimation.utilities.maths.FORWARD_VECTOR
 import org.bukkit.Material
 import org.bukkit.util.Vector
 

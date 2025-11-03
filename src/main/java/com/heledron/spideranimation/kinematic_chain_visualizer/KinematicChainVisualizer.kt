@@ -1,7 +1,19 @@
 package com.heledron.spideranimation.kinematic_chain_visualizer
 
+import com.heledron.hologram.utilities.rendering.interpolateTransform
+import com.heledron.hologram.utilities.rendering.renderBlock
+import com.heledron.hologram.utilities.rendering.renderText
 import com.heledron.spideranimation.spider.configuration.SegmentPlan
 import com.heledron.spideranimation.utilities.*
+import com.heledron.spideranimation.utilities.deprecated.centredTransform
+import com.heledron.spideranimation.utilities.events.onTick
+import com.heledron.spideranimation.utilities.maths.FORWARD_VECTOR
+import com.heledron.spideranimation.utilities.maths.UP_VECTOR
+import com.heledron.spideranimation.utilities.maths.pitch
+import com.heledron.spideranimation.utilities.maths.toRadians
+import com.heledron.spideranimation.utilities.maths.yaw
+import com.heledron.spideranimation.utilities.rendering.RenderGroup
+import com.heledron.spideranimation.utilities.rendering.RenderItem
 import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.World
@@ -10,6 +22,7 @@ import org.bukkit.util.Vector
 import org.joml.Matrix4f
 import org.joml.Quaternionf
 import java.io.Closeable
+import kotlin.math.sqrt
 
 
 class KinematicChainVisualizer(
@@ -25,7 +38,6 @@ class KinematicChainVisualizer(
         Forwards
     }
 
-    val interruptions = mutableListOf<() -> Unit>()
     var iterator = 0
     var previous: Triple<Stage, Int, List<ChainSegment>>? = null
     var stage = Stage.Forwards
@@ -34,18 +46,22 @@ class KinematicChainVisualizer(
     var detailed = false
     set(value) {
         field = value
-        interruptions.clear()
-        render()
+        subStage = 0
     }
 
-    val renderer = GroupEntityRenderer()
+    private val closeableList = mutableListOf<Closeable>()
     override fun close() {
-        renderer.close()
+        for (closeable in closeableList) {
+            closeable.close()
+        }
     }
 
     init {
         reset()
-        render()
+
+        closeableList += onTick {
+            render().submit(this)
+        }
     }
 
     companion object {
@@ -61,7 +77,7 @@ class KinematicChainVisualizer(
     }
 
     fun resetIterator() {
-        interruptions.clear()
+        subStage = 0
         iterator = segments.size - 1
         previous = null
         stage = Stage.Forwards
@@ -81,17 +97,21 @@ class KinematicChainVisualizer(
             pos.add(direction.clone().multiply(segment.length))
             segment.position.copy(pos)
         }
-
-        render()
     }
 
-    fun step() {
-        if (interruptions.isNotEmpty()) {
-            interruptions.removeAt(0)()
-            return
-        }
 
+    private var subStage = 0;
+    fun step() {
         val target = target?.toVector() ?: return
+
+        val isMovingRoot = previous?.first == Stage.Forwards && previous?.second == segments.size - 1
+
+        if (detailed && previous != null && !isMovingRoot) {
+            subStage++
+
+            if (subStage <= 4) return
+            subStage = 0
+        }
 
         previous = Triple(stage, iterator, segments.map { it.clone() })
 
@@ -116,8 +136,6 @@ class KinematicChainVisualizer(
             if (iterator == segments.size - 1) stage = Stage.Forwards
             else iterator++
         }
-
-        render()
     }
 
     fun straighten(target: Vector) {
@@ -132,8 +150,6 @@ class KinematicChainVisualizer(
         val orientation = pivot.rotateYXZ(rotation.y, rotation.x, .0f)
 
         KinematicChain(root, segments).straightenDirection(orientation)
-
-        render()
     }
 
     fun fabrik_moveSegment(point: Vector, pullTowards: Vector, segment: Double) {
@@ -141,18 +157,16 @@ class KinematicChainVisualizer(
         point.copy(pullTowards).subtract(direction.multiply(segment))
     }
 
-    fun render() {
-        if (detailed) {
-            renderer.render(renderDetailed())
+    private fun render(): RenderItem {
+        return if (detailed) {
+            renderDetailed()
         } else {
-            val model = renderNormal()
-            renderer.render(model)
+            renderNormal()
         }
-
     }
 
-    private fun renderNormal(): RenderEntityGroup {
-        val group = RenderEntityGroup()
+    private fun renderNormal(): RenderGroup {
+        val group = RenderGroup()
 
         val pivot = Quaternionf()
 
@@ -172,7 +186,7 @@ class KinematicChainVisualizer(
             val transform = Matrix4f().rotate(rotation)
 
             for (piece in segmentPlan.model.pieces) {
-                group.add(i to piece, blockRenderEntity(
+                group[i to piece] = renderBlock(
                     world = world,
                     position = position,
                     init = {
@@ -181,19 +195,19 @@ class KinematicChainVisualizer(
                     },
                     update = {
                         val pieceTransform = Matrix4f(transform).mul(piece.transform)
-                        it.applyTransformationWithInterpolation(pieceTransform)
+                        it.interpolateTransform(pieceTransform)
                         it.block = piece.block
                         it.brightness = piece.brightness
                     }
-                ))
+                )
             }
         }
 
         return group
     }
 
-    private fun renderDetailed(subStage: Int = 0): RenderEntityGroup {
-        val group = RenderEntityGroup()
+    private fun renderDetailed(): RenderGroup {
+        val group = RenderGroup()
 
         val previous = previous
 
@@ -208,13 +222,6 @@ class KinematicChainVisualizer(
 
             if (arrowStart == null) return@arrow
             renderedSegments = segments
-
-            if (subStage == 0) {
-                interruptions += { renderer.render(renderDetailed(1)) }
-                interruptions += { renderer.render(renderDetailed(2)) }
-                interruptions += { renderer.render(renderDetailed(3)) }
-                interruptions += { renderer.render(renderDetailed(4)) }
-            }
 
             // stage 0: subtract vector
             val arrow = segments[iterator].position.clone().subtract(arrowStart)
@@ -239,33 +246,41 @@ class KinematicChainVisualizer(
                 .add(arrow.clone().multiply(0.5))
                 .add(crossProduct.rotateAroundAxis(arrow, Math.toRadians(-90.0)).multiply(.5))
 
-            group.add("arrow_length", textRenderEntity(
+            group["arrow_length"] = renderText(
                 world = world,
                 position = arrowCenter,
-                text = String.format("%.2f", arrow.length()),
-                interpolation = 3,
-            ))
+                init = {
+                    it.teleportDuration = 3
+                    it.billboard = Display.Billboard.CENTER
+                },
+                update = {
+                    it.text = String.format("%.2f", arrow.length())
+                }
+            )
 
-            group.add("arrow", arrowRenderEntity(
+            group["arrow"] = renderArrow(
                 world = world,
                 position = arrowStart,
-                vector = arrow,
+                length = arrow.length().toFloat(),
+                matrix = Matrix4f().rotateYXZ(arrow.yaw(), arrow.pitch(), 90f.toRadians()),
+                arrowHeadLength = .4f,
                 thickness = .101f,
+                blockData = Material.GOLD_BLOCK.createBlockData(),
                 interpolation = 3,
-            ))
+            )
         }
 
-        group.add("root", pointRenderEntity(world, root, Material.DIAMOND_BLOCK))
+        group["root"] = renderPoint(world, root, Material.DIAMOND_BLOCK)
 
         for (i in renderedSegments.indices) {
             val segment = renderedSegments[i]
-            group.add("p$i", pointRenderEntity(world, segment.position, Material.EMERALD_BLOCK))
+            group["p$i"] = renderPoint(world, segment.position, Material.EMERALD_BLOCK)
 
             val prev = renderedSegments.getOrNull(i - 1)?.position ?: root
 
             val (a,b) = prev to segment.position
 
-            group.add(i, lineRenderEntity(
+            group[i] = renderLine(
                 world = world,
                 position = a,
                 vector = b.clone().subtract(a),
@@ -275,14 +290,14 @@ class KinematicChainVisualizer(
                     it.brightness = Display.Brightness(0, 15)
                     it.block = Material.BLACK_STAINED_GLASS.createBlockData()
                 }
-            ))
+            )
         }
 
         return group
     }
 }
 
-fun pointRenderEntity(world: World, position: Vector, block: Material) = blockRenderEntity(
+private fun renderPoint(world: World, position: Vector, block: Material) = renderBlock(
     world = world,
     position = position,
     init = {
@@ -293,60 +308,62 @@ fun pointRenderEntity(world: World, position: Vector, block: Material) = blockRe
     }
 )
 
-fun arrowRenderEntity(
+
+fun renderArrow(
     world: World,
     position: Vector,
-    vector: Vector,
+    blockData: org.bukkit.block.data.BlockData,
+    matrix: Matrix4f,
+    length: Float,
     thickness: Float,
-    interpolation: Int
-): RenderEntityGroup {
-    val line = lineRenderEntity(
+    arrowHeadLength: Float,
+    arrowHeadRotation: Float = 45f.toRadians(),
+    interpolation: Int,
+): RenderGroup {
+    val group = RenderGroup()
+    val zFightingOffset = 0.001f
+
+    // render line
+    group[0] = renderBlock(
         world = world,
         position = position,
-        vector = vector,
-        thickness = thickness,
-        interpolation = interpolation,
         init = {
-            it.block = Material.GOLD_BLOCK.createBlockData()
-            it.brightness = Display.Brightness(0, 15)
+            it.block = blockData
+            it.interpolationDuration = interpolation
         },
+        update = {
+            it.interpolateTransform(
+                Matrix4f(matrix)
+                    .scale(thickness, thickness, length - thickness * sqrt(2f)) // offset length for arrow head
+                    .translate(-.5f, -.5f, 0f)
+            )
+        }
     )
 
-    val tipLength = 0.5
-    val tip = position.clone().add(vector)
-    val crossProduct = if (vector == UP_VECTOR) FORWARD_VECTOR else
-        vector.clone().crossProduct(UP_VECTOR).normalize().multiply(tipLength)
 
-    val tipDirection = vector.clone().normalize().multiply(-tipLength)
-    val tipRotation = 30.0
-
-    val top = lineRenderEntity(
+    // render arrow head
+    for (sign in listOf(1, -1)) group[sign] = renderBlock(
         world = world,
-        position = tip,
-        vector = tipDirection.clone().rotateAroundAxis(crossProduct, Math.toRadians(tipRotation)),
-        thickness = thickness,
-        interpolation = interpolation,
+        position = position,
         init = {
-            it.block = Material.GOLD_BLOCK.createBlockData()
-            it.brightness = Display.Brightness(0, 15)
+//            it.block = if (sign == 1) Material.BLACK_CONCRETE.createBlockData() else Material.WHITE_CONCRETE.createBlockData()
+            it.block = blockData
+            it.interpolationDuration = interpolation
         },
+        update = {
+            // prevent z-fighting
+            val headThickness = thickness + zFightingOffset * (2 + sign)
+
+            it.interpolateTransform(
+                Matrix4f(matrix)
+                    .translate(0f, 0f, length)
+                    .rotateY(180f.toRadians() - arrowHeadRotation * sign)
+                    .translate(0f, 0f, -zFightingOffset * sign)
+                    .scale(headThickness, headThickness, arrowHeadLength)
+                    .translate(-.5f + .5f * sign, -.5f, 0f)
+            )
+        }
     )
 
-    val bottom = lineRenderEntity(
-        world = world,
-        position = tip,
-        vector = tipDirection.clone().rotateAroundAxis(crossProduct, Math.toRadians(-tipRotation)),
-        thickness = thickness,
-        interpolation = interpolation,
-        init = {
-            it.block = Material.GOLD_BLOCK.createBlockData()
-            it.brightness = Display.Brightness(0, 15)
-        },
-    )
-
-    return RenderEntityGroup().apply {
-        add("line", line)
-        add("top", top)
-        add("bottom", bottom)
-    }
+    return group
 }

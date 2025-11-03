@@ -2,15 +2,16 @@ package com.heledron.spideranimation
 
 import com.heledron.spideranimation.kinematic_chain_visualizer.KinematicChainVisualizer
 import com.heledron.spideranimation.spider.misc.StayStillBehaviour
-import com.heledron.spideranimation.spider.rendering.targetRenderEntity
-import com.heledron.spideranimation.utilities.*
+import com.heledron.spideranimation.spider.rendering.renderTarget
+import com.heledron.spideranimation.utilities.events.onSpawnEntity
+import com.heledron.spideranimation.utilities.events.onTick
+import com.heledron.spideranimation.utilities.onPluginShutdown
+import com.heledron.spideranimation.utilities.setupCoreUtils
+import com.heledron.spideranimation.utilities.shutdownCoreUtils
 import org.bukkit.plugin.java.JavaPlugin
-import java.io.Closeable
 
 @Suppress("unused")
 class SpiderAnimationPlugin : JavaPlugin() {
-    val closeables = mutableListOf<Closeable>()
-
     fun writeAndSaveConfig() {
 //            for ((key, value) in options) {
 //                instance.config.set(key, Serializer.toMap(value()))
@@ -20,20 +21,18 @@ class SpiderAnimationPlugin : JavaPlugin() {
 
     override fun onDisable() {
         logger.info("Disabling Spider Animation plugin")
-        closeables.forEach { it.close() }
-        AppState.closeables.forEach { it.close() }
+        shutdownCoreUtils()
     }
 
     override fun onEnable() {
-        currentPlugin = this
+        logger.info("Enabling Spider Animation plugin")
 
-        closeables += Closeable {
+        setupCoreUtils()
+
+        onPluginShutdown {
             AppState.spider?.close()
             AppState.chainVisualizer?.close()
-            AppState.renderer.close()
         }
-
-        logger.info("Enabling Spider Animation plugin")
 
 //        config.getConfigurationSection("spider")?.getValues(true)?.let { AppState.options = Serializer.fromMap(it, SpiderOptions::class.java) }
 
@@ -52,17 +51,15 @@ class SpiderAnimationPlugin : JavaPlugin() {
             }
 
             // render target
-            val target = (if (AppState.miscOptions.showLaser) AppState.target else null) ?: AppState.chainVisualizer?.target
-            if (target != null) AppState.renderer.render("target", targetRenderEntity(target))
-
-            // flush renderer
-            AppState.renderer.flush()
+            val target =
+                (if (AppState.miscOptions.showLaser) AppState.target else null) ?: AppState.chainVisualizer?.target
+            if (target != null) renderTarget(target).submit("target")
 
             AppState.target = null
         }
 
 
-        closeables += onSpawnEntity { entity, _ ->
+        onSpawnEntity { entity ->
             // Use this command to spawn a chain visualizer
             // /summon minecraft:area_effect_cloud ~ ~ ~ {Tags:["spider.chain_visualizer"]}
             if (!entity.scoreboardTags.contains("spider.chain_visualizer")) return@onSpawnEntity

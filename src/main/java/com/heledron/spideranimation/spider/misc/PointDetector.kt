@@ -3,7 +3,7 @@ package com.heledron.spideranimation.spider.misc
 import com.heledron.spideranimation.spider.Spider
 import com.heledron.spideranimation.spider.SpiderComponent
 import com.heledron.spideranimation.spider.body.Leg
-import com.heledron.spideranimation.utilities.lookingAtPoint
+import com.heledron.spideranimation.utilities.deprecated.lookingAtPoint
 import org.bukkit.Location
 import org.bukkit.entity.Player
 

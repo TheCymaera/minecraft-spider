@@ -6,9 +6,16 @@ import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.spider.misc.*
 import com.heledron.spideranimation.spider.rendering.SpiderRenderer
 import com.heledron.spideranimation.utilities.*
+import com.heledron.spideranimation.utilities.maths.FORWARD_VECTOR
+import com.heledron.spideranimation.utilities.maths.lerp
+import com.heledron.spideranimation.utilities.maths.pitch
+import com.heledron.spideranimation.utilities.maths.pitchRadians
+import com.heledron.spideranimation.utilities.maths.rotate
+import com.heledron.spideranimation.utilities.maths.yawRadians
 import org.bukkit.Location
 import org.bukkit.World
 import org.bukkit.util.Vector
+import org.joml.Quaterniond
 import org.joml.Quaternionf
 import org.joml.Vector3f
 import java.io.Closeable
@@ -41,7 +48,7 @@ class Spider(
         return location
     }
 
-    fun forwardDirection() = FORWARD_VECTOR.rotate(orientation)
+    fun forwardDirection() = FORWARD_VECTOR.rotate(Quaterniond(orientation))
 
     val gait get() = if (gallop) options.gallopGait else options.walkGait
 
@@ -171,8 +178,8 @@ class Spider(
             sideways.add(getPos(right).clone().subtract(getPos(left)))
         }
 
-        preferredPitch = forward.getPitch().lerp(preferredPitch, gait.preferredRotationLerpFraction)
-        preferredRoll = sideways.getPitch().lerp(preferredRoll, gait.preferredRotationLerpFraction)
+        preferredPitch = forward.pitch().lerp(preferredPitch, gait.preferredRotationLerpFraction)
+        preferredRoll = sideways.pitch().lerp(preferredRoll, gait.preferredRotationLerpFraction)
 
         if (preferredPitch < gait.preferLevelBreakpoint) preferredPitch *= 1 - gait.preferLevelBias
         if (preferredRoll < gait.preferLevelBreakpoint) preferredRoll *= 1 - gait.preferLevelBias

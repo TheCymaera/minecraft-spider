@@ -3,8 +3,8 @@ package com.heledron.spideranimation.spider.configuration
 import com.heledron.spideranimation.spider.Spider
 import com.heledron.spideranimation.spider.body.GaitType
 import com.heledron.spideranimation.utilities.SplitDistance
-import com.heledron.spideranimation.utilities.lerp
-import com.heledron.spideranimation.utilities.toRadians
+import com.heledron.spideranimation.utilities.maths.lerp
+import com.heledron.spideranimation.utilities.maths.toRadians
 import org.joml.Quaternionf
 
 
@@ -115,15 +115,15 @@ class Gait(
     var uncomfortableSpeedMultiplier = 0.0
 
     var disableAdvancedRotation = false
-    var preferredPitchLeeway = toRadians(10f)
+    var preferredPitchLeeway = 10f.toRadians()
 
     var straightenLegs = true
-    var legStraightenRotation = toRadians(-80f)
+    var legStraightenRotation = (-80f).toRadians()
 
     var scanPivotMode = PivotMode.YAxis
     var legChainPivotMode = PivotMode.SpiderOrientation
 
-    var preferLevelBreakpoint = toRadians(45f)
+    var preferLevelBreakpoint = 45f.toRadians()
     var preferLevelBias = .0f //.2f
     var preferredRotationLerpFraction = .3f
 
