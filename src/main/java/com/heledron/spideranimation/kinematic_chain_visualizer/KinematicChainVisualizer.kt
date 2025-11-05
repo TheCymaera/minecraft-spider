@@ -32,7 +32,7 @@ class KinematicChainVisualizer(
     val segments: List<ChainSegment>,
     val segmentPlans: List<SegmentPlan>,
     val straightenRotation: Float
-): Closeable {
+) {
     enum class Stage {
         Backwards,
         Forwards
@@ -49,19 +49,8 @@ class KinematicChainVisualizer(
         subStage = 0
     }
 
-    private val closeableList = mutableListOf<Closeable>()
-    override fun close() {
-        for (closeable in closeableList) {
-            closeable.close()
-        }
-    }
-
     init {
         reset()
-
-        closeableList += onTick {
-            render().submit(this)
-        }
     }
 
     companion object {
@@ -157,7 +146,7 @@ class KinematicChainVisualizer(
         point.copy(pullTowards).subtract(direction.multiply(segment))
     }
 
-    private fun render(): RenderItem {
+    fun render(): RenderItem {
         return if (detailed) {
             renderDetailed()
         } else {
@@ -366,4 +355,13 @@ fun renderArrow(
     )
 
     return group
+}
+
+
+fun setupChainVisualizer(app: ECS) {
+    app.onRender {
+        for (visualizer in app.query<KinematicChainVisualizer>()) {
+            visualizer.render().submit(visualizer)
+        }
+    }
 }

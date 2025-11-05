@@ -68,9 +68,12 @@ fun Player.sendActionBar(message: String) {
     this.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent(message))
 }
 
-fun sendDebugMessage(message: String) {
-    // send action bar
+fun sendDebugActionBar(message: String) {
     Bukkit.getOnlinePlayers().firstOrNull()?.sendActionBar(message)
+}
+
+fun sendDebugChatMessage(message: String) {
+    Bukkit.getOnlinePlayers().firstOrNull()?.sendMessage(message)
 }
 
 fun <T : Entity> spawnEntity(location: Location, clazz: Class<T>, initializer: (T) -> Unit): T {

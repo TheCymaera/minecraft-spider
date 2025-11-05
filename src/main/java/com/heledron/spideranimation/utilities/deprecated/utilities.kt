@@ -11,7 +11,6 @@ import org.bukkit.util.Vector
 import org.joml.AxisAngle4f
 import org.joml.Matrix4f
 import org.joml.Vector3f
-import java.io.Closeable
 
 //import com.heledron.spideranimation.utilities.DOWN_VECTOR
 //import net.md_5.bungee.api.ChatMessageType
@@ -126,17 +125,6 @@ class SeriesScheduler {
     }
 }
 
-class EventEmitter {
-    private val listeners = mutableListOf<() -> Unit>()
-    fun listen(listener: () -> Unit): Closeable {
-        listeners.add(listener)
-        return Closeable { listeners.remove(listener) }
-    }
-
-    fun emit() {
-        for (listener in listeners) listener()
-    }
-}
 //
 //fun firstPlayer(): Player? {
 //    return Bukkit.getOnlinePlayers().firstOrNull()

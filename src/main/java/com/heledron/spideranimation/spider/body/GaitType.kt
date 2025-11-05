@@ -1,24 +1,22 @@
 package com.heledron.spideranimation.spider.body
 
-import com.heledron.spideranimation.spider.Spider
-
-enum class GaitType(val canMoveLeg: (Leg) -> Boolean, val getLegsInUpdateOrder: (Spider) -> List<Leg>) {
+enum class GaitType(val canMoveLeg: (Leg) -> Boolean, val getLegsInUpdateOrder: (SpiderBody) -> List<Leg>) {
     WALK(WalkGaitType::canMoveLeg, WalkGaitType::getLegsInUpdateOrder),
     GALLOP(GallopGaitType::canMoveLeg, GallopGaitType::getLegsInUpdateOrder)
 }
 
 object WalkGaitType {
-    fun getLegsInUpdateOrder(spider: Spider): List<Leg> {
-        val legs = spider.body.legs
+    fun getLegsInUpdateOrder(spider: SpiderBody): List<Leg> {
+        val legs = spider.legs
         val diagonal1 = legs.indices.filter { LegLookUp.isDiagonal1(it) }
         val diagonal2 = legs.indices.filter { LegLookUp.isDiagonal2(it) }
         val indices = diagonal1 + diagonal2
-        return indices.map { spider.body.legs[it] }
+        return indices.map { spider.legs[it] }
     }
 
     fun canMoveLeg(leg: Leg): Boolean {
         val spider = leg.spider
-        val index = spider.body.legs.indexOf(leg)
+        val index = spider.legs.indexOf(leg)
 
         // always move if the target is not on ground
         if (!leg.target.isGrounded) return true
@@ -37,26 +35,20 @@ object WalkGaitType {
 
         val wantsToMove = leg.isOutsideTriggerZone || !leg.touchingGround
         val alreadyAtTarget = leg.endEffector.distanceSquared(leg.target.position) < 0.01
-        val onGround = spider.body.legs.any { it.isGrounded() } || spider.body.onGround
+        val onGround = spider.legs.any { it.isGrounded() } || spider.onGround
 
         return wantsToMove && !alreadyAtTarget && onGround
     }
 }
 
 object GallopGaitType {
-    fun getLegsInUpdateOrder(spider: Spider): List<Leg> {
+    fun getLegsInUpdateOrder(spider: SpiderBody): List<Leg> {
         return WalkGaitType.getLegsInUpdateOrder(spider)
-//        val legs = spider.body.legs
-//        val diagonal1 = legs.indices.filter { LegLookUp.isDiagonal1(it) }
-//        val diagonal2 = legs.indices.filter { LegLookUp.isDiagonal2(it) }
-//
-//        val indices = diagonal1.zip(diagonal2).flatMap { (a, b) -> listOf(a, b) }
-//        return indices.map { spider.body.legs[it] }
     }
 
     fun canMoveLeg(leg: Leg): Boolean {
         val spider = leg.spider
-        val index = spider.body.legs.indexOf(leg)
+        val index = spider.legs.indexOf(leg)
 
         if (!spider.isWalking) return WalkGaitType.canMoveLeg(leg)
 
@@ -66,17 +58,17 @@ object GallopGaitType {
         if (!leg.target.isGrounded) return true
 
         // only move when at least one leg is on the ground
-        val onGround = spider.body.legs.any { it.isGrounded() } || spider.body.onGround
+        val onGround = spider.legs.any { it.isGrounded() } || spider.onGround
         if (!onGround) return false
 
-        val pair = spider.body.legs[LegLookUp.horizontal(index)]
+        val pair = spider.legs[LegLookUp.horizontal(index)]
 
         leg.isPrimary = LegLookUp.isDiagonal1(index) || pair.isDisabled || !pair.target.isGrounded
 
         if (leg.isPrimary) {
             // check cooldown
-            val front = spider.body.legs.getOrNull(LegLookUp.diagonalFront(index))
-            val back = spider.body.legs.getOrNull(LegLookUp.diagonalBack(index))
+            val front = spider.legs.getOrNull(LegLookUp.diagonalFront(index))
+            val back = spider.legs.getOrNull(LegLookUp.diagonalBack(index))
             if (listOfNotNull(front).any { leg.target.isGrounded && (leg.timeSinceBeginMove < spider.gait.crossPairCooldown) }) return false
 
             return leg.isOutsideTriggerZone || !leg.touchingGround
@@ -91,6 +83,6 @@ object GallopGaitType {
 //    return /*leg.isMoving && */leg.target.isGrounded && leg.timeSinceBeginMove < cooldown
 //}
 
-fun unIndexLeg(spider: Spider, indices: List<Int>): List<Leg> {
-    return indices.mapNotNull { spider.body.legs.getOrNull(it) }
+fun unIndexLeg(spider: SpiderBody, indices: List<Int>): List<Leg> {
+    return indices.mapNotNull { spider.legs.getOrNull(it) }
 }

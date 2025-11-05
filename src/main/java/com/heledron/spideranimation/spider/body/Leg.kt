@@ -2,10 +2,8 @@ package com.heledron.spideranimation.spider.body
 
 import com.heledron.spideranimation.utilities.ChainSegment
 import com.heledron.spideranimation.utilities.KinematicChain
-import com.heledron.spideranimation.spider.Spider
 import com.heledron.spideranimation.spider.configuration.LegPlan
 import com.heledron.spideranimation.utilities.*
-import com.heledron.spideranimation.utilities.deprecated.EventEmitter
 import com.heledron.spideranimation.utilities.deprecated.isOnGround
 import com.heledron.spideranimation.utilities.deprecated.raycastGround
 import com.heledron.spideranimation.utilities.deprecated.resolveCollision
@@ -21,8 +19,13 @@ import org.joml.Quaternionf
 import kotlin.math.ceil
 import kotlin.math.floor
 
+
+class LegStepEvent(val entity: ECSEntity, val spider: SpiderBody, val leg: Leg)
+
 class Leg(
-    val spider: Spider,
+    val ecs: ECS,
+    val entity: ECSEntity,
+    val spider: SpiderBody,
     var legPlan: LegPlan
 ) {
     // memo
@@ -60,31 +63,25 @@ class Leg(
     val isOutsideTriggerZone: Boolean; get () { return !triggerZone.contains(endEffector) }
     val isUncomfortable: Boolean; get () { return !comfortZone.contains(endEffector) }
 
-    // events
-    val onStep = EventEmitter()
-
-    init {
-        onStep.listen { timeSinceStopMove = 0 }
-    }
-
     fun isGrounded(): Boolean {
         return touchingGround && !isMoving && !isDisabled
     }
 
     fun updateMemo() {
+        val lerpedGait = spider.lerpedGait()
         val orientation = spider.gait.scanPivotMode.get(spider)
 
         val upVector = UP_VECTOR.rotate(Quaterniond(orientation))
-        val scanStartAxis = upVector.clone().multiply(spider.lerpedGait.bodyHeight * 1.6)
-        val scanAxis = upVector.clone().multiply(-spider.lerpedGait.bodyHeight * 3.5)
+        val scanStartAxis = upVector.clone().multiply(lerpedGait.bodyHeight * 1.6)
+        val scanAxis = upVector.clone().multiply(-lerpedGait.bodyHeight * 3.5)
 
         // rest position
         restPosition = legPlan.restPosition.clone()
-        restPosition.add(upVector.clone().multiply(-spider.lerpedGait.bodyHeight))
+        restPosition.add(upVector.clone().multiply(-lerpedGait.bodyHeight))
         restPosition.rotate(orientation).add(spider.position)
 
         // trigger zone
-        triggerZone = SplitDistanceZone(restPosition, spider.lerpedGait.triggerZone)
+        triggerZone = SplitDistanceZone(restPosition, lerpedGait.triggerZone)
 
         // comfort zone
         // we want the comfort zone to extend above the spider's body
@@ -109,7 +106,7 @@ class Leg(
     }
 
     fun update() {
-        legPlan = spider.options.bodyPlan.legs.getOrNull(spider.body.legs.indexOf(this)) ?: legPlan
+        legPlan = spider.bodyPlan.legs.getOrNull(spider.legs.indexOf(this)) ?: legPlan
         updateMovement()
         chain = chain()
     }
@@ -180,7 +177,7 @@ class Leg(
             }
         }
 
-        if (didStep) this.onStep.emit()
+        if (didStep) ecs.emit(LegStepEvent(entity = entity, spider = spider, leg = this))
     }
 
     private fun chain(): KinematicChain {
@@ -207,7 +204,7 @@ class Leg(
             chain.straightenDirection(orientation)
         }
 
-        if (!spider.options.debug.disableFabrik) {
+        if (!spider.debug.disableFabrik) {
             chain.fabrik(endEffector)
 
             // the spider might be falling while the leg is still grounded
@@ -307,12 +304,13 @@ class Leg(
     }
 
     private fun disabledTarget(): LegTarget {
+        val lerpedGait = spider.lerpedGait()
         val upVector = UP_VECTOR.rotate(spider.orientation)
 
         val target = strandedTarget()
-        target.position.add(upVector.clone().multiply(spider.lerpedGait.bodyHeight * .5))
+        target.position.add(upVector.clone().multiply(lerpedGait.bodyHeight * .5))
 
-        val minY = (groundPosition?.y ?: -Double.MAX_VALUE) + spider.lerpedGait.bodyHeight * .1
+        val minY = (groundPosition?.y ?: -Double.MAX_VALUE) + lerpedGait.bodyHeight * .1
         target.position.y = target.position.y.coerceAtLeast(minY)
 
         return target

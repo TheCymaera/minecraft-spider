@@ -1,7 +1,7 @@
 package com.heledron.spideranimation.spider.configuration
 
-import com.heledron.spideranimation.spider.Spider
 import com.heledron.spideranimation.spider.body.GaitType
+import com.heledron.spideranimation.spider.body.SpiderBody
 import com.heledron.spideranimation.utilities.SplitDistance
 import com.heledron.spideranimation.utilities.maths.lerp
 import com.heledron.spideranimation.utilities.maths.toRadians
@@ -131,7 +131,7 @@ class Gait(
 }
 
 
-enum class PivotMode(val get: (spider: Spider) -> Quaternionf) {
+enum class PivotMode(val get: (spider: SpiderBody) -> Quaternionf) {
     YAxis({ spider -> Quaternionf().rotateY(spider.orientation.getEulerAnglesYXZ(org.joml.Vector3f()).y) }),
     SpiderOrientation({ spider -> spider.orientation }),
     GroundOrientation({ spider -> spider.preferredOrientation })

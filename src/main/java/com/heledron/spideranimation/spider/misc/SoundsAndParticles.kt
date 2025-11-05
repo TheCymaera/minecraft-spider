@@ -1,78 +1,47 @@
 package com.heledron.spideranimation.spider.misc
 
-import com.heledron.spideranimation.spider.Spider
-import com.heledron.spideranimation.spider.SpiderComponent
 import com.heledron.spideranimation.spider.body.Leg
+import com.heledron.spideranimation.spider.body.LegStepEvent
+import com.heledron.spideranimation.spider.body.SpiderBody
+import com.heledron.spideranimation.spider.body.SpiderBodyHitGroundEvent
+import com.heledron.spideranimation.spider.configuration.SoundOptions
 import com.heledron.spideranimation.spider.configuration.SoundPlayer
+import com.heledron.spideranimation.utilities.ECS
 import com.heledron.spideranimation.utilities.playSound
 import org.bukkit.Particle
 import org.bukkit.Sound
 import org.bukkit.block.data.Waterlogged
 import org.bukkit.util.Vector
-import java.io.Closeable
 import java.util.*
 import kotlin.random.Random
 
-class SoundsAndParticles(val spider: Spider) : SpiderComponent {
-    var closeables = mutableListOf<Closeable>()
-
-    val underwaterStepSound: SoundPlayer; get() = SoundPlayer(
-        sound = spider.options.sound.step.sound,
-        volume = spider.options.sound.step.volume * .5f,
-        pitch = spider.options.sound.step.pitch * .75f,
-        volumeVary = spider.options.sound.step.volumeVary,
-        pitchVary = spider.options.sound.step.pitchVary
-    )
-
-    override fun close() {
-        closeables.forEach { it.close() }
-        closeables = mutableListOf()
-    }
-
-    init {
-        closeables += spider.body.onHitGround.listen {
-            playSound(spider.location(), Sound.BLOCK_NETHERITE_BLOCK_FALL, 1.0f, .8f)
-        }
-
-        closeables += spider.tridentDetector.onHit.listen {
-            playSound(spider.location(), Sound.ENTITY_ZOMBIE_ATTACK_IRON_DOOR, .5f, 1.0f)
-        }
-
-        closeables += spider.cloak.onToggle.listen {
-            playSound(spider.location(), Sound.BLOCK_LODESTONE_PLACE, 1.0f, 0.0f)
-        }
-
-        closeables += spider.cloak.onCloakDamage.listen {
-            playSound(spider.location(), Sound.BLOCK_RESPAWN_ANCHOR_DEPLETE, .5f, 1.5f)
-            playSound(spider.location(), Sound.BLOCK_LODESTONE_PLACE, 0.1f, 0.0f)
-            playSound(spider.location(), Sound.ENTITY_ZOMBIE_VILLAGER_CURE, .02f, 1.5f)
-        }
-
-        for (leg in spider.body.legs) {
-            closeables += leg.onStep.listen {
-                val isUnderWater = spider.world.getBlockAt(leg.endEffector.toLocation(spider.world)).isLiquid
-                val sound = if (isUnderWater) underwaterStepSound else spider.options.sound.step
-
-                sound.play(spider.world, leg.endEffector)
-            }
-        }
-    }
-
-    private fun isInWater(position: Vector): Boolean {
+class SoundsAndParticles(var options: SoundOptions) {
+    private fun isInWater(spider: SpiderBody, position: Vector): Boolean {
         val block = spider.world.getBlockAt(position.toLocation(spider.world))
         return block.isLiquid || (block is Waterlogged && block.isWaterlogged)
     }
 
+
+
+    fun underwaterStepSound() = SoundPlayer(
+        sound = options.step.sound,
+        volume = options.step.volume * .5f,
+        pitch = options.step.pitch * .75f,
+        volumeVary = options.step.volumeVary,
+        pitchVary = options.step.pitchVary
+    )
+
     var timeSinceLastSound = 0
     var wet = WeakHashMap<Leg, Int>()
     val maxWetness = 20 * 3
-    override fun update() {
+
+    fun update(spider: SpiderBody) {
         timeSinceLastSound++
 
-        for (leg in spider.body.legs) {
+        for (leg in spider.legs) {
             val justBegunMoving = leg.isMoving && leg.timeSinceBeginMove < 1
-            val wasUnderWater = isInWater(leg.previousEndEffector)
-            val isUnderWater = isInWater(leg.endEffector)
+            val wasUnderWater = isInWater(spider, leg.previousEndEffector)
+            val isUnderWater = isInWater(spider, leg.endEffector)
             val justEnteredWater = isUnderWater && !wasUnderWater
             val justExitedWater = !isUnderWater && wasUnderWater
 
@@ -105,7 +74,7 @@ class SoundsAndParticles(val spider: Spider) : SpiderComponent {
             // particles
             val wetness = wet[leg] ?: 0
             for (segment in leg.chain.segments) {
-                val segmentIsUnderWater = isInWater(segment.position)
+                val segmentIsUnderWater = isInWater(spider, segment.position)
 
                 val location = segment.position.toLocation(spider.world).add(.0, -.1, .0)
 
@@ -129,3 +98,40 @@ class SoundsAndParticles(val spider: Spider) : SpiderComponent {
         }
     }
 }
+
+fun setupSoundAndParticles(app: ECS) {
+    app.onEvent<SpiderBodyHitGroundEvent> { event ->
+        playSound(event.spider.location(), Sound.BLOCK_NETHERITE_BLOCK_FALL, 1.0f, .8f)
+    }
+
+    app.onEvent<TridentHitEvent> { event ->
+        playSound(event.spider.location(), Sound.ENTITY_ZOMBIE_ATTACK_IRON_DOOR, .5f, 1.0f)
+    }
+
+    app.onEvent<CloakToggleEvent> { event ->
+        playSound(event.spider.location(), Sound.BLOCK_LODESTONE_PLACE, 1.0f, 0.0f)
+    }
+
+    app.onEvent<CloakDamageEvent> { event ->
+        playSound(event.spider.location(), Sound.BLOCK_RESPAWN_ANCHOR_DEPLETE, .5f, 1.5f)
+        playSound(event.spider.location(), Sound.BLOCK_LODESTONE_PLACE, 0.1f, 0.0f)
+        playSound(event.spider.location(), Sound.ENTITY_ZOMBIE_VILLAGER_CURE, .02f, 1.5f)
+    }
+
+    app.onEvent<LegStepEvent> { event ->
+        val isUnderWater = event.spider.world.getBlockAt(event.leg.endEffector.toLocation(event.spider.world)).isLiquid
+
+        val sounds = event.entity.query<SoundsAndParticles>() ?: return@onEvent
+
+        val sound = if (isUnderWater) sounds.underwaterStepSound() else sounds.options.step
+
+        sound.play(event.spider.world, event.leg.endEffector)
+    }
+
+    app.onTick {
+        for ((spider, sounds) in app.query<SpiderBody, SoundsAndParticles>()) {
+            sounds.update(spider)
+        }
+    }
+}
+

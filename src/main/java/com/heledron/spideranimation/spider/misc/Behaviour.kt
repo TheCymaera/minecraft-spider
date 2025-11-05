@@ -1,7 +1,6 @@
 package com.heledron.spideranimation.spider.misc
 
-import com.heledron.spideranimation.spider.Spider
-import com.heledron.spideranimation.spider.SpiderComponent
+import com.heledron.spideranimation.spider.body.SpiderBody
 import com.heledron.spideranimation.utilities.*
 import com.heledron.spideranimation.utilities.maths.FORWARD_VECTOR
 import com.heledron.spideranimation.utilities.maths.moveTowards
@@ -10,42 +9,64 @@ import org.joml.Quaternionf
 import org.joml.Vector3f
 import kotlin.math.PI
 
-class StayStillBehaviour(val spider: Spider) : SpiderComponent {
-    override fun update() {
-        spider.walkAt(Vector(0.0, 0.0, 0.0))
-        spider.rotateTowards(spider.forwardDirection().setY(0.0))
+
+interface SpiderBehaviour
+
+class StayStillBehaviour() : SpiderBehaviour
+
+class TargetBehaviour(val target: Vector, val distance: Double) : SpiderBehaviour
+
+class DirectionBehaviour(val targetDirection: Vector, val walkDirection: Vector) : SpiderBehaviour
+
+fun setupBehaviours(app: ECS) {
+    // Stay still behaviour
+    app.onTick {
+        for ((entity, spider, _) in app.query<ECSEntity, SpiderBody, StayStillBehaviour>()) {
+            val tridentDetector = entity.query<TridentHitDetector>()
+            spider.walkAt(Vector(0.0, 0.0, 0.0), tridentDetector)
+            spider.rotateTowards(spider.forwardDirection().setY(0.0))
+        }
     }
-}
 
-class TargetBehaviour(val spider: Spider, val target: Vector, val distance: Double) : SpiderComponent {
-    override fun update() {
-        val direction = target.clone().subtract(spider.position).normalize()
-        spider.rotateTowards(direction)
+    // Target behaviour
+    app.onTick {
+        for ((entity, spider, behaviour) in app.query<ECSEntity, SpiderBody, TargetBehaviour>()) {
+            val direction = behaviour.target.clone().subtract(spider.position).normalize()
+            spider.rotateTowards(direction)
 
-        val currentSpeed = spider.velocity.length()
+            val currentSpeed = spider.velocity.length()
 
-        val decelerateDistance = (currentSpeed * currentSpeed) / (2 * spider.gait.moveAcceleration)
+            val decelerateDistance = (currentSpeed * currentSpeed) / (2 * spider.gait.moveAcceleration)
 
-        val currentDistance = spider.position.horizontalDistance(target)
+            val currentDistance = spider.position.horizontalDistance(behaviour.target)
 
-        if (currentDistance > distance + decelerateDistance) {
-            spider.walkAt(direction.clone().multiply(spider.gait.maxSpeed))
-        } else {
-            spider.walkAt(Vector(0.0, 0.0, 0.0))
+            val tridentDetector = entity.query<TridentHitDetector>()
+            if (currentDistance > behaviour.distance + decelerateDistance) {
+                spider.walkAt(direction.clone().multiply(spider.gait.maxSpeed), tridentDetector)
+            } else {
+                spider.walkAt(Vector(0.0, 0.0, 0.0), tridentDetector)
+            }
+        }
+    }
+
+    // Direction behaviour
+    app.onTick {
+        for ((entity, spider, behaviour) in app.query<ECSEntity, SpiderBody, DirectionBehaviour>()) {
+            spider.rotateTowards(behaviour.targetDirection)
+
+
+            val tridentDetector = entity.query<TridentHitDetector>()
+            spider.walkAt(
+                behaviour.walkDirection.clone().multiply(spider.gait.maxSpeed),
+                tridentDetector
+            )
         }
     }
 }
 
-class DirectionBehaviour(val spider: Spider, val targetDirection: Vector, val walkDirection: Vector) : SpiderComponent {
-    override fun update() {
-        spider.rotateTowards(targetDirection)
-        spider.walkAt(walkDirection.clone().multiply(spider.gait.maxSpeed))
-    }
-}
 
 
-
-fun Spider.rotateTowards(targetVector: Vector) {
+private fun SpiderBody.rotateTowards(targetVector: Vector) {
 //    val maxAcceleration = moveGait.rotateAcceleration * body.legs.filter { it.isGrounded() }.size / body.legs.size
 //    yawVelocity = yawVelocity.moveTowards(.0f, maxAcceleration)
 //    pitchVelocity = pitchVelocity.moveTowards(.0f, maxAcceleration)
@@ -64,7 +85,7 @@ fun Spider.rotateTowards(targetVector: Vector) {
     targetEuler.z = preferredRoll
 
     // clamp yaw if uncomfortable
-    if (body.legs.any { it.isUncomfortable && !it.isMoving }) targetEuler.y = currentEuler.y
+    if (legs.any { it.isUncomfortable && !it.isMoving }) targetEuler.y = currentEuler.y
 
     // get diff
     val diffEuler = Vector3f(targetEuler).sub(currentEuler)
@@ -81,16 +102,15 @@ fun Spider.rotateTowards(targetVector: Vector) {
     val conjugated = Quaternionf(orientation).mul(diff).mul(Quaternionf(orientation).invert())
 
     val conjugatedEuler = conjugated.getEulerAnglesYXZ(Vector3f())
-    val maxAcceleration = gait.rotateAcceleration * body.legs.filter { it.isGrounded() }.size / body.legs.size
+    val maxAcceleration = gait.rotateAcceleration * legs.filter { it.isGrounded() }.size / legs.size
     rotationalVelocity.moveTowards(conjugatedEuler, maxAcceleration)
 }
 
-fun Spider.walkAt(targetVelocity: Vector) {
+private fun SpiderBody.walkAt(targetVelocity: Vector, tridentDetector: TridentHitDetector?) {
     val acceleration = gait.moveAcceleration// * body.legs.filter { it.isGrounded() }.size / body.legs.size
     val target = targetVelocity.clone()
 
-
-    if (body.legs.any { it.isUncomfortable && !it.isMoving }) { //  && !it.targetOutsideComfortZone
+    if (legs.any { it.isUncomfortable && !it.isMoving }) { //  && !it.targetOutsideComfortZone
         val scaled = target.setY(velocity.y).multiply(gait.uncomfortableSpeedMultiplier)
         velocity.moveTowards(scaled, acceleration)
         isWalking = targetVelocity.x != 0.0 && targetVelocity.z != 0.0
@@ -99,5 +119,5 @@ fun Spider.walkAt(targetVelocity: Vector) {
         isWalking = velocity.x != 0.0 && velocity.z != 0.0
     }
 
-    if (this.tridentDetector.stunned && targetVelocity.isZero) isWalking = false
+    if (tridentDetector != null && tridentDetector.stunned && targetVelocity.isZero) isWalking = false
 }

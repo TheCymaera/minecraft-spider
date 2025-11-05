@@ -2,7 +2,8 @@ package com.heledron.spideranimation.spider.rendering
 
 import com.heledron.hologram.utilities.rendering.interpolateTransform
 import com.heledron.hologram.utilities.rendering.renderBlock
-import com.heledron.spideranimation.spider.Spider
+import com.heledron.spideranimation.spider.body.SpiderBody
+import com.heledron.spideranimation.spider.misc.PointDetector
 import com.heledron.spideranimation.utilities.*
 import com.heledron.spideranimation.utilities.deprecated.centredTransform
 import com.heledron.spideranimation.utilities.maths.FORWARD_VECTOR
@@ -17,14 +18,14 @@ import org.joml.Quaternionf
 import org.joml.Vector3f
 
 
-fun spiderDebugRenderEntities(spider: Spider): RenderGroup {
+fun spiderDebugRenderEntities(spider: SpiderBody, pointDetector: PointDetector): RenderGroup {
     val group = RenderGroup()
 
-    val scale = spider.options.bodyPlan.scale.toFloat()
+    val scale = spider.bodyPlan.scale.toFloat()
 
-    for ((legIndex, leg) in spider.body.legs.withIndex()) {
+    for ((legIndex, leg) in spider.legs.withIndex()) {
         // Render scan bars
-        if (spider.options.debug.scanBars) group["scanBar" to legIndex] = renderLine(
+        if (spider.debug.scanBars) group["scanBar" to legIndex] = renderLine(
             world = spider.world,
             position = leg.scanStartPosition,
             vector = leg.scanVector,
@@ -39,7 +40,7 @@ fun spiderDebugRenderEntities(spider: Spider): RenderGroup {
         )
 
         // Render trigger zone
-        if (spider.options.debug.triggerZones) group["triggerZoneVertical" to legIndex] = renderBlock(
+        if (spider.debug.triggerZones) group["triggerZoneVertical" to legIndex] = renderBlock(
             world = spider.world,
             position = leg.triggerZone.center,
             init = {
@@ -62,7 +63,7 @@ fun spiderDebugRenderEntities(spider: Spider): RenderGroup {
         )
 
         // Render trigger zone
-        if (spider.options.debug.triggerZones) group["triggerZoneHorizontal" to legIndex] = renderBlock(
+        if (spider.debug.triggerZones) group["triggerZoneHorizontal" to legIndex] = renderBlock(
             world = spider.world,
             position = run {
                 val pos = leg.triggerZone.center.clone()
@@ -90,7 +91,7 @@ fun spiderDebugRenderEntities(spider: Spider): RenderGroup {
         )
 
         // Render end effector
-        if (spider.options.debug.endEffectors) group["endEffector" to legIndex] = renderBlock(
+        if (spider.debug.endEffectors) group["endEffector" to legIndex] = renderBlock(
             world = spider.world,
             position = leg.endEffector,
             init = {
@@ -98,7 +99,7 @@ fun spiderDebugRenderEntities(spider: Spider): RenderGroup {
                 it.brightness = Display.Brightness(15, 15)
             },
             update = {
-                val size = (if (leg == spider.pointDetector.selectedLeg) .2f else .15f) * scale
+                val size = (if (leg == pointDetector.selectedLeg) .2f else .15f) * scale
                 it.transformation = centredTransform(size, size, size)
                 it.block = when {
                     leg.isDisabled -> Material.BLACK_CONCRETE.createBlockData()
@@ -110,7 +111,7 @@ fun spiderDebugRenderEntities(spider: Spider): RenderGroup {
         )
 
         // Render target position
-        if (spider.options.debug.targetPositions) group["targetPosition" to legIndex] = renderBlock(
+        if (spider.debug.targetPositions) group["targetPosition" to legIndex] = renderBlock(
             location = leg.target.position.toLocation(spider.world),
             init = {
                 it.teleportDuration = 1
@@ -127,7 +128,7 @@ fun spiderDebugRenderEntities(spider: Spider): RenderGroup {
     }
 
     // Render spider direction
-    if (spider.options.debug.orientation) group["direction"] = renderBlock(
+    if (spider.debug.orientation) group["direction"] = renderBlock(
         location = spider.position.toLocation(spider.world),
         init = {
             it.teleportDuration = 1
@@ -150,7 +151,7 @@ fun spiderDebugRenderEntities(spider: Spider): RenderGroup {
     )
 
     // Render preferred orientation
-    if (spider.options.debug.preferredOrientation) {
+    if (spider.debug.preferredOrientation) {
         fun renderEntity(orientation: Quaternionf, direction: Vector, thickness: Float, length: Float, material: Material) = run {
             val mTranslation = Vector3f(-1f, -1f, -1f).add(direction.toVector3f()).mul(.5f)
             val mScale = Vector3f(thickness, thickness, thickness).add(direction.toVector3f().mul(length))
@@ -181,8 +182,8 @@ fun spiderDebugRenderEntities(spider: Spider): RenderGroup {
     }
 
 
-    val normal = spider.body.normal ?: return group
-    if (spider.options.debug.legPolygons && normal.contactPolygon != null) {
+    val normal = spider.normal ?: return group
+    if (spider.debug.legPolygons && normal.contactPolygon != null) {
         val points = normal.contactPolygon//.map { it.toLocation(spider.world)}
         for (i in points.indices) {
             val a = points[i]
@@ -200,7 +201,7 @@ fun spiderDebugRenderEntities(spider: Spider): RenderGroup {
         }
     }
 
-    if (spider.options.debug.centreOfMass && normal.centreOfMass != null) group["centreOfMass"] = renderBlock(
+    if (spider.debug.centreOfMass && normal.centreOfMass != null) group["centreOfMass"] = renderBlock(
         world = spider.world,
         position = normal.centreOfMass,
         init = {
@@ -217,7 +218,7 @@ fun spiderDebugRenderEntities(spider: Spider): RenderGroup {
     )
 
 
-    if (spider.options.debug.normalForce && normal.centreOfMass != null && normal.origin !== null) group["acceleration"] = renderLine(
+    if (spider.debug.normalForce && normal.centreOfMass != null && normal.origin !== null) group["acceleration"] = renderLine(
         world = spider.world,
         position = normal.origin,
         vector = normal.centreOfMass.clone().subtract(normal.origin),
@@ -225,7 +226,7 @@ fun spiderDebugRenderEntities(spider: Spider): RenderGroup {
         interpolation = 1,
         init = { it.brightness = Display.Brightness(15, 15) },
         update = {
-            val material = if (spider.body.normalAcceleration.isZero) Material.BLACK_CONCRETE else Material.WHITE_CONCRETE
+            val material = if (spider.normalAcceleration.isZero) Material.BLACK_CONCRETE else Material.WHITE_CONCRETE
             it.block = material.createBlockData()
         }
     )

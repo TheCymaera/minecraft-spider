@@ -15,11 +15,11 @@ class SpiderOptions {
 
     var sound = SoundOptions()
 
-    fun scale(scale: Double) {
-        walkGait.scale(scale)
-        gallopGait.scale(scale)
-        bodyPlan.scale(scale)
-    }
+//    fun scale(scale: Double) {
+//        walkGait.scale(scale)
+//        gallopGait.scale(scale)
+//        bodyPlan.scale(scale)
+//    }
 }
 
 

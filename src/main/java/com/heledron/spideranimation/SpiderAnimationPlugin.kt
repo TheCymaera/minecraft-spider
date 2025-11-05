@@ -1,11 +1,18 @@
 package com.heledron.spideranimation
 
+import com.heledron.spideranimation.AppState.ecs
 import com.heledron.spideranimation.kinematic_chain_visualizer.KinematicChainVisualizer
+import com.heledron.spideranimation.kinematic_chain_visualizer.setupChainVisualizer
+import com.heledron.spideranimation.spider.body.SpiderBody
+import com.heledron.spideranimation.spider.misc.Mountable
+import com.heledron.spideranimation.spider.misc.SpiderBehaviour
 import com.heledron.spideranimation.spider.misc.StayStillBehaviour
+import com.heledron.spideranimation.spider.rendering.SpiderRenderer
 import com.heledron.spideranimation.spider.rendering.renderTarget
+import com.heledron.spideranimation.spider.setupSpider
+import com.heledron.spideranimation.utilities.ECSEntity
 import com.heledron.spideranimation.utilities.events.onSpawnEntity
 import com.heledron.spideranimation.utilities.events.onTick
-import com.heledron.spideranimation.utilities.onPluginShutdown
 import com.heledron.spideranimation.utilities.setupCoreUtils
 import com.heledron.spideranimation.utilities.shutdownCoreUtils
 import org.bukkit.plugin.java.JavaPlugin
@@ -29,30 +36,36 @@ class SpiderAnimationPlugin : JavaPlugin() {
 
         setupCoreUtils()
 
-        onPluginShutdown {
-            AppState.spider?.close()
-            AppState.chainVisualizer?.close()
-        }
-
-//        config.getConfigurationSection("spider")?.getValues(true)?.let { AppState.options = Serializer.fromMap(it, SpiderOptions::class.java) }
-
         registerCommands(this)
         registerItems()
+        setupSpider(ecs)
+        setupChainVisualizer(ecs)
+
+        ecs.run()
+        onTick {
+            ecs.update()
+            ecs.render()
+        }
 
         onTick {
             // update spider
-            val spider = AppState.spider
-            if (spider != null) {
-                spider.showDebugVisuals = AppState.showDebugVisuals
-                spider.gallop = AppState.gallop
+            ecs.query<ECSEntity, SpiderBody>().forEach { (entity, spider) ->
+                val mount = entity.query<Mountable>()
+                if (mount !== null && mount.getRider() == null) {
+                    entity.replaceComponent<SpiderBehaviour>(StayStillBehaviour())
+                }
 
-                spider.update()
-                if (spider.mount.getRider() == null) spider.behaviour = StayStillBehaviour(spider)
+                val renderer = entity.query<SpiderRenderer>()
+                renderer?.renderDebugVisuals = AppState.renderDebugVisuals
+
+                spider.gallop = AppState.gallop
             }
 
             // render target
             val target =
-                (if (AppState.miscOptions.showLaser) AppState.target else null) ?: AppState.chainVisualizer?.target
+                (if (AppState.miscOptions.showLaser) AppState.target else null) ?:
+                ecs.query<KinematicChainVisualizer>().firstOrNull()?.target
+
             if (target != null) renderTarget(target).submit("target")
 
             AppState.target = null
@@ -63,16 +76,14 @@ class SpiderAnimationPlugin : JavaPlugin() {
             // Use this command to spawn a chain visualizer
             // /summon minecraft:area_effect_cloud ~ ~ ~ {Tags:["spider.chain_visualizer"]}
             if (!entity.scoreboardTags.contains("spider.chain_visualizer")) return@onSpawnEntity
-            val segmentPlans = AppState.options.bodyPlan.legs.lastOrNull()?.segments ?: return@onSpawnEntity
 
-            AppState.chainVisualizer = if (AppState.chainVisualizer != null) null else KinematicChainVisualizer.create(
-                segmentPlans = segmentPlans,
-                root = entity.location.toVector(),
-                world = entity.world,
-                straightenRotation = AppState.options.walkGait.legStraightenRotation,
-            )
+            val oldVisualizer = ecs.query<ECSEntity, KinematicChainVisualizer>().firstOrNull()?.first
+            if (oldVisualizer == null) {
+                AppState.createChainVisualizer(entity.location)
+            } else {
+                oldVisualizer.remove()
+            }
 
-            AppState.chainVisualizer?.detailed = AppState.showDebugVisuals
             entity.remove()
         }
     }

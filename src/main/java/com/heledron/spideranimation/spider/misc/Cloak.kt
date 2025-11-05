@@ -1,70 +1,57 @@
 package com.heledron.spideranimation.spider.misc
 
-import com.heledron.spideranimation.spider.Spider
-import com.heledron.spideranimation.spider.SpiderComponent
-import com.heledron.spideranimation.utilities.*
+import com.heledron.spideranimation.spider.body.SpiderBody
+import com.heledron.spideranimation.spider.configuration.CloakOptions
+import com.heledron.spideranimation.utilities.ECS
+import com.heledron.spideranimation.utilities.ECSEntity
 import com.heledron.spideranimation.utilities.block_colors.findBlockWithColor
 import com.heledron.spideranimation.utilities.block_colors.getBlockColor
 import com.heledron.spideranimation.utilities.colors.Oklab
 import com.heledron.spideranimation.utilities.colors.distanceTo
 import com.heledron.spideranimation.utilities.colors.toOklab
-import com.heledron.spideranimation.utilities.deprecated.EventEmitter
 import com.heledron.spideranimation.utilities.deprecated.SeriesScheduler
 import com.heledron.spideranimation.utilities.deprecated.raycastGround
 import com.heledron.spideranimation.utilities.events.runLater
 import com.heledron.spideranimation.utilities.maths.DOWN_VECTOR
-import com.heledron.spideranimation.utilities.maths.lerp
-import com.heledron.spideranimation.utilities.maths.moveTowards
 import org.bukkit.*
-import org.bukkit.Color
 import org.bukkit.block.data.BlockData
 import org.bukkit.entity.Display
 import org.bukkit.util.RayTraceResult
 import org.bukkit.util.Vector
 import java.util.WeakHashMap
 
-class Cloak(var  spider: Spider) : SpiderComponent {
+class CloakDamageEvent(val entity: ECSEntity, val spider: SpiderBody, val cloak: Cloak)
+
+class CloakToggleEvent(val entity: ECSEntity, val spider: SpiderBody)
+
+class Cloak(var options: CloakOptions) {
     var active = false
-    val onCloakDamage = EventEmitter()
-    val onToggle = EventEmitter()
+//    val onCloakDamage = EventEmitter<>()
+//    val onToggle = EventEmitter()
 
     private var cloakColor = WeakHashMap<Any, Oklab>()
     private var cloakOverride = WeakHashMap<Any, BlockData>()
     private var cloakGlitching = false
 
-    init {
-        spider.tridentDetector.onHit.listen {
-            if (active) onCloakDamage.emit()
-            active = false
-        }
-
-        onCloakDamage.listen {
-            breakCloak()
-        }
-    }
-
-    override fun update() {
-        // no nothing
-    }
-
-    fun toggleCloak() {
+    fun toggleCloak(app: ECS, entity: ECSEntity) {
+        val spider = entity.query<SpiderBody>() ?: return
         active = !active
-        onToggle.emit()
+        app.emit(CloakToggleEvent(entity = entity, spider = spider))
     }
 
-    fun getPiece(id: Any, position: Vector, originalBlock: BlockData, originalBrightness: Display.Brightness?): Pair<BlockData, Display.Brightness?> {
-        applyCloak(id, position, originalBlock, originalBrightness?.skyLight ?: 15)
+    fun getPiece(id: Any, world: World, position: Vector, originalBlock: BlockData, originalBrightness: Display.Brightness?): Pair<BlockData, Display.Brightness?> {
+        applyCloak(id, world, position, originalBlock, originalBrightness?.skyLight ?: 15)
 
         val override = cloakOverride[id]
         if (override != null) return override to Display.Brightness(0, 15)
 
         val cloakColor = cloakColor[id] ?: return originalBlock to originalBrightness
-        val match = findBlockWithColor(cloakColor.toRGB(), spider.options.cloak.allowCustomBrightness)
+        val match = findBlockWithColor(cloakColor.toRGB(), options.allowCustomBrightness)
         return match.block to Display.Brightness(0, match.brightness)
     }
 
-    private fun applyCloak(id: Any, position: Vector, originalBlock: BlockData, originalBrightness: Int) {
-        val location = position.toLocation(spider.world)
+    private fun applyCloak(id: Any, world: World, position: Vector, originalBlock: BlockData, originalBrightness: Int) {
+        val location = position.toLocation(world)
 
         if (cloakGlitching) return
 
@@ -94,15 +81,15 @@ class Cloak(var  spider: Spider) : SpiderComponent {
 
 
         val newColor = currentColor
-            .lerp(targetColor, spider.options.cloak.lerpSpeed.toFloat())
-            .moveTowards(targetColor, spider.options.cloak.moveSpeed.toFloat())
+            .lerp(targetColor, options.lerpSpeed.toFloat())
+            .moveTowards(targetColor, options.moveSpeed.toFloat())
 
         if (newColor == originalColor) cloakColor.remove(id)
         else cloakColor[id] = newColor
     }
 
 
-    private fun breakCloak() {
+    fun breakCloak() {
         cloakGlitching = true
 
         val originalColors = cloakColor.values.toList()
@@ -143,7 +130,7 @@ class Cloak(var  spider: Spider) : SpiderComponent {
 
             for (i in 0 until  (Math.random() * 3).toInt()) {
                 scheduler.run {
-                    cloakOverride[id] = findBlockWithColor(originalColors.random().toRGB(), spider.options.cloak.allowCustomBrightness).block
+                    cloakOverride[id] = findBlockWithColor(originalColors.random().toRGB(), options.allowCustomBrightness).block
                 }
 
                 randomSleep(5, 15)
@@ -161,40 +148,22 @@ class Cloak(var  spider: Spider) : SpiderComponent {
             cloakGlitching = false
         }
     }
-
-
-//    val transitioning = ArrayList<Any>()
-//    fun transitionSegmentBlock(id: Any, waitTime: Int, glitchTime: Int, newBlock: Material?) {
-//        if (transitioning.contains(id)) return
-//        transitioning.add(id)
-//
-//        val scheduler = SeriesScheduler()
-//        scheduler.sleep(waitTime.toLong())
-//        scheduler.run {
-//            cloakOverride[id] = Material.GRAY_GLAZED_TERRACOTTA.createBlockData()
-//        }
-//
-//        scheduler.sleep(glitchTime.toLong())
-//        scheduler.run {
-//            cloakColor[id] = newBlock
-//            transitioning.remove(id)
-//        }
-//    }
 }
-
-
-//private fun Color.toVector(): Vector {
-//    return Vector(this.red, this.green, this.blue)
-//}
-//
-//private fun Vector.toColor(): Color {
-//    return Color.fromRGB(x.toInt(), y.toInt(), z.toInt())
-//}
-
 
 private fun Oklab.moveTowards(target: Oklab, maxDelta: Float): Oklab {
     val delta = this.distanceTo(target)
     if (delta <= maxDelta) return target
     val t = maxDelta / delta
     return this.lerp(target, t)
+}
+
+fun setupCloak(app: ECS) {
+    app.onEvent<TridentHitEvent> { event ->
+        val cloak = event.entity.query<Cloak>() ?: return@onEvent
+        if (cloak.active) {
+            app.emit(CloakDamageEvent(entity = event.entity, spider = event.spider, cloak = cloak))
+            cloak.breakCloak()
+        }
+        cloak.active = false
+    }
 }
