@@ -1,8 +1,8 @@
-package com.heledron.spideranimation.spider.rendering
+package com.heledron.spideranimation.spider.components.rendering
 
-import com.heledron.spideranimation.spider.body.SpiderBody
-import com.heledron.spideranimation.spider.misc.Cloak
-import com.heledron.spideranimation.spider.misc.PointDetector
+import com.heledron.spideranimation.spider.components.body.SpiderBody
+import com.heledron.spideranimation.spider.components.Cloak
+import com.heledron.spideranimation.spider.components.PointDetector
 import com.heledron.spideranimation.utilities.ECS
 import com.heledron.spideranimation.utilities.events.interval
 import org.bukkit.Location
@@ -11,30 +11,6 @@ import org.bukkit.util.Vector
 import kotlin.random.Random
 
 class SpiderRenderer {
-    /*interval(0,20 * 4) {
-        val pieces = spider.options.bodyPlan.bodyModel.pieces.filter { it.tags.contains("blinking_lights") }
-
-//        val blinkBlock = spider.options.bodyPlan.blinkingPalette.random()
-        for (piece in pieces) {
-            val currentBlock = piece.block
-            val currentBrightness = piece.brightness
-
-            val scheduler = SeriesScheduler()
-            for (i in 0 until 2) {
-                scheduler.run {
-                    piece.block = spider.options.bodyPlan.blinkingPalette.random()
-                    piece.brightness = Display.Brightness(15, 15)
-                }
-                scheduler.sleep(2)
-                scheduler.run {
-                    piece.block = currentBlock
-                    piece.brightness = currentBrightness
-                }
-                scheduler.sleep(2)
-            }
-
-        }
-    }*/
     var renderDebugVisuals = false
     var useParticles = false
 }

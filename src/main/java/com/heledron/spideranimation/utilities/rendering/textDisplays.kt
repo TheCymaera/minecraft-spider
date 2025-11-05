@@ -1,9 +1,11 @@
 package com.heledron.hologram.utilities.rendering
 
 import com.heledron.spideranimation.utilities.currentPlugin
+import com.heledron.spideranimation.utilities.eyePosition
 import com.heledron.spideranimation.utilities.maths.normal
 import com.heledron.spideranimation.utilities.maths.shear
 import com.heledron.spideranimation.utilities.maths.toRadians
+import com.heledron.spideranimation.utilities.position
 import org.bukkit.Bukkit
 import org.bukkit.entity.TextDisplay
 import org.joml.Matrix4f
@@ -89,11 +91,11 @@ fun textDisplayTriangle(
 
 
 fun TextDisplay.cull() {
-    val visiblePosition = location.toVector().toVector3f().add(transformation.translation)
+    val visiblePosition = position.toVector3f().add(transformation.translation)
     val normal = transformation.normal()
 
     Bukkit.getOnlinePlayers().forEach { player ->
-        val direction = player.eyeLocation.toVector().toVector3f().sub(visiblePosition)
+        val direction = player.eyePosition.toVector3f().sub(visiblePosition)
         val angle = direction.angle(normal)
 
         val isFacing = angle < 95.0f.toRadians()

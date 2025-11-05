@@ -1,18 +1,23 @@
 package com.heledron.spideranimation.utilities
 
 import com.heledron.spideranimation.utilities.events.onTick
+import com.heledron.spideranimation.utilities.maths.pitchRadians
+import com.heledron.spideranimation.utilities.maths.yawRadians
 import net.md_5.bungee.api.ChatMessageType
 import net.md_5.bungee.api.chat.TextComponent
 import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.NamespacedKey
 import org.bukkit.Sound
+import org.bukkit.World
 import org.bukkit.command.CommandSender
 import org.bukkit.command.PluginCommand
 import org.bukkit.entity.Entity
+import org.bukkit.entity.LivingEntity
 import org.bukkit.entity.Player
 import org.bukkit.entity.minecart.CommandMinecart
 import org.bukkit.plugin.java.JavaPlugin
+import org.bukkit.util.Vector
 import java.io.Closeable
 import java.io.InputStream
 
@@ -83,3 +88,15 @@ fun <T : Entity> spawnEntity(location: Location, clazz: Class<T>, initializer: (
 fun playSound(location: Location, sound: Sound, volume: Float, pitch: Float) {
     location.world!!.playSound(location, sound, volume, pitch)
 }
+
+fun World.playSound(position: Vector, sound: Sound, volume: Float, pitch: Float) {
+    this.playSound(position.toLocation(this), sound, volume, pitch)
+}
+
+val Entity.position get() = this.location.toVector()
+val LivingEntity.eyePosition get() = this.eyeLocation.toVector()
+val Entity.direction get() = this.location.direction
+val Entity.yaw get() = this.location.yaw
+val Entity.pitch get() = this.location.pitch
+fun Entity.yawRadians() = this.location.yawRadians()
+fun Entity.pitchRadians() = this.location.pitchRadians()

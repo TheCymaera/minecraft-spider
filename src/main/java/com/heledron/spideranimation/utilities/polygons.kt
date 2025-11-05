@@ -27,7 +27,7 @@ fun nearestPointInPolygon(point: Vector2d, polygon: List<Vector2d>): Vector2d {
         val a = polygon[i]
         val b = polygon[(i + 1) % polygon.size]
 
-        val closestOnLine = nearestPointOnClampedLine(point, a, b) ?: continue
+        val closestOnLine = nearestPointOnClampedLine(point, a, b)
         val distance = point.distance(closestOnLine)
 
         if (distance < closestDistance) {

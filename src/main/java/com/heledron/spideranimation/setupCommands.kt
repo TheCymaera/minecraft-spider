@@ -1,11 +1,11 @@
 package com.heledron.spideranimation
 
-import com.heledron.spideranimation.spider.misc.splay
+import com.heledron.spideranimation.spider.components.splay
 import com.heledron.spideranimation.spider.presets.*
 import com.heledron.spideranimation.utilities.custom_items.setupCustomItemCommand
 import com.heledron.spideranimation.utilities.events.runLater
 
-fun registerCommands(plugin: SpiderAnimationPlugin) {
+fun setupCommands(plugin: SpiderAnimationPlugin) {
     fun getCommand(name: String) = plugin.getCommand(name) ?: throw Exception("Command $name not found")
 
 //    getCommand("options").apply {

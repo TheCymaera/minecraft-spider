@@ -1,4 +1,4 @@
-package com.heledron.spideranimation.spider.body
+package com.heledron.spideranimation.spider.components.body
 
 import com.heledron.spideranimation.utilities.ChainSegment
 import com.heledron.spideranimation.utilities.KinematicChain

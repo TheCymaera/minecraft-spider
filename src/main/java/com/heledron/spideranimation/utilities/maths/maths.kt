@@ -80,13 +80,8 @@ fun Vector3f.moveTowards(target: Vector3f, speed: Float): Vector3f {
     return this
 }
 
-fun Location.yawRadians(): Float {
-    return -yaw.toRadians()
-}
-
-fun Location.pitchRadians(): Float {
-    return pitch.toRadians()
-}
+fun Location.yawRadians() = -yaw.toRadians()
+fun Location.pitchRadians() = pitch.toRadians()
 
 fun Location.getQuaternion(): Quaternionf {
     return Quaternionf().rotateYXZ(yawRadians(), pitchRadians(), 0f)

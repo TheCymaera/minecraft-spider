@@ -1,4 +1,4 @@
-package com.heledron.spideranimation.spider.body
+package com.heledron.spideranimation.spider.components.body
 
 enum class GaitType(val canMoveLeg: (Leg) -> Boolean, val getLegsInUpdateOrder: (SpiderBody) -> List<Leg>) {
     WALK(WalkGaitType::canMoveLeg, WalkGaitType::getLegsInUpdateOrder),

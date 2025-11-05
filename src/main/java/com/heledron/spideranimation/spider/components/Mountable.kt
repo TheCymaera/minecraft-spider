@@ -1,11 +1,10 @@
-package com.heledron.spideranimation.spider.misc
+package com.heledron.spideranimation.spider.components
 
-import com.heledron.spideranimation.spider.body.SpiderBody
+import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.utilities.*
 import com.heledron.spideranimation.utilities.events.addEventListener
 import com.heledron.spideranimation.utilities.events.onInteractEntity
 import com.heledron.spideranimation.utilities.maths.rotate
-import com.heledron.spideranimation.utilities.maths.yawRadians
 import com.heledron.spideranimation.utilities.rendering.RenderEntity
 import org.bukkit.Material
 import org.bukkit.Sound
@@ -75,10 +74,11 @@ fun setupMountable(app: ECS) {
             if (player.currentInput.isForward) input.z += 1.0
             if (player.currentInput.isBackward) input.z -= 1.0
 
-            val rotation = Quaternionf().rotationYXZ(player.location.yawRadians(), .0f, .0f)
+            val rotation = Quaternionf().rotationYXZ(player.yawRadians(), .0f, .0f)
             val direction = if (input.isZero) input else input.rotate(rotation).normalize()
 
-            entity.replaceComponent<SpiderBehaviour>(DirectionBehaviour(player.location.direction, direction))
+            val behaviour = DirectionBehaviour(player.direction, direction)
+            entity.replaceComponent<SpiderBehaviour>(behaviour)
         }
     }
 

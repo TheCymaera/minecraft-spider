@@ -45,6 +45,12 @@ class CustomItemComponent(val id: String) {
         item.itemMeta = itemMeta
     }
 
+    fun getPlayersHoldingItem() = Bukkit.getOnlinePlayers().filter { player ->
+        val itemInMainHand = player.inventory.itemInMainHand
+        val itemInOffHand = player.inventory.itemInOffHand
+        isAttached(itemInMainHand) || isAttached(itemInOffHand)
+    }
+
     fun onGestureUse(action: (Player, ItemStack) -> Unit) {
         onGestureUseItem { player, item ->
             if (isAttached(item)) action(player, item)

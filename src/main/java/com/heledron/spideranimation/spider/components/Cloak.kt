@@ -1,6 +1,6 @@
-package com.heledron.spideranimation.spider.misc
+package com.heledron.spideranimation.spider.components
 
-import com.heledron.spideranimation.spider.body.SpiderBody
+import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.configuration.CloakOptions
 import com.heledron.spideranimation.utilities.ECS
 import com.heledron.spideranimation.utilities.ECSEntity
@@ -12,6 +12,7 @@ import com.heledron.spideranimation.utilities.colors.toOklab
 import com.heledron.spideranimation.utilities.deprecated.SeriesScheduler
 import com.heledron.spideranimation.utilities.deprecated.raycastGround
 import com.heledron.spideranimation.utilities.events.runLater
+import com.heledron.spideranimation.utilities.eyePosition
 import com.heledron.spideranimation.utilities.maths.DOWN_VECTOR
 import org.bukkit.*
 import org.bukkit.block.data.BlockData
@@ -26,9 +27,6 @@ class CloakToggleEvent(val entity: ECSEntity, val spider: SpiderBody)
 
 class Cloak(var options: CloakOptions) {
     var active = false
-//    val onCloakDamage = EventEmitter<>()
-//    val onToggle = EventEmitter()
-
     private var cloakColor = WeakHashMap<Any, Oklab>()
     private var cloakOverride = WeakHashMap<Any, BlockData>()
     private var cloakGlitching = false
@@ -51,20 +49,17 @@ class Cloak(var options: CloakOptions) {
     }
 
     private fun applyCloak(id: Any, world: World, position: Vector, originalBlock: BlockData, originalBrightness: Int) {
-        val location = position.toLocation(world)
-
         if (cloakGlitching) return
 
         fun groundCast(): RayTraceResult? {
-            return raycastGround(location, DOWN_VECTOR, 5.0)
+            return world.raycastGround(position, DOWN_VECTOR, 5.0)
         }
 
         fun cast(): RayTraceResult? {
             val targetPlayer = Bukkit.getOnlinePlayers().firstOrNull() ?: return groundCast()
 
-            val direction = location.toVector().subtract(targetPlayer.eyeLocation.toVector())
-            val rayCast = raycastGround(location, direction, 30.0)
-            return rayCast
+            val direction = position.clone().subtract(targetPlayer.eyePosition)
+            return world.raycastGround(position, direction, 30.0)
         }
 
         val originalColor = getBlockColor(originalBlock, originalBrightness)?.toOklab() ?: return

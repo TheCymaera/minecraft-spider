@@ -1,7 +1,7 @@
-package com.heledron.spideranimation.spider.misc
+package com.heledron.spideranimation.spider.components
 
 import com.heledron.spideranimation.AppState
-import com.heledron.spideranimation.spider.body.SpiderBody
+import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.utilities.*
 import com.heledron.spideranimation.utilities.events.interval
 import com.heledron.spideranimation.utilities.events.runLater
@@ -49,7 +49,6 @@ fun splay() {
     }
 
 
-
     val pieces = mutableListOf<BlockDisplayModelPiece>()
     for (piece in spider.bodyPlan.bodyModel.pieces) {
         pieces += piece
@@ -63,7 +62,7 @@ fun splay() {
     }
 
     for ((i, entity) in entities.withIndex().shuffled()) {
-        val offset = entity.location.toVector().subtract(spider.position).toVector3f()
+        val offset = entity.position.subtract(spider.position).toVector3f()
         runLater(3L + i / 4) {
             splay(entity, offset)
         }

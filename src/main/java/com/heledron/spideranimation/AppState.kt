@@ -1,14 +1,14 @@
 package com.heledron.spideranimation
 
 import com.heledron.spideranimation.kinematic_chain_visualizer.KinematicChainVisualizer
-import com.heledron.spideranimation.spider.body.SpiderBody
-import com.heledron.spideranimation.spider.misc.Cloak
-import com.heledron.spideranimation.spider.misc.Mountable
-import com.heledron.spideranimation.spider.misc.PointDetector
-import com.heledron.spideranimation.spider.misc.SoundsAndParticles
-import com.heledron.spideranimation.spider.misc.TridentHitDetector
+import com.heledron.spideranimation.spider.components.body.SpiderBody
+import com.heledron.spideranimation.spider.components.Cloak
+import com.heledron.spideranimation.spider.components.Mountable
+import com.heledron.spideranimation.spider.components.PointDetector
+import com.heledron.spideranimation.spider.components.SoundsAndParticles
+import com.heledron.spideranimation.spider.components.TridentHitDetector
 import com.heledron.spideranimation.spider.presets.hexBot
-import com.heledron.spideranimation.spider.rendering.SpiderRenderer
+import com.heledron.spideranimation.spider.components.rendering.SpiderRenderer
 import com.heledron.spideranimation.utilities.ECS
 import com.heledron.spideranimation.utilities.ECSEntity
 import org.bukkit.Location

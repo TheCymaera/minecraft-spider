@@ -1,8 +1,8 @@
 package com.heledron.spideranimation.spider
 
-import com.heledron.spideranimation.spider.body.setupSpiderBody
-import com.heledron.spideranimation.spider.misc.*
-import com.heledron.spideranimation.spider.rendering.setupRenderer
+import com.heledron.spideranimation.spider.components.body.setupSpiderBody
+import com.heledron.spideranimation.spider.components.*
+import com.heledron.spideranimation.spider.components.rendering.setupRenderer
 import com.heledron.spideranimation.utilities.*
 
 fun setupSpider(app: ECS) {

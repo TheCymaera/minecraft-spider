@@ -1,9 +1,9 @@
-package com.heledron.spideranimation.spider.rendering
+package com.heledron.spideranimation.spider.components.rendering
 
 import com.heledron.hologram.utilities.rendering.interpolateTransform
 import com.heledron.hologram.utilities.rendering.renderBlock
-import com.heledron.spideranimation.spider.body.SpiderBody
-import com.heledron.spideranimation.spider.misc.Cloak
+import com.heledron.spideranimation.spider.components.body.SpiderBody
+import com.heledron.spideranimation.spider.components.Cloak
 import com.heledron.spideranimation.utilities.*
 import com.heledron.spideranimation.utilities.deprecated.centredTransform
 import com.heledron.spideranimation.utilities.rendering.RenderGroup

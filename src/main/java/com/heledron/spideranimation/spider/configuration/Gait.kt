@@ -1,7 +1,7 @@
 package com.heledron.spideranimation.spider.configuration
 
-import com.heledron.spideranimation.spider.body.GaitType
-import com.heledron.spideranimation.spider.body.SpiderBody
+import com.heledron.spideranimation.spider.components.body.GaitType
+import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.utilities.SplitDistance
 import com.heledron.spideranimation.utilities.maths.lerp
 import com.heledron.spideranimation.utilities.maths.toRadians

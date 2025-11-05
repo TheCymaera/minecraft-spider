@@ -1,4 +1,4 @@
-package com.heledron.spideranimation.spider.body
+package com.heledron.spideranimation.spider.components.body
 
 import com.heledron.spideranimation.spider.configuration.BodyPlan
 import com.heledron.spideranimation.spider.configuration.Gait
@@ -97,10 +97,10 @@ class SpiderBody(
         rotationalVelocity.set(rotEuler)
     }
 
-    fun teleport(entity: ECSEntity, newLocation: Location) {
-        val diff = newLocation.toVector().subtract(position)
+    fun teleport(entity: ECSEntity, newPosition: Vector) {
+        val diff = newPosition.subtract(position)
 
-        position.copy(newLocation.toVector())
+        position.copy(newPosition)
 
         val body = entity.query<SpiderBody>() ?: return
         for (leg in body.legs) leg.endEffector.add(diff)

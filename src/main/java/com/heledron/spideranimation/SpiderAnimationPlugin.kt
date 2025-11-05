@@ -3,12 +3,12 @@ package com.heledron.spideranimation
 import com.heledron.spideranimation.AppState.ecs
 import com.heledron.spideranimation.kinematic_chain_visualizer.KinematicChainVisualizer
 import com.heledron.spideranimation.kinematic_chain_visualizer.setupChainVisualizer
-import com.heledron.spideranimation.spider.body.SpiderBody
-import com.heledron.spideranimation.spider.misc.Mountable
-import com.heledron.spideranimation.spider.misc.SpiderBehaviour
-import com.heledron.spideranimation.spider.misc.StayStillBehaviour
-import com.heledron.spideranimation.spider.rendering.SpiderRenderer
-import com.heledron.spideranimation.spider.rendering.renderTarget
+import com.heledron.spideranimation.spider.components.body.SpiderBody
+import com.heledron.spideranimation.spider.components.Mountable
+import com.heledron.spideranimation.spider.components.SpiderBehaviour
+import com.heledron.spideranimation.spider.components.StayStillBehaviour
+import com.heledron.spideranimation.spider.components.rendering.SpiderRenderer
+import com.heledron.spideranimation.spider.components.rendering.renderTarget
 import com.heledron.spideranimation.spider.setupSpider
 import com.heledron.spideranimation.utilities.ECSEntity
 import com.heledron.spideranimation.utilities.events.onSpawnEntity
@@ -36,8 +36,8 @@ class SpiderAnimationPlugin : JavaPlugin() {
 
         setupCoreUtils()
 
-        registerCommands(this)
-        registerItems()
+        setupCommands(this)
+        setupItems()
         setupSpider(ecs)
         setupChainVisualizer(ecs)
 

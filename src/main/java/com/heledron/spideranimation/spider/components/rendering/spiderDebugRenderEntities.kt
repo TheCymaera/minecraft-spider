@@ -1,9 +1,9 @@
-package com.heledron.spideranimation.spider.rendering
+package com.heledron.spideranimation.spider.components.rendering
 
 import com.heledron.hologram.utilities.rendering.interpolateTransform
 import com.heledron.hologram.utilities.rendering.renderBlock
-import com.heledron.spideranimation.spider.body.SpiderBody
-import com.heledron.spideranimation.spider.misc.PointDetector
+import com.heledron.spideranimation.spider.components.body.SpiderBody
+import com.heledron.spideranimation.spider.components.PointDetector
 import com.heledron.spideranimation.utilities.*
 import com.heledron.spideranimation.utilities.deprecated.centredTransform
 import com.heledron.spideranimation.utilities.maths.FORWARD_VECTOR
@@ -99,7 +99,7 @@ fun spiderDebugRenderEntities(spider: SpiderBody, pointDetector: PointDetector):
                 it.brightness = Display.Brightness(15, 15)
             },
             update = {
-                val size = (if (leg == pointDetector.selectedLeg) .2f else .15f) * scale
+                val size = (if (pointDetector.selectedLeg.containsValue(leg)) .2f else .15f) * scale
                 it.transformation = centredTransform(size, size, size)
                 it.block = when {
                     leg.isDisabled -> Material.BLACK_CONCRETE.createBlockData()
