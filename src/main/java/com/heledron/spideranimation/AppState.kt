@@ -9,12 +9,9 @@ import com.heledron.spideranimation.spider.components.SoundsAndParticles
 import com.heledron.spideranimation.spider.components.TridentHitDetector
 import com.heledron.spideranimation.spider.presets.hexBot
 import com.heledron.spideranimation.spider.components.rendering.SpiderRenderer
-import com.heledron.spideranimation.target.LaserPoint
 import com.heledron.spideranimation.utilities.ECS
 import com.heledron.spideranimation.utilities.ECSEntity
 import org.bukkit.Location
-import org.bukkit.entity.Player
-import org.bukkit.util.Vector
 
 object AppState {
     var options = hexBot(4, 1.0)

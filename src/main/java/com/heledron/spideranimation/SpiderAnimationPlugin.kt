@@ -6,7 +6,7 @@ import com.heledron.spideranimation.kinematic_chain_visualizer.setupChainVisuali
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.components.rendering.SpiderRenderer
 import com.heledron.spideranimation.spider.setupSpider
-import com.heledron.spideranimation.target.setupLaserPointer
+import com.heledron.spideranimation.laser.setupLaserPointer
 import com.heledron.spideranimation.utilities.ECSEntity
 import com.heledron.spideranimation.utilities.events.onSpawnEntity
 import com.heledron.spideranimation.utilities.events.onTick

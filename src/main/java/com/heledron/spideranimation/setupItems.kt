@@ -6,7 +6,7 @@ import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.components.Cloak
 import com.heledron.spideranimation.spider.components.PointDetector
 import com.heledron.spideranimation.spider.components.rendering.SpiderRenderer
-import com.heledron.spideranimation.target.LaserPoint
+import com.heledron.spideranimation.laser.LaserPoint
 import com.heledron.spideranimation.utilities.*
 import com.heledron.spideranimation.utilities.custom_items.CustomItemComponent
 import com.heledron.spideranimation.utilities.custom_items.attach
