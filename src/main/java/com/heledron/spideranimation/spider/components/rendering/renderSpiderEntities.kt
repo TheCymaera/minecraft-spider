@@ -13,17 +13,6 @@ import org.bukkit.util.Vector
 import org.joml.Matrix4f
 import org.joml.Vector4f
 
-fun renderTarget(
-    location: Location
-) = renderBlock(
-    location = location,
-    init = {
-        it.block = Material.REDSTONE_BLOCK.createBlockData()
-        it.teleportDuration = 1
-        it.brightness = Display.Brightness(15, 15)
-        it.transformation = centredTransform(.25f, .25f, .25f)
-    }
-)
 
 fun renderSpider(spider: SpiderBody, cloak: Cloak): RenderGroup {
     val group = RenderGroup()

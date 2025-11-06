@@ -1,13 +1,14 @@
 package com.heledron.spideranimation
 
+import com.heledron.spideranimation.AppState.ecs
 import com.heledron.spideranimation.kinematic_chain_visualizer.KinematicChainVisualizer
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.components.Cloak
-import com.heledron.spideranimation.spider.components.DirectionBehaviour
 import com.heledron.spideranimation.spider.components.PointDetector
 import com.heledron.spideranimation.spider.components.SpiderBehaviour
 import com.heledron.spideranimation.spider.components.TargetBehaviour
 import com.heledron.spideranimation.spider.components.rendering.SpiderRenderer
+import com.heledron.spideranimation.target.LaserPoint
 import com.heledron.spideranimation.utilities.*
 import com.heledron.spideranimation.utilities.custom_items.CustomItemComponent
 import com.heledron.spideranimation.utilities.custom_items.attach
@@ -111,9 +112,9 @@ fun setupItems() {
     val chainVisualizerStraighten = CustomItemComponent("chainVisualizerStraighten")
     customItemRegistry += createNamedItem(Material.MAGENTA_DYE, "Chain Visualizer Straighten").attach(chainVisualizerStraighten)
     chainVisualizerStraighten.onGestureUse { player, _ ->
-        AppState.ecs.query<KinematicChainVisualizer>().forEach {
+        ecs.query<KinematicChainVisualizer>().forEach {
             player.world.playSound(player.position, Sound.BLOCK_DISPENSER_FAIL, 1.0f, 2.0f)
-            it.straighten(it.target?.toVector() ?: return@onGestureUse)
+            it.straighten(it.target ?: return@onGestureUse)
         }
     }
 
@@ -128,28 +129,38 @@ fun setupItems() {
     val laserPointerComponent = CustomItemComponent("laserPointer")
     customItemRegistry += createNamedItem(Material.ARROW, "Laser Pointer").attach(laserPointerComponent)
 
-    laserPointerComponent.onHeldTick { player, _ ->
-        val location = player.eyeLocation
-        val result = raycastGround(location, location.direction, 100.0)
+    onTick {
+        val lasers = ecs.query<ECSEntity, LaserPoint>()
+        val players = laserPointerComponent.getPlayersHoldingItem()
+        for (player in players) {
+            val location = player.eyeLocation
+            val result = raycastGround(location, location.direction, 100.0)
 
-        val hitPosition = result?.hitPosition
-        val hitLocation = hitPosition?.toLocation(player.world)
-        AppState.target = hitLocation
+            val hitPosition = result?.hitPosition ?:
+                player.eyePosition.add(location.direction.multiply(200))
 
-        AppState.ecs.query<KinematicChainVisualizer>().forEach {
-            it.target = hitLocation
-            it.resetIterator()
+
+            val isUsingFallback = result == null
+            val isVisible = !isUsingFallback && AppState.miscOptions.showLaser
+
+            val old = lasers.find { it.second.owner == player }
+            if (old != null) {
+                old.second.world = player.world
+                old.second.position = hitPosition
+                old.second.isVisible = isVisible
+            } else {
+                ecs.spawn(LaserPoint(
+                    owner = player,
+                    world = player.world,
+                    position = hitPosition,
+                    isVisible = isVisible,
+                ))
+            }
         }
 
-        AppState.ecs.query<ECSEntity, SpiderBody>().forEach { (spiderEntity, _) ->
-            val direction = player.direction.setY(0.0).normalize()
-
-            val behaviour = if (hitPosition != null)
-                TargetBehaviour(hitPosition, 3.0) else
-                DirectionBehaviour(direction, direction)
-
-            spiderEntity.replaceComponent<SpiderBehaviour>(behaviour)
-        }
+        // remove unused lasers
+        val unused = lasers.filter { !players.contains(it.second.owner) }
+        unused.forEach { it.first.remove() }
     }
 
     val comeHereComponent = CustomItemComponent("comeHere")

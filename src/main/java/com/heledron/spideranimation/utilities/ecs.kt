@@ -7,11 +7,11 @@ class ECS {
     var entities = mutableListOf<ECSEntity>()
     val eventListeners = mutableListOf<(Any) -> Unit>()
 
-    private val initSystems = mutableListOf<(ECS) -> Unit>()
+    private val startSystems = mutableListOf<(ECS) -> Unit>()
     private val tickSystems = mutableListOf<(ECS) -> Unit>()
     private val renderSystems = mutableListOf<(ECS) -> Unit>()
 
-    fun onInit(func: (ECS) -> Unit) { initSystems += func }
+    fun onStart(func: (ECS) -> Unit) { startSystems += func }
     fun onTick(func: (ECS) -> Unit) { tickSystems += func }
     fun onRender(func: (ECS) -> Unit) { renderSystems += func }
 
@@ -73,8 +73,8 @@ class ECS {
         }
     }
 
-    fun run() {
-        for (system in initSystems) system(this)
+    fun start() {
+        for (system in startSystems) system(this)
     }
 
     fun update() {

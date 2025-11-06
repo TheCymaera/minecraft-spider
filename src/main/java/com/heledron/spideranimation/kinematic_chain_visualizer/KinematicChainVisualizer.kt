@@ -26,7 +26,6 @@ import kotlin.math.sqrt
 
 
 class KinematicChainVisualizer(
-//    val root: Location,
     val world: World,
     val root: Vector,
     val segments: List<ChainSegment>,
@@ -41,7 +40,7 @@ class KinematicChainVisualizer(
     var iterator = 0
     var previous: Triple<Stage, Int, List<ChainSegment>>? = null
     var stage = Stage.Forwards
-    var target: Location? = null
+    var target: Vector? = null
 
     var detailed = false
     set(value) {
@@ -91,7 +90,7 @@ class KinematicChainVisualizer(
 
     private var subStage = 0;
     fun step() {
-        val target = target?.toVector() ?: return
+        val target = target ?: return
 
         val isMovingRoot = previous?.first == Stage.Forwards && previous?.second == segments.size - 1
 

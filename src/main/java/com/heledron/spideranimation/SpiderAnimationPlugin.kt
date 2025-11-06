@@ -4,12 +4,9 @@ import com.heledron.spideranimation.AppState.ecs
 import com.heledron.spideranimation.kinematic_chain_visualizer.KinematicChainVisualizer
 import com.heledron.spideranimation.kinematic_chain_visualizer.setupChainVisualizer
 import com.heledron.spideranimation.spider.components.body.SpiderBody
-import com.heledron.spideranimation.spider.components.Mountable
-import com.heledron.spideranimation.spider.components.SpiderBehaviour
-import com.heledron.spideranimation.spider.components.StayStillBehaviour
 import com.heledron.spideranimation.spider.components.rendering.SpiderRenderer
-import com.heledron.spideranimation.spider.components.rendering.renderTarget
 import com.heledron.spideranimation.spider.setupSpider
+import com.heledron.spideranimation.target.setupLaserPointer
 import com.heledron.spideranimation.utilities.ECSEntity
 import com.heledron.spideranimation.utilities.events.onSpawnEntity
 import com.heledron.spideranimation.utilities.events.onTick
@@ -40,35 +37,18 @@ class SpiderAnimationPlugin : JavaPlugin() {
         setupItems()
         setupSpider(ecs)
         setupChainVisualizer(ecs)
+        setupLaserPointer(ecs)
 
-        ecs.run()
+        ecs.start()
         onTick {
-            ecs.update()
-            ecs.render()
-        }
-
-        onTick {
-            // update spider
+            // sync AppState properties
             ecs.query<ECSEntity, SpiderBody>().forEach { (entity, spider) ->
-                val mount = entity.query<Mountable>()
-                if (mount !== null && mount.getRider() == null) {
-                    entity.replaceComponent<SpiderBehaviour>(StayStillBehaviour())
-                }
-
-                val renderer = entity.query<SpiderRenderer>()
-                renderer?.renderDebugVisuals = AppState.renderDebugVisuals
-
+                entity.query<SpiderRenderer>()?.renderDebugVisuals = AppState.renderDebugVisuals
                 spider.gallop = AppState.gallop
             }
 
-            // render target
-            val target =
-                (if (AppState.miscOptions.showLaser) AppState.target else null) ?:
-                ecs.query<KinematicChainVisualizer>().firstOrNull()?.target
-
-            if (target != null) renderTarget(target).submit("target")
-
-            AppState.target = null
+            ecs.update()
+            ecs.render()
         }
 
 
