@@ -5,8 +5,6 @@ import com.heledron.spideranimation.kinematic_chain_visualizer.KinematicChainVis
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.components.Cloak
 import com.heledron.spideranimation.spider.components.PointDetector
-import com.heledron.spideranimation.spider.components.SpiderBehaviour
-import com.heledron.spideranimation.spider.components.TargetBehaviour
 import com.heledron.spideranimation.spider.components.rendering.SpiderRenderer
 import com.heledron.spideranimation.target.LaserPoint
 import com.heledron.spideranimation.utilities.*
@@ -19,6 +17,8 @@ import com.heledron.spideranimation.utilities.events.onTick
 import com.heledron.spideranimation.utilities.sendActionBar
 import org.bukkit.Material
 import org.bukkit.Sound
+import org.bukkit.entity.Player
+import org.bukkit.util.Vector
 import kotlin.math.roundToInt
 
 
@@ -129,10 +129,47 @@ fun setupItems() {
     val laserPointerComponent = CustomItemComponent("laserPointer")
     customItemRegistry += createNamedItem(Material.ARROW, "Laser Pointer").attach(laserPointerComponent)
 
-    onTick {
-        val lasers = ecs.query<ECSEntity, LaserPoint>()
-        val players = laserPointerComponent.getPlayersHoldingItem()
-        for (player in players) {
+    val comeHereComponent = CustomItemComponent("comeHere")
+    customItemRegistry += createNamedItem(Material.CARROT_ON_A_STICK, "Come Here").attach(comeHereComponent)
+
+    class LaserPointExpire(val owner: Player) {
+        var expired = false
+    }
+
+    ecs.onTick {
+        // mark laser for removal
+        ecs.query<LaserPointExpire>().forEach { expire ->
+            expire.expired = true
+        }
+    }
+
+    ecs.onTick {
+        val lasers = ecs.query<ECSEntity, LaserPoint, LaserPointExpire>()
+
+        fun spawnLaser(player: Player, position: Vector, isVisible: Boolean) {
+            val existing = lasers.find { it.third.owner == player }
+
+            if (existing != null) {
+                // update existing laser
+                existing.second.world = player.world
+                existing.second.position = position
+                existing.second.isVisible = isVisible
+                existing.third.expired = false
+            } else {
+                // create new laser
+                ecs.spawn(
+                    LaserPointExpire(player),
+                    LaserPoint(
+                        world = player.world,
+                        position = position,
+                        isVisible = isVisible,
+                    )
+                )
+            }
+        }
+
+        // handle laser pointer
+        for (player in laserPointerComponent.getPlayersHoldingItem()) {
             val location = player.eyeLocation
             val result = raycastGround(location, location.direction, 100.0)
 
@@ -143,37 +180,18 @@ fun setupItems() {
             val isUsingFallback = result == null
             val isVisible = !isUsingFallback && AppState.miscOptions.showLaser
 
-            val old = lasers.find { it.second.owner == player }
-            if (old != null) {
-                old.second.world = player.world
-                old.second.position = hitPosition
-                old.second.isVisible = isVisible
-            } else {
-                ecs.spawn(LaserPoint(
-                    owner = player,
-                    world = player.world,
-                    position = hitPosition,
-                    isVisible = isVisible,
-                ))
-            }
+            spawnLaser(player, hitPosition, isVisible)
         }
 
-        // remove unused lasers
-        val unused = lasers.filter { !players.contains(it.second.owner) }
-        unused.forEach { it.first.remove() }
+        // handle carrot on a stick
+        for (player in comeHereComponent.getPlayersHoldingItem()) {
+            spawnLaser(player, player.eyePosition, isVisible = false)
+        }
     }
 
-    val comeHereComponent = CustomItemComponent("comeHere")
-    customItemRegistry += createNamedItem(Material.CARROT_ON_A_STICK, "Come Here").attach(comeHereComponent)
-    comeHereComponent.onHeldTick { player, _ ->
-        val (spider, entity) = AppState.ecs.query<SpiderBody, ECSEntity>().firstOrNull() ?: return@onHeldTick
-
-        val distance = run {
-            val lerpedGait = spider.lerpedGait()
-            if (spider.gait.straightenLegs) lerpedGait.bodyHeight * 2.0
-            else lerpedGait.bodyHeight * 5.0
+    ecs.onTick {
+        ecs.query<ECSEntity,LaserPointExpire>().forEach { (entity, expire) ->
+            if (expire.expired) entity.remove()
         }
-
-        entity.replaceComponent<SpiderBehaviour>(TargetBehaviour(player.eyePosition, distance))
     }
 }
