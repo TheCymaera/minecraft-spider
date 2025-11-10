@@ -112,10 +112,11 @@ Copy block examples used in the video:
 
 ## Development
 1. Clone or download the repo.
-2. Run Maven `package` to build the plugin. The resulting JAR will be in the `target` folder.
-3. For convenience, set up a symlink and add the link to the server `plugins` folder.
+2. Run Gradle `build` or `buildDependents` to build the plugin. The JAR will be created in `build/libs`.
+3. To develop on an existing server, create a symlink and add it to the server `plugins` folder.
    - Windows: `mklink /D newFile.jar originalFile.jar`
    - Mac/Linux: `ln -s originalFile.jar newFile.jar `
+4. You can configure hot swapping by following this [tutorial](https://www.youtube.com/watch?v=yQVLT6sDg68).
 
 ## License
 You may use the plugin and source code for both commercial or non-commercial purposes.
