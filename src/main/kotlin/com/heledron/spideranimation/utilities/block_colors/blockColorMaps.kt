@@ -1,9 +1,8 @@
-package com.heledron.hologram.utilities.block_colors
+package com.heledron.spideranimation.utilities.block_colors
 
 import com.google.gson.Gson
 import com.heledron.spideranimation.utilities.colors.Oklab
 import com.heledron.spideranimation.utilities.colors.toOklab
-import com.heledron.spideranimation.utilities.block_colors.withBrightness
 import com.heledron.spideranimation.utilities.requireResource
 import org.bukkit.Color
 import org.bukkit.Material

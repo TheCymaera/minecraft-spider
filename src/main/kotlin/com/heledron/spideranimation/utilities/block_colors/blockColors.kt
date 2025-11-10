@@ -1,7 +1,5 @@
 package com.heledron.spideranimation.utilities.block_colors
 
-import com.heledron.hologram.utilities.block_colors.blockToColor
-import com.heledron.hologram.utilities.block_colors.colorToBlock
 import com.heledron.spideranimation.utilities.colors.Oklab
 import com.heledron.spideranimation.utilities.colors.distanceTo
 import com.heledron.spideranimation.utilities.colors.toOklab

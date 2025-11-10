@@ -1,6 +1,6 @@
 package com.heledron.spideranimation.laser
 
-import com.heledron.hologram.utilities.rendering.renderBlock
+import com.heledron.spideranimation.utilities.rendering.renderBlock
 import com.heledron.spideranimation.kinematic_chain_visualizer.KinematicChainVisualizer
 import com.heledron.spideranimation.spider.components.SpiderBehaviour
 import com.heledron.spideranimation.spider.components.TargetBehaviour

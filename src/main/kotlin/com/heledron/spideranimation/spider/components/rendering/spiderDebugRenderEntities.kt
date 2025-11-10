@@ -1,7 +1,7 @@
 package com.heledron.spideranimation.spider.components.rendering
 
-import com.heledron.hologram.utilities.rendering.interpolateTransform
-import com.heledron.hologram.utilities.rendering.renderBlock
+import com.heledron.spideranimation.utilities.rendering.interpolateTransform
+import com.heledron.spideranimation.utilities.rendering.renderBlock
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.components.PointDetector
 import com.heledron.spideranimation.utilities.*

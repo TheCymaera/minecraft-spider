@@ -1,7 +1,7 @@
 package com.heledron.spideranimation.utilities
 
-import com.heledron.hologram.utilities.rendering.interpolateTransform
-import com.heledron.hologram.utilities.rendering.renderBlock
+import com.heledron.spideranimation.utilities.rendering.interpolateTransform
+import com.heledron.spideranimation.utilities.rendering.renderBlock
 import com.heledron.spideranimation.utilities.maths.FORWARD_VECTOR
 import com.heledron.spideranimation.utilities.maths.UP_VECTOR
 import org.bukkit.World

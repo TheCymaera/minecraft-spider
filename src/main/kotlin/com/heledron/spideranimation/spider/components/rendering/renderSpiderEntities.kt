@@ -1,14 +1,11 @@
 package com.heledron.spideranimation.spider.components.rendering
 
-import com.heledron.hologram.utilities.rendering.interpolateTransform
-import com.heledron.hologram.utilities.rendering.renderBlock
+import com.heledron.spideranimation.utilities.rendering.interpolateTransform
+import com.heledron.spideranimation.utilities.rendering.renderBlock
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.components.Cloak
 import com.heledron.spideranimation.utilities.*
-import com.heledron.spideranimation.utilities.deprecated.centredTransform
 import com.heledron.spideranimation.utilities.rendering.RenderGroup
-import org.bukkit.*
-import org.bukkit.entity.Display
 import org.bukkit.util.Vector
 import org.joml.Matrix4f
 import org.joml.Vector4f

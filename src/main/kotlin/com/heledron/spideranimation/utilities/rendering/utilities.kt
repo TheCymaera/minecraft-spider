@@ -1,6 +1,5 @@
-package com.heledron.hologram.utilities.rendering
+package com.heledron.spideranimation.utilities.rendering
 
-import com.heledron.spideranimation.utilities.rendering.RenderEntity
 import org.bukkit.Location
 import org.bukkit.World
 import org.bukkit.entity.BlockDisplay

@@ -1,4 +1,4 @@
-package com.heledron.hologram.utilities.rendering
+package com.heledron.spideranimation.utilities.rendering
 
 import com.heledron.spideranimation.utilities.currentPlugin
 import com.heledron.spideranimation.utilities.eyePosition

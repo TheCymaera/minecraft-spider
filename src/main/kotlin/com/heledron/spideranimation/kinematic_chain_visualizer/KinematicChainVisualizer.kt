@@ -1,12 +1,11 @@
 package com.heledron.spideranimation.kinematic_chain_visualizer
 
-import com.heledron.hologram.utilities.rendering.interpolateTransform
-import com.heledron.hologram.utilities.rendering.renderBlock
-import com.heledron.hologram.utilities.rendering.renderText
+import com.heledron.spideranimation.utilities.rendering.interpolateTransform
+import com.heledron.spideranimation.utilities.rendering.renderBlock
+import com.heledron.spideranimation.utilities.rendering.renderText
 import com.heledron.spideranimation.spider.configuration.SegmentPlan
 import com.heledron.spideranimation.utilities.*
 import com.heledron.spideranimation.utilities.deprecated.centredTransform
-import com.heledron.spideranimation.utilities.events.onTick
 import com.heledron.spideranimation.utilities.maths.FORWARD_VECTOR
 import com.heledron.spideranimation.utilities.maths.UP_VECTOR
 import com.heledron.spideranimation.utilities.maths.pitch
@@ -14,14 +13,12 @@ import com.heledron.spideranimation.utilities.maths.toRadians
 import com.heledron.spideranimation.utilities.maths.yaw
 import com.heledron.spideranimation.utilities.rendering.RenderGroup
 import com.heledron.spideranimation.utilities.rendering.RenderItem
-import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.World
 import org.bukkit.entity.Display
 import org.bukkit.util.Vector
 import org.joml.Matrix4f
 import org.joml.Quaternionf
-import java.io.Closeable
 import kotlin.math.sqrt
 
 
