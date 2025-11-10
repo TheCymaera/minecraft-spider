@@ -6,8 +6,8 @@ import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.components.body.SpiderBodyHitGroundEvent
 import com.heledron.spideranimation.spider.configuration.SoundOptions
 import com.heledron.spideranimation.spider.configuration.SoundPlayer
-import com.heledron.spideranimation.utilities.ECS
-import com.heledron.spideranimation.utilities.playSound
+import com.heledron.spideranimation.utilities.ecs.ECS
+import com.heledron.spideranimation.utilities.overloads.playSound
 import org.bukkit.Particle
 import org.bukkit.Sound
 import org.bukkit.World

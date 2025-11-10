@@ -58,7 +58,8 @@ internal val colorToBlock = run {
 
 
             // skip shulker boxes
-            if (material.name.endsWith("_SHULKER_BOX")) continue
+            val id = material.idString()
+            if (id.endsWith("shulker_box")) continue
 
             val newColor = color.withBrightness(brightness)
             if (newColor in out) continue
@@ -79,28 +80,30 @@ internal val blockToColor = run {
     val out = blocks.toMutableMap()
 
     // infer color of partial blocks from their full block counterparts
-    for (material in Material.entries) {
-        if (!material.isBlock) continue
-        val id = material.key.toString()
+    for ((material, color) in blocks) {
+        val id = material.idString()
 
-        if (out.containsKey(material)) continue
+        val variations = listOf(
+            id,
+            id.replaceEnd("_planks", ""),
+            id.replaceEnd("_wood", ""),
+            id.replaceEnd("s", "")
+        ).flatMap { baseId ->
+            listOf(
+                "${baseId}_slab",
+                "${baseId}_stairs",
+                "${baseId}_wall",
+                "${baseId}_trapdoor",
+                "waxed_$baseId",
+            )
+        }
 
-        val fullBlockName = id
-            .replaceEnd("_slab", "")
-            .replaceEnd("_stairs", "")
-            .replaceEnd("_wall", "")
-            .replaceEnd("_trapdoor", "")
-            .replace("waxed_", "")
-
-        if (fullBlockName == id) continue
-
-        val fullBlockMaterial =
-            Material.matchMaterial(fullBlockName + "_planks") ?:
-            Material.matchMaterial(fullBlockName) ?:
-            Material.matchMaterial(fullBlockName + "s") ?:
-            Material.matchMaterial(fullBlockName + "_wood")
-
-        out[material] = out[fullBlockMaterial] ?: continue
+        for (variantId in variations) {
+            val variantMaterial = Material.matchMaterial(variantId) ?: continue
+            if (out.containsKey(variantMaterial)) continue
+            out[variantMaterial] = color
+//            println("Inferred: ${variantId.padEnd(40)} from $id")
+        }
     }
 
     out[Material.CAMPFIRE] = out[Material.OAK_LOG]!!
@@ -124,7 +127,7 @@ private fun String.replaceEnd(suffix: String, with: String): String {
 }
 
 private fun getWoodVariant(material: Material): Material? {
-    val id = material.key.toString()
+    val id = material.idString()
 
     if (id.endsWith("_log")) {
         return Material.matchMaterial(id.replaceEnd("_log", "_wood"))
@@ -135,4 +138,8 @@ private fun getWoodVariant(material: Material): Material? {
     }
 
     return null
+}
+
+private fun Material.idString(): String {
+    return this.keyOrThrow.toString()
 }

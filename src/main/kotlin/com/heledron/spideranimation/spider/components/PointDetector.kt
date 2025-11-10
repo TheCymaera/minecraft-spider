@@ -2,10 +2,10 @@ package com.heledron.spideranimation.spider.components
 
 import com.heledron.spideranimation.spider.components.body.Leg
 import com.heledron.spideranimation.spider.components.body.SpiderBody
-import com.heledron.spideranimation.utilities.ECS
-import com.heledron.spideranimation.utilities.deprecated.lookingAtPoint
-import com.heledron.spideranimation.utilities.direction
-import com.heledron.spideranimation.utilities.eyePosition
+import com.heledron.spideranimation.utilities.ecs.ECS
+import com.heledron.spideranimation.utilities.lookingAtPoint
+import com.heledron.spideranimation.utilities.overloads.direction
+import com.heledron.spideranimation.utilities.overloads.eyePosition
 import org.bukkit.World
 import org.bukkit.entity.Player
 import org.bukkit.util.Vector

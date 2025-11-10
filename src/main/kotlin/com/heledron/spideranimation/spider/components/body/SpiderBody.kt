@@ -5,9 +5,11 @@ import com.heledron.spideranimation.spider.configuration.Gait
 import com.heledron.spideranimation.spider.configuration.LerpGait
 import com.heledron.spideranimation.spider.configuration.SpiderDebugOptions
 import com.heledron.spideranimation.utilities.*
-import com.heledron.spideranimation.utilities.deprecated.isOnGround
-import com.heledron.spideranimation.utilities.deprecated.raycastGround
-import com.heledron.spideranimation.utilities.deprecated.resolveCollision
+import com.heledron.spideranimation.utilities.ecs.ECS
+import com.heledron.spideranimation.utilities.ecs.ECSEntity
+import com.heledron.spideranimation.utilities.isOnGround
+import com.heledron.spideranimation.utilities.raycastGround
+import com.heledron.spideranimation.utilities.resolveCollision
 import com.heledron.spideranimation.utilities.maths.DOWN_VECTOR
 import com.heledron.spideranimation.utilities.maths.FORWARD_VECTOR
 import com.heledron.spideranimation.utilities.maths.UP_VECTOR
@@ -16,6 +18,7 @@ import com.heledron.spideranimation.utilities.maths.pitch
 import com.heledron.spideranimation.utilities.maths.pitchRadians
 import com.heledron.spideranimation.utilities.maths.rotate
 import com.heledron.spideranimation.utilities.maths.yawRadians
+import com.heledron.spideranimation.utilities.overloads.sendDebugChatMessage
 import org.bukkit.Location
 import org.bukkit.World
 import org.bukkit.util.Vector

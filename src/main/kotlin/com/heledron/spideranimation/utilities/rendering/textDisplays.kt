@@ -1,11 +1,11 @@
 package com.heledron.spideranimation.utilities.rendering
 
 import com.heledron.spideranimation.utilities.currentPlugin
-import com.heledron.spideranimation.utilities.eyePosition
 import com.heledron.spideranimation.utilities.maths.normal
 import com.heledron.spideranimation.utilities.maths.shear
 import com.heledron.spideranimation.utilities.maths.toRadians
-import com.heledron.spideranimation.utilities.position
+import com.heledron.spideranimation.utilities.overloads.eyePosition
+import com.heledron.spideranimation.utilities.overloads.position
 import org.bukkit.Bukkit
 import org.bukkit.entity.TextDisplay
 import org.joml.Matrix4f

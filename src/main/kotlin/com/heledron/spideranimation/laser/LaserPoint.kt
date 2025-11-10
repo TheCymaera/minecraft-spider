@@ -5,9 +5,9 @@ import com.heledron.spideranimation.kinematic_chain_visualizer.KinematicChainVis
 import com.heledron.spideranimation.spider.components.SpiderBehaviour
 import com.heledron.spideranimation.spider.components.TargetBehaviour
 import com.heledron.spideranimation.spider.components.body.SpiderBody
-import com.heledron.spideranimation.utilities.ECS
-import com.heledron.spideranimation.utilities.ECSEntity
-import com.heledron.spideranimation.utilities.deprecated.centredTransform
+import com.heledron.spideranimation.utilities.ecs.ECS
+import com.heledron.spideranimation.utilities.ecs.ECSEntity
+import com.heledron.spideranimation.utilities.centredTransform
 import org.bukkit.Material
 import org.bukkit.World
 import org.bukkit.entity.Display

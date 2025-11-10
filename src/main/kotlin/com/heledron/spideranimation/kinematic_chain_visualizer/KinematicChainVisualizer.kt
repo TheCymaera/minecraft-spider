@@ -1,11 +1,13 @@
 package com.heledron.spideranimation.kinematic_chain_visualizer
 
+import com.heledron.spideranimation.spider.components.rendering.renderLine
 import com.heledron.spideranimation.utilities.rendering.interpolateTransform
 import com.heledron.spideranimation.utilities.rendering.renderBlock
 import com.heledron.spideranimation.utilities.rendering.renderText
 import com.heledron.spideranimation.spider.configuration.SegmentPlan
 import com.heledron.spideranimation.utilities.*
-import com.heledron.spideranimation.utilities.deprecated.centredTransform
+import com.heledron.spideranimation.utilities.centredTransform
+import com.heledron.spideranimation.utilities.ecs.ECS
 import com.heledron.spideranimation.utilities.maths.FORWARD_VECTOR
 import com.heledron.spideranimation.utilities.maths.UP_VECTOR
 import com.heledron.spideranimation.utilities.maths.pitch

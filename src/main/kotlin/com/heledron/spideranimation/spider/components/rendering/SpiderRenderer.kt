@@ -3,7 +3,7 @@ package com.heledron.spideranimation.spider.components.rendering
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.components.Cloak
 import com.heledron.spideranimation.spider.components.PointDetector
-import com.heledron.spideranimation.utilities.ECS
+import com.heledron.spideranimation.utilities.ecs.ECS
 import com.heledron.spideranimation.utilities.events.interval
 import org.bukkit.Location
 import org.bukkit.Particle

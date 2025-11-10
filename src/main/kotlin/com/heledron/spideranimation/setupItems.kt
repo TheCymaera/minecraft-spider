@@ -7,14 +7,19 @@ import com.heledron.spideranimation.spider.components.Cloak
 import com.heledron.spideranimation.spider.components.PointDetector
 import com.heledron.spideranimation.spider.components.rendering.SpiderRenderer
 import com.heledron.spideranimation.laser.LaserPoint
-import com.heledron.spideranimation.utilities.*
 import com.heledron.spideranimation.utilities.custom_items.CustomItemComponent
 import com.heledron.spideranimation.utilities.custom_items.attach
 import com.heledron.spideranimation.utilities.custom_items.createNamedItem
 import com.heledron.spideranimation.utilities.custom_items.customItemRegistry
-import com.heledron.spideranimation.utilities.deprecated.raycastGround
+import com.heledron.spideranimation.utilities.ecs.ECSEntity
+import com.heledron.spideranimation.utilities.raycastGround
 import com.heledron.spideranimation.utilities.events.onTick
-import com.heledron.spideranimation.utilities.sendActionBar
+import com.heledron.spideranimation.utilities.overloads.direction
+import com.heledron.spideranimation.utilities.overloads.eyePosition
+import com.heledron.spideranimation.utilities.overloads.playSound
+import com.heledron.spideranimation.utilities.overloads.position
+import com.heledron.spideranimation.utilities.overloads.sendActionBar
+import com.heledron.spideranimation.utilities.overloads.yaw
 import org.bukkit.Material
 import org.bukkit.Sound
 import org.bukkit.entity.Player
@@ -170,11 +175,11 @@ fun setupItems() {
 
         // handle laser pointer
         for (player in laserPointerComponent.getPlayersHoldingItem()) {
-            val location = player.eyeLocation
-            val result = raycastGround(location, location.direction, 100.0)
+            val direction = player.direction
+            val result = player.world.raycastGround(player.eyePosition, direction, 100.0)
 
             val hitPosition = result?.hitPosition ?:
-                player.eyePosition.add(location.direction.multiply(200))
+                player.eyePosition.add(direction.multiply(200))
 
 
             val isUsingFallback = result == null

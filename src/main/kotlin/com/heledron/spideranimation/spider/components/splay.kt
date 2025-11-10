@@ -3,10 +3,12 @@ package com.heledron.spideranimation.spider.components
 import com.heledron.spideranimation.AppState
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.utilities.*
+import com.heledron.spideranimation.utilities.ecs.ECSEntity
 import com.heledron.spideranimation.utilities.events.interval
 import com.heledron.spideranimation.utilities.events.runLater
 import com.heledron.spideranimation.utilities.maths.eased
 import com.heledron.spideranimation.utilities.maths.moveTowards
+import com.heledron.spideranimation.utilities.overloads.position
 import com.heledron.spideranimation.utilities.rendering.RenderEntityTracker
 import org.bukkit.entity.BlockDisplay
 import org.bukkit.util.Transformation

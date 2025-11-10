@@ -1,49 +1,16 @@
 package com.heledron.spideranimation.utilities
 
 import com.google.gson.Gson
-import com.heledron.spideranimation.utilities.deprecated.matrixFromTransform
-import org.bukkit.Bukkit
-import org.bukkit.Location
 import org.bukkit.Material
-import org.bukkit.entity.BlockDisplay
 import org.joml.Matrix4f
 
-fun parseModelWithCommandDispatch(command: String): DisplayModel {
-    val world = Bukkit.getWorlds().first()
-    val location = Location(world, .0,.0,.0)
-
-    runCommandSilently(
-        location = location,
-        command = "execute positioned ${location.x + .5} ${location.y} ${location.z + .5} run ${command.trimStart('/')}"
-    )
-
-    val pieces = mutableListOf<BlockDisplayModelPiece>()
-
-    val radius = 0.001
-    for (entity in world.getNearbyEntities(location, radius, radius, radius)) {
-        if (entity !is BlockDisplay) continue
-
-        val transform = matrixFromTransform(entity.transformation)
-        pieces += BlockDisplayModelPiece(
-            block = entity.block,
-            transform = transform,
-            brightness = entity.brightness,
-            tags = entity.scoreboardTags.toList()
-        )
-
-        entity.remove()
-    }
-
-    return DisplayModel(pieces)
-}
 
 fun parseModelFromCommand(command: String): DisplayModel {
-//    return parseModelWithCommandDispatch(command)
-    //summon block_display ~-0.5 ~ ~-0.5 {Passengers:[{id:"minecraft:block_display",block_state:{Name:"minecraft:smooth_quartz",Properties:{}},transformation:[0.1f,0f,0f,0.15f,0f,0.0427f,0.0288f,0.4922f,0f,-0.0022f,0.5492f,-0.8771f,0f,0f,0f,1f]}...
+//    /summon block_display ~-0.5 ~ ~-0.5 {Passengers:[{id:"minecraft:block_display",block_state:{Name:"minecraft:smooth_quartz",Properties:{}},transformation:[0.1f,0f,0f,0.15f,0f,0.0427f,0.0288f,0.4922f,0f,-0.0022f,0.5492f,-0.8771f,0f,0f,0f,1f]}...
 
     val pieces = mutableListOf<BlockDisplayModelPiece>()
 
-    var json = command.substring("summon block_display ~-0.5 ~ ~-0.5 :".length)
+    var json = command.substring("/summon block_display ~-0.5 ~ ~-0.5 ".length)
 
     // convert 1.0f -> 1.0
     json = json.replace(Regex("""(\d*\.*\d+)f"""), "$1")

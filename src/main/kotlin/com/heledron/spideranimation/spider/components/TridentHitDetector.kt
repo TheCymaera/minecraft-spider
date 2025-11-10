@@ -1,10 +1,10 @@
 package com.heledron.spideranimation.spider.components
 
 import com.heledron.spideranimation.spider.components.body.SpiderBody
-import com.heledron.spideranimation.utilities.ECS
-import com.heledron.spideranimation.utilities.ECSEntity
+import com.heledron.spideranimation.utilities.ecs.ECS
+import com.heledron.spideranimation.utilities.ecs.ECSEntity
 import com.heledron.spideranimation.utilities.maths.UP_VECTOR
-import com.heledron.spideranimation.utilities.position
+import com.heledron.spideranimation.utilities.overloads.position
 import org.bukkit.entity.Trident
 
 class TridentHitEvent(val entity: ECSEntity, val spider: SpiderBody, val trident: Trident)

@@ -5,12 +5,14 @@ import com.heledron.spideranimation.utilities.rendering.renderBlock
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.components.PointDetector
 import com.heledron.spideranimation.utilities.*
-import com.heledron.spideranimation.utilities.deprecated.centredTransform
+import com.heledron.spideranimation.utilities.centredTransform
 import com.heledron.spideranimation.utilities.maths.FORWARD_VECTOR
 import com.heledron.spideranimation.utilities.maths.RIGHT_VECTOR
 import com.heledron.spideranimation.utilities.maths.UP_VECTOR
 import com.heledron.spideranimation.utilities.rendering.RenderGroup
 import org.bukkit.Material
+import org.bukkit.World
+import org.bukkit.entity.BlockDisplay
 import org.bukkit.entity.Display
 import org.bukkit.util.Vector
 import org.joml.Matrix4f
@@ -233,3 +235,30 @@ fun spiderDebugRenderEntities(spider: SpiderBody, pointDetector: PointDetector):
 
     return group
 }
+
+fun renderLine(
+    world: World,
+    position: Vector,
+    vector: Vector,
+    upVector: Vector = if (vector.x + vector.z != 0.0) UP_VECTOR else FORWARD_VECTOR,
+    thickness: Float = .1f,
+    interpolation: Int = 1,
+    init: (BlockDisplay) -> Unit = {},
+    update: (BlockDisplay) -> Unit = {}
+) = renderBlock(
+    world = world,
+    position = position,
+    init = {
+        it.teleportDuration = interpolation
+        it.interpolationDuration = interpolation
+        init(it)
+    },
+    update = {
+        val matrix = Matrix4f().rotateTowards(vector.toVector3f(), upVector.toVector3f())
+            .translate(-thickness / 2, -thickness / 2, 0f)
+            .scale(thickness, thickness, vector.length().toFloat())
+
+        it.interpolateTransform(matrix)
+        update(it)
+    }
+)

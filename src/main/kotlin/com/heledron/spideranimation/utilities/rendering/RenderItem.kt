@@ -7,7 +7,6 @@ import com.heledron.spideranimation.utilities.custom_entities.attach
 import com.heledron.spideranimation.utilities.custom_entities.detach
 import com.heledron.spideranimation.utilities.events.onTickEnd
 import com.heledron.spideranimation.utilities.onPluginShutdown
-import com.heledron.spideranimation.utilities.spawnEntity
 import org.bukkit.Location
 import org.bukkit.entity.Entity
 import kotlin.collections.iterator
@@ -57,7 +56,7 @@ class RenderEntity <T : Entity> (
             if (!entity.isInsideVehicle) entity.teleport(location)
             update(entity)
         } else {
-            RenderEntityTracker.put(handle, spawnEntity(location, clazz) {
+            RenderEntityTracker.put(handle, location.world!!.spawn(location, clazz) {
                 init(it)
                 update(it)
             })

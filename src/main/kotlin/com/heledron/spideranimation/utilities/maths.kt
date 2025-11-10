@@ -1,7 +1,12 @@
 package com.heledron.spideranimation.utilities
 
+import com.heledron.spideranimation.utilities.maths.DOWN_VECTOR
 import com.heledron.spideranimation.utilities.maths.FORWARD_VECTOR
 import com.heledron.spideranimation.utilities.maths.lerp
+import org.bukkit.FluidCollisionMode
+import org.bukkit.World
+import org.bukkit.util.RayTraceResult
+import org.bukkit.util.Transformation
 import org.bukkit.util.Vector
 import org.joml.*
 import kotlin.math.abs
@@ -69,4 +74,50 @@ class SplitDistanceZone(
 
     val horizontal: Double; get() = size.horizontal
     val vertical: Double; get() = size.vertical
+}
+
+
+fun World.raycastGround(position: Vector, direction: Vector, maxDistance: Double): RayTraceResult? {
+    val location = position.toLocation(this)
+    return this.rayTraceBlocks(location, direction, maxDistance, FluidCollisionMode.NEVER, true)
+}
+
+fun World.isOnGround(position: Vector, downVector: Vector = DOWN_VECTOR): Boolean {
+    return this.raycastGround(position, downVector, 0.001) != null
+}
+
+data class CollisionResult(val position: Vector, val offset: Vector)
+
+fun World.resolveCollision(position: Vector, direction: Vector): CollisionResult? {
+    val location = position.toLocation(this)
+    val ray = this.rayTraceBlocks(location.subtract(direction), direction, direction.length(), FluidCollisionMode.NEVER, true)
+    if (ray != null) {
+        return CollisionResult(ray.hitPosition, ray.hitPosition.clone().subtract(position))
+    }
+
+    return null
+}
+
+fun lookingAtPoint(eye: Vector, direction: Vector, point: Vector, tolerance: Double): Boolean {
+    val pointDistance = eye.distance(point)
+    val lookingAtPoint = eye.clone().add(direction.clone().multiply(pointDistance))
+    return lookingAtPoint.distance(point) < tolerance
+}
+
+fun centredTransform(xSize: Float, ySize: Float, zSize: Float): Transformation {
+    return Transformation(
+        Vector3f(-xSize / 2, -ySize / 2, -zSize / 2),
+        AxisAngle4f(0f, 0f, 0f, 1f),
+        Vector3f(xSize, ySize, zSize),
+        AxisAngle4f(0f, 0f, 0f, 1f)
+    )
+}
+
+fun matrixFromTransform(transformation: Transformation): Matrix4f {
+    val matrix = Matrix4f()
+    matrix.translate(transformation.translation)
+    matrix.rotate(transformation.leftRotation)
+    matrix.scale(transformation.scale)
+    matrix.rotate(transformation.rightRotation)
+    return matrix
 }

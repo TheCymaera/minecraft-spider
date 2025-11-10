@@ -3,6 +3,7 @@ package com.heledron.spideranimation.utilities
 import com.heledron.spideranimation.utilities.events.onTick
 import com.heledron.spideranimation.utilities.maths.pitchRadians
 import com.heledron.spideranimation.utilities.maths.yawRadians
+import com.heledron.spideranimation.utilities.overloads.spawnEntity
 import net.md_5.bungee.api.ChatMessageType
 import net.md_5.bungee.api.chat.TextComponent
 import org.bukkit.Bukkit
@@ -50,53 +51,17 @@ fun requireCommand(name: String): PluginCommand {
 }
 
 private var commandBlockMinecart: CommandMinecart? = null
-fun runCommandSilently(command: String, location: Location = Bukkit.getWorlds().first().spawnLocation) {
+fun runCommandSilently(
+    command: String,
+    world: World = Bukkit.getWorlds().first(),
+    position: Vector = world.spawnLocation.toVector()
+) {
     val server = Bukkit.getServer()
 
-    val commandBlockMinecart = commandBlockMinecart ?: spawnEntity(location, CommandMinecart::class.java) {
+    val commandBlockMinecart = commandBlockMinecart ?: world.spawnEntity(position, CommandMinecart::class.java) {
         commandBlockMinecart = it
         it.remove()
     }
 
     server.dispatchCommand(commandBlockMinecart, command)
 }
-
-fun CommandSender.sendActionBarOrMessage(message: String) {
-    if (this is Player) {
-        this.sendActionBar(message)
-    } else {
-        this.sendMessage(message)
-    }
-}
-
-fun Player.sendActionBar(message: String) {
-    this.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent(message))
-}
-
-fun sendDebugActionBar(message: String) {
-    Bukkit.getOnlinePlayers().firstOrNull()?.sendActionBar(message)
-}
-
-fun sendDebugChatMessage(message: String) {
-    Bukkit.getOnlinePlayers().firstOrNull()?.sendMessage(message)
-}
-
-fun <T : Entity> spawnEntity(location: Location, clazz: Class<T>, initializer: (T) -> Unit): T {
-    return location.world!!.spawn(location, clazz, initializer)
-}
-
-fun playSound(location: Location, sound: Sound, volume: Float, pitch: Float) {
-    location.world!!.playSound(location, sound, volume, pitch)
-}
-
-fun World.playSound(position: Vector, sound: Sound, volume: Float, pitch: Float) {
-    this.playSound(position.toLocation(this), sound, volume, pitch)
-}
-
-val Entity.position get() = this.location.toVector()
-val LivingEntity.eyePosition get() = this.eyeLocation.toVector()
-val Entity.direction get() = this.location.direction
-val Entity.yaw get() = this.location.yaw
-val Entity.pitch get() = this.location.pitch
-fun Entity.yawRadians() = this.location.yawRadians()
-fun Entity.pitchRadians() = this.location.pitchRadians()

@@ -2,18 +2,18 @@ package com.heledron.spideranimation.spider.components
 
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.configuration.CloakOptions
-import com.heledron.spideranimation.utilities.ECS
-import com.heledron.spideranimation.utilities.ECSEntity
+import com.heledron.spideranimation.utilities.ecs.ECS
+import com.heledron.spideranimation.utilities.ecs.ECSEntity
 import com.heledron.spideranimation.utilities.block_colors.findBlockWithColor
 import com.heledron.spideranimation.utilities.block_colors.getBlockColor
 import com.heledron.spideranimation.utilities.colors.Oklab
 import com.heledron.spideranimation.utilities.colors.distanceTo
 import com.heledron.spideranimation.utilities.colors.toOklab
-import com.heledron.spideranimation.utilities.deprecated.SeriesScheduler
-import com.heledron.spideranimation.utilities.deprecated.raycastGround
+import com.heledron.spideranimation.utilities.raycastGround
+import com.heledron.spideranimation.utilities.events.SeriesScheduler
 import com.heledron.spideranimation.utilities.events.runLater
-import com.heledron.spideranimation.utilities.eyePosition
 import com.heledron.spideranimation.utilities.maths.DOWN_VECTOR
+import com.heledron.spideranimation.utilities.overloads.eyePosition
 import org.bukkit.*
 import org.bukkit.block.data.BlockData
 import org.bukkit.entity.Display
@@ -75,8 +75,9 @@ class Cloak(var options: CloakOptions) {
         }
 
 
+        val lerpAmount = options.lerpSpeed.toFloat() + (Math.random().toFloat() - 0.5f) * options.lerpRandomness.toFloat()
         val newColor = currentColor
-            .lerp(targetColor, options.lerpSpeed.toFloat())
+            .lerp(targetColor, lerpAmount.coerceIn(0f, 1f))
             .moveTowards(targetColor, options.moveSpeed.toFloat())
 
         if (newColor == originalColor) cloakColor.remove(id)

@@ -1,4 +1,4 @@
-package com.heledron.spideranimation.utilities
+package com.heledron.spideranimation.utilities.ecs
 
 /**
  * Bevy-style Entity Component System

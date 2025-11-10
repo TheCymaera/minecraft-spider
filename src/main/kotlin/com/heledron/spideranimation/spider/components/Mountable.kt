@@ -2,9 +2,15 @@ package com.heledron.spideranimation.spider.components
 
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.utilities.*
+import com.heledron.spideranimation.utilities.ecs.ECS
+import com.heledron.spideranimation.utilities.ecs.ECSEntity
 import com.heledron.spideranimation.utilities.events.addEventListener
 import com.heledron.spideranimation.utilities.events.onInteractEntity
 import com.heledron.spideranimation.utilities.maths.rotate
+import com.heledron.spideranimation.utilities.overloads.direction
+import com.heledron.spideranimation.utilities.overloads.playSound
+import com.heledron.spideranimation.utilities.overloads.position
+import com.heledron.spideranimation.utilities.overloads.yawRadians
 import com.heledron.spideranimation.utilities.rendering.RenderEntity
 import org.bukkit.Material
 import org.bukkit.Sound
@@ -33,7 +39,7 @@ fun setupMountable(app: ECS) {
 
             // if right click with saddle, add saddle (automatic)
             if (player.inventory.itemInMainHand.type == Material.SADDLE && !currentPig.hasSaddle()) {
-                playSound(currentPig.location, Sound.ENTITY_PIG_SADDLE, 1.0f, 1.0f)
+                currentPig.world.playSound(currentPig.position, Sound.ENTITY_PIG_SADDLE, 1.0f, 1.0f)
             }
 
             // if right click with empty hand, remove saddle

@@ -4,7 +4,8 @@ import com.heledron.spideranimation.spider.components.body.setupSpiderBody
 import com.heledron.spideranimation.spider.components.*
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.components.rendering.setupRenderer
-import com.heledron.spideranimation.utilities.*
+import com.heledron.spideranimation.utilities.ecs.ECS
+import com.heledron.spideranimation.utilities.ecs.ECSEntity
 
 fun setupSpider(app: ECS) {
     setupSpiderBody(app)

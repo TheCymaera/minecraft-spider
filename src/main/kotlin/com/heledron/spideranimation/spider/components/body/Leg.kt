@@ -4,15 +4,16 @@ import com.heledron.spideranimation.utilities.ChainSegment
 import com.heledron.spideranimation.utilities.KinematicChain
 import com.heledron.spideranimation.spider.configuration.LegPlan
 import com.heledron.spideranimation.utilities.*
-import com.heledron.spideranimation.utilities.deprecated.isOnGround
-import com.heledron.spideranimation.utilities.deprecated.raycastGround
-import com.heledron.spideranimation.utilities.deprecated.resolveCollision
+import com.heledron.spideranimation.utilities.ecs.ECS
+import com.heledron.spideranimation.utilities.ecs.ECSEntity
+import com.heledron.spideranimation.utilities.isOnGround
+import com.heledron.spideranimation.utilities.raycastGround
+import com.heledron.spideranimation.utilities.resolveCollision
 import com.heledron.spideranimation.utilities.maths.DOWN_VECTOR
 import com.heledron.spideranimation.utilities.maths.UP_VECTOR
 import com.heledron.spideranimation.utilities.maths.lerp
 import com.heledron.spideranimation.utilities.maths.moveTowards
 import com.heledron.spideranimation.utilities.maths.rotate
-import org.bukkit.Location
 import org.bukkit.util.Vector
 import org.joml.Quaterniond
 import org.joml.Quaternionf
@@ -142,7 +143,7 @@ class Leg(
 
         // resolve ground collision
         if (!touchingGround) {
-            val collision = resolveCollision(endEffector.toLocation(spider.world), DOWN_VECTOR)
+            val collision = spider.world.resolveCollision(endEffector, DOWN_VECTOR)
             if (collision != null) {
                 didStep = true
                 touchingGround = true
@@ -252,8 +253,8 @@ class Leg(
 
             if (!candidateAllowed(id)) return null
 
-            val start = Location(world, x, scanStartPosition.y, z)
-            val hit = raycastGround(start, scanVector, scanLength) ?: return null
+            val start = Vector(x, scanStartPosition.y, z)
+            val hit = world.raycastGround(start, scanVector, scanLength) ?: return null
 
             return LegTarget(position = hit.hitPosition, isGrounded = true, id = id)
         }
