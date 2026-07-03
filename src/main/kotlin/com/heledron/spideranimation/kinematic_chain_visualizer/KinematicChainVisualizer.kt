@@ -15,6 +15,7 @@ import com.heledron.spideranimation.utilities.maths.toRadians
 import com.heledron.spideranimation.utilities.maths.yaw
 import com.heledron.spideranimation.utilities.rendering.RenderGroup
 import com.heledron.spideranimation.utilities.rendering.RenderItem
+import net.kyori.adventure.text.Component
 import org.bukkit.Material
 import org.bukkit.World
 import org.bukkit.entity.Display
@@ -241,7 +242,7 @@ class KinematicChainVisualizer(
                     it.billboard = Display.Billboard.CENTER
                 },
                 update = {
-                    it.text = String.format("%.2f", arrow.length())
+                    it.text(Component.text(String.format("%.2f", arrow.length())))
                 }
             )
 

@@ -18,8 +18,7 @@ import com.heledron.spideranimation.utilities.overloads.direction
 import com.heledron.spideranimation.utilities.overloads.eyePosition
 import com.heledron.spideranimation.utilities.overloads.playSound
 import com.heledron.spideranimation.utilities.overloads.position
-import com.heledron.spideranimation.utilities.overloads.sendActionBar
-import com.heledron.spideranimation.utilities.overloads.yaw
+import net.kyori.adventure.text.Component
 import org.bukkit.Material
 import org.bukkit.Sound
 import org.bukkit.entity.Player
@@ -40,11 +39,11 @@ fun setupItems() {
 
             player.world.playSound(hitPosition, Sound.BLOCK_NETHERITE_BLOCK_PLACE, 1.0f, 1.0f)
             AppState.createSpider(hitPosition.toLocation(player.world).apply { this.yaw = yaw })
-            player.sendActionBar("Spider created")
+            player.sendActionBar(Component.text("Spider created"))
         } else {
             player.world.playSound(player.position, Sound.ENTITY_ITEM_FRAME_REMOVE_ITEM, 1.0f, 0.0f)
             spiderEntity.remove()
-            player.sendActionBar("Spider removed")
+            player.sendActionBar(Component.text("Spider removed"))
         }
     }
 
@@ -128,7 +127,7 @@ fun setupItems() {
     switchGaitComponent.onGestureUse { player, _ ->
         player.world.playSound(player.position, Sound.BLOCK_DISPENSER_FAIL, 1.0f, 2.0f)
         AppState.gallop = !AppState.gallop
-        player.sendActionBar(if (!AppState.gallop) "Walk mode" else "Gallop mode")
+        player.sendActionBar(Component.text(if (!AppState.gallop) "Walk mode" else "Gallop mode"))
     }
 
     val laserPointerComponent = CustomItemComponent("laserPointer")

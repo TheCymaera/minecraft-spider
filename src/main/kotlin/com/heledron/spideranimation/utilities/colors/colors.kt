@@ -99,10 +99,6 @@ fun Color.distanceTo(other: Color): Float {
     return sqrt((red - other.red).toFloat().pow(2) + (green - other.green).toFloat().pow(2) + (blue - other.blue).toFloat().pow(2))
 }
 
-fun Color.toChatColor(): ChatColor {
-    return ChatColor.of(java.awt.Color(red, green, blue))
-}
-
 //fun Color.hsvLerp(other: Color, t: Double): Color {
 //    val (h1, s1, v1) = this.toHSV()
 //    val (h2, s2, v2) = other.toHSV()

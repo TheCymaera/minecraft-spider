@@ -2,6 +2,7 @@ package com.heledron.spideranimation.utilities.overloads
 
 import com.heledron.spideranimation.utilities.maths.pitchRadians
 import com.heledron.spideranimation.utilities.maths.yawRadians
+import net.kyori.adventure.text.Component
 import net.md_5.bungee.api.ChatMessageType
 import net.md_5.bungee.api.chat.TextComponent
 import org.bukkit.Bukkit
@@ -16,18 +17,14 @@ import org.bukkit.util.Vector
 
 fun CommandSender.sendActionBarOrMessage(message: String) {
     if (this is Player) {
-        this.sendActionBar(message)
+        this.sendActionBar(Component.text(message))
     } else {
         this.sendMessage(message)
     }
 }
 
-fun Player.sendActionBar(message: String) {
-    this.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent(message))
-}
-
 fun sendDebugActionBar(message: String) {
-    Bukkit.getOnlinePlayers().firstOrNull()?.sendActionBar(message)
+    Bukkit.getOnlinePlayers().firstOrNull()?.sendActionBar(Component.text(message))
 }
 
 fun sendDebugChatMessage(message: String) {

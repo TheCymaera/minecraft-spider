@@ -141,5 +141,5 @@ private fun getWoodVariant(material: Material): Material? {
 }
 
 private fun Material.idString(): String {
-    return this.keyOrThrow.toString()
+    return this.key.toString()
 }

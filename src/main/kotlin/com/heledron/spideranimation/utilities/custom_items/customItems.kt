@@ -4,19 +4,21 @@ import com.heledron.spideranimation.utilities.events.onGestureUseItem
 import com.heledron.spideranimation.utilities.events.onTick
 import com.heledron.spideranimation.utilities.namespacedID
 import com.heledron.spideranimation.utilities.requireCommand
+import net.kyori.adventure.text.Component
 import org.bukkit.Bukkit
 import org.bukkit.Bukkit.createInventory
 import org.bukkit.ChatColor
 import org.bukkit.Material
 import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
+import org.bukkit.event.inventory.InventoryType
 import org.bukkit.inventory.ItemStack
 import org.bukkit.persistence.PersistentDataType
 
 val customItemRegistry = mutableListOf<ItemStack>()
 
 fun openCustomItemInventory(player: Player) {
-    val inventory = createInventory(null, 9 * 3, "Items")
+    val inventory = createInventory(null, InventoryType.CHEST, Component.text("Items"))
     customItemRegistry.forEach { inventory.addItem(it) }
     player.openInventory(inventory)
 }
@@ -59,7 +61,7 @@ class CustomItemComponent(val id: String) {
 
     fun onInteractEntity(action: (Player, Entity, ItemStack) -> Unit) {
         com.heledron.spideranimation.utilities.events.onInteractEntity(fun(player, entity, hand) {
-            val item = player.inventory.getItem(hand) ?: return
+            val item = player.inventory.getItem(hand)
             if (isAttached(item)) action(player, entity, item)
         })
     }
@@ -79,7 +81,7 @@ class CustomItemComponent(val id: String) {
 fun createNamedItem(material: Material, name: String): ItemStack {
     val item = ItemStack(material)
     val itemMeta = item.itemMeta ?: throw Exception("ItemMeta is null")
-    itemMeta.setItemName(ChatColor.RESET.toString() + name)
+    itemMeta.itemName(Component.text(name))
     item.itemMeta = itemMeta
     return item
 }
