@@ -122,10 +122,10 @@ class Quadruple<A, B, C, D>(
     val first: A,
     val second: B,
     val third: C,
-    val forth: D,
+    val fourth: D,
 ) {
     operator fun component1() = first
     operator fun component2() = second
     operator fun component3() = third
-    operator fun component4() = forth
+    operator fun component4() = fourth
 }
