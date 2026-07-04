@@ -106,7 +106,7 @@ class ECSEntity {
         components.removeIf { it is T }
     }
 
-    inline fun <reified Old: Any> replaceComponent(component: Any) {
+    inline fun <reified Old: Any> replaceComponent(component: Old) {
         removeComponent<Old>()
         addComponent(component)
     }

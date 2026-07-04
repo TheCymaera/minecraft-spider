@@ -6,8 +6,8 @@ import org.joml.Quaternionf
 
 
 class KinematicChain(
-        val root: Vector,
-        val segments: List<ChainSegment>
+    val root: Vector,
+    val segments: List<ChainSegment>
 ) {
     var maxIterations = 20
     var tolerance = 0.01
@@ -98,9 +98,9 @@ class KinematicChain(
 }
 
 class ChainSegment(
-        var position: Vector,
-        var length: Double,
-        var initDirection: Vector,
+    var position: Vector,
+    var length: Double,
+    var initDirection: Vector,
 ) {
     fun clone(): ChainSegment {
         return ChainSegment(position.clone(), length, initDirection.clone())

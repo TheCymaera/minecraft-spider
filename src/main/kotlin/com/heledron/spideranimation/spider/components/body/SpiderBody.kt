@@ -38,8 +38,8 @@ class SpiderBody(
     val position: Vector,
     val orientation: Quaternionf,
     var bodyPlan: BodyPlan,
-    var gallopGait: Gait,
     var walkGait: Gait,
+    var gallopGait: Gait,
 ) {
     var onGround = false; private set
     var legs: List<Leg> = emptyList()
@@ -51,6 +51,8 @@ class SpiderBody(
     // params
     var gallop = false
     val gait get() = if (gallop) gallopGait else walkGait
+
+    private var lastAppliedBodyPlan: BodyPlan? = null
 
 
     // state
@@ -67,11 +69,11 @@ class SpiderBody(
     }
 
     companion object {
-        fun fromLocation(location: Location, bodyPlan: BodyPlan, gallopGait: Gait, walkGait: Gait, uuid: java.util.UUID = java.util.UUID.randomUUID(), gallop: Boolean = false): SpiderBody {
+        fun fromLocation(location: Location, bodyPlan: BodyPlan, walkGait: Gait, gallopGait: Gait, uuid: UUID = UUID.randomUUID(), gallop: Boolean = false): SpiderBody {
             val world = location.world!!
             val position = location.toVector()
             val orientation = Quaternionf().rotationYXZ(location.yawRadians(), location.pitchRadians(), 0f)
-            return SpiderBody(uuid, world, position, orientation, bodyPlan, gallopGait = gallopGait, walkGait = walkGait).apply { this.gallop = gallop }
+            return SpiderBody(uuid, world, position, orientation, bodyPlan, walkGait, gallopGait).apply { this.gallop = gallop }
         }
     }
 
@@ -154,10 +156,17 @@ class SpiderBody(
     }
 
     fun init(ecs: ECS, entity: ECSEntity) {
-        legs = bodyPlan.legs.map { Leg( ecs, entity, this, it) }
+        legs = bodyPlan.legs.map { Leg(ecs, entity, this, it) }
     }
 
     fun update(ecs: ECS, entity: ECSEntity) {
+        if (lastAppliedBodyPlan !== bodyPlan) {
+            if (lastAppliedBodyPlan != null) {
+                legs = bodyPlan.legs.map { Leg(ecs, entity, this, it) }
+            }
+            lastAppliedBodyPlan = bodyPlan
+        }
+
         if (legs.isEmpty()) {
             init(ecs, entity)
 

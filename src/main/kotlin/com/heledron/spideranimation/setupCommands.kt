@@ -1,6 +1,8 @@
 package com.heledron.spideranimation
 
 import com.heledron.spideranimation.spider.components.splay
+import com.heledron.spideranimation.spider.components.Cloak
+import com.heledron.spideranimation.spider.components.SoundsAndParticles
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.presets.*
 import com.heledron.spideranimation.utilities.custom_items.setupCustomItemCommand
@@ -412,9 +414,12 @@ fun setupCommands(plugin: SpiderAnimationPlugin) {
 				return@setExecutor true
 			}
 
-            entity.remove()
-			
-			AppState.createSpider(oldSpider.location(), createPreset(segmentCount, segmentLength))
+			val newOptions = createPreset(segmentCount, segmentLength)
+			oldSpider.bodyPlan = newOptions.bodyPlan
+			oldSpider.walkGait = newOptions.walkGait
+			oldSpider.gallopGait = newOptions.gallopGait
+			entity.query<Cloak>()?.options = newOptions.cloak
+			entity.query<SoundsAndParticles>()?.options = newOptions.sound
 
             return@setExecutor true
         }
@@ -507,11 +512,12 @@ fun setupCommands(plugin: SpiderAnimationPlugin) {
         setExecutor { sender, _, _, args ->
             val delay = args.getOrNull(0)?.toLongOrNull() ?: 0
 
-            val spider: Pair<ECSEntity, SpiderBody>? = if (sender is Player) {
-                AppState.findNearestSpider(sender)
-            } else {
-                AppState.ecs.query<ECSEntity, SpiderBody>().firstOrNull()
+            val senderLocation = locationFromSender(sender) ?: AppState.target ?: run {
+                sender.sendMessage("No location found")
+                return@setExecutor true
             }
+
+            val spider = AppState.findNearestSpider(senderLocation)
 
             val (entity, _) = spider ?: run {
                 sender.sendMessage("No spider found")
