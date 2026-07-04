@@ -15,11 +15,11 @@ import org.bukkit.event.inventory.InventoryType
 import org.bukkit.inventory.ItemStack
 import org.bukkit.persistence.PersistentDataType
 
-val customItemRegistry = mutableListOf<ItemStack>()
+val customItemRegistry = mutableListOf<() -> ItemStack>()
 
 fun openCustomItemInventory(player: Player) {
     val inventory = createInventory(null, InventoryType.CHEST, Component.text("Items"))
-    customItemRegistry.forEach { inventory.addItem(it) }
+    customItemRegistry.forEach { inventory.addItem(it()) }
     player.openInventory(inventory)
 }
 

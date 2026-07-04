@@ -1,9 +1,12 @@
 package com.heledron.spideranimation
 
 import com.heledron.spideranimation.spider.components.splay
+import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.presets.*
 import com.heledron.spideranimation.utilities.custom_items.setupCustomItemCommand
+import com.heledron.spideranimation.utilities.ecs.ECSEntity
 import com.heledron.spideranimation.utilities.events.runLater
+import org.bukkit.entity.Player
 
 fun setupCommands(plugin: SpiderAnimationPlugin) {
     fun getCommand(name: String) = plugin.getCommand(name) ?: throw Exception("Command $name not found")
@@ -399,13 +402,19 @@ fun setupCommands(plugin: SpiderAnimationPlugin) {
                 return@setExecutor true
             }
 
-            AppState.options = createPreset(segmentCount, segmentLength)
-            plugin.writeAndSaveConfig()
+			val senderLocation = locationFromSender(sender) ?: AppState.target ?: run {
+				sender.sendMessage("No location found")
+				return@setExecutor true
+			}
+			
+			val (entity, oldSpider) = AppState.findNearestSpider(senderLocation) ?: run {
+				sender.sendMessage("No spider found")
+				return@setExecutor true
+			}
 
-            AppState.recreateSpider()
-
-
-            sender.sendMessage("Applied preset: $name")
+            entity.remove()
+			
+			AppState.createSpider(oldSpider.location(), createPreset(segmentCount, segmentLength))
 
             return@setExecutor true
         }
@@ -495,13 +504,32 @@ fun setupCommands(plugin: SpiderAnimationPlugin) {
 //    }
 
     getCommand("splay").apply {
-        setExecutor { _, _, _, args ->
+        setExecutor { sender, _, _, args ->
             val delay = args.getOrNull(0)?.toLongOrNull() ?: 0
 
+            val spider: Pair<ECSEntity, SpiderBody>? = if (sender is Player) {
+                AppState.findNearestSpider(sender)
+            } else {
+                AppState.ecs.query<ECSEntity, SpiderBody>().firstOrNull()
+            }
+
+            val (entity, _) = spider ?: run {
+                sender.sendMessage("No spider found")
+                return@setExecutor true
+            }
+
             runLater(delay) {
-                splay()
+                splay(entity)
             }
             return@setExecutor true
         }
     }
+}
+
+fun locationFromSender(sender: org.bukkit.command.CommandSender): org.bukkit.Location? {
+	return when (sender) {
+		is Player -> sender.location
+		is org.bukkit.command.BlockCommandSender -> sender.block.location
+		else -> null
+	}
 }

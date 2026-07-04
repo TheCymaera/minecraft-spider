@@ -1,6 +1,5 @@
 package com.heledron.spideranimation.spider.components
 
-import com.heledron.spideranimation.AppState
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.utilities.*
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
@@ -34,9 +33,9 @@ fun Transformation.clone() = Transformation(
 )
 
 
-fun splay() {
-    val (entity, spider) = AppState.ecs.query<ECSEntity, SpiderBody>().firstOrNull() ?: return
-    entity.remove()
+fun splay(spiderEntity: ECSEntity) {
+    val spider = spiderEntity.query<SpiderBody>() ?: return
+    spiderEntity.remove()
 
     // detach and get entities
     val entities = mutableListOf<BlockDisplay>()

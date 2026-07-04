@@ -26,12 +26,14 @@ import org.joml.Quaterniond
 import org.joml.Quaternionf
 import org.joml.Vector2d
 import org.joml.Vector3f
+import java.util.UUID
 import kotlin.math.*
 
 
 class SpiderBodyHitGroundEvent(val spider: SpiderBody)
 
 class SpiderBody(
+    val uuid: UUID,
     val world: World,
     val position: Vector,
     val orientation: Quaternionf,
@@ -65,11 +67,11 @@ class SpiderBody(
     }
 
     companion object {
-        fun fromLocation(location: Location, bodyPlan: BodyPlan, gallopGait: Gait, walkGait: Gait): SpiderBody {
+        fun fromLocation(location: Location, bodyPlan: BodyPlan, gallopGait: Gait, walkGait: Gait, uuid: java.util.UUID = java.util.UUID.randomUUID(), gallop: Boolean = false): SpiderBody {
             val world = location.world!!
             val position = location.toVector()
             val orientation = Quaternionf().rotationYXZ(location.yawRadians(), location.pitchRadians(), 0f)
-            return SpiderBody(world, position, orientation, bodyPlan, gallopGait = gallopGait, walkGait = walkGait)
+            return SpiderBody(uuid, world, position, orientation, bodyPlan, gallopGait = gallopGait, walkGait = walkGait).apply { this.gallop = gallop }
         }
     }
 
@@ -134,7 +136,7 @@ class SpiderBody(
         val forward = listOf(forwardLeft, forwardRight).average()
 
         val sideways = Vector(0.0,0.0,0.0)
-        for (i in 0 until legs.size step 2) {
+        for (i in legs.indices step 2) {
             val left = legs.getOrNull(i) ?: continue
             val right = legs.getOrNull(i + 1) ?: continue
 

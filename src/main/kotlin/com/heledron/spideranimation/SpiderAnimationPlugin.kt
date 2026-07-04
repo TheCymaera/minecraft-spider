@@ -44,7 +44,6 @@ class SpiderAnimationPlugin : JavaPlugin() {
             // sync AppState properties
             ecs.query<ECSEntity, SpiderBody>().forEach { (entity, spider) ->
                 entity.query<SpiderRenderer>()?.renderDebugVisuals = AppState.renderDebugVisuals
-                spider.gallop = AppState.gallop
             }
 
             ecs.update()
