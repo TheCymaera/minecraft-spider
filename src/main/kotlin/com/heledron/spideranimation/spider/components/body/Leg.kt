@@ -2,6 +2,7 @@ package com.heledron.spideranimation.spider.components.body
 
 import com.heledron.spideranimation.utilities.ChainSegment
 import com.heledron.spideranimation.utilities.KinematicChain
+import com.heledron.spideranimation.spider.configuration.Gait
 import com.heledron.spideranimation.spider.configuration.LegPlan
 import com.heledron.spideranimation.utilities.*
 import com.heledron.spideranimation.utilities.ecs.ECS
@@ -15,7 +16,6 @@ import com.heledron.spideranimation.utilities.maths.lerp
 import com.heledron.spideranimation.utilities.maths.moveTowards
 import com.heledron.spideranimation.utilities.maths.rotate
 import org.bukkit.util.Vector
-import org.joml.Quaterniond
 import org.joml.Quaternionf
 import kotlin.math.ceil
 import kotlin.math.floor
@@ -56,6 +56,9 @@ class Leg(
     var timeSinceBeginMove = 0; private set
     var timeSinceStopMove = 0; private set
 
+    private var stepStart = Vector(0, 0, 0)
+    private var stepProgress = 0.0 // separate from timeSinceBeginMove since progress can soft-reset on re-target
+
     var isDisabled = false
     var isPrimary = false
     var canMove = false
@@ -72,7 +75,7 @@ class Leg(
         val lerpedGait = spider.lerpedGait()
         val orientation = spider.gait.scanPivotMode.get(spider)
 
-        val upVector = UP_VECTOR.rotate(Quaterniond(orientation))
+        val upVector = UP_VECTOR.rotate(orientation)
         val scanStartAxis = upVector.clone().multiply(lerpedGait.bodyHeight * 1.6)
         val scanAxis = upVector.clone().multiply(-lerpedGait.bodyHeight * 3.5)
 
@@ -87,6 +90,7 @@ class Leg(
         // comfort zone
         // we want the comfort zone to extend above the spider's body
         // and below the rest position
+        // TODO: Replace with capsule?		
         val comfortZoneCenter = restPosition.clone()
         comfortZoneCenter.y = restPosition.y.lerp(spider.position.y, .5)
         val comfortZoneSize = SplitDistance(
@@ -107,7 +111,6 @@ class Leg(
     }
 
     fun update() {
-        legPlan = spider.bodyPlan.legs.getOrNull(spider.legs.indexOf(this)) ?: legPlan
         updateMovement()
         chain = chain()
     }
@@ -115,18 +118,16 @@ class Leg(
     private fun updateMovement() {
         previousEndEffector = endEffector.clone()
 
-        val gait = spider.gait
-        var didStep = false
-
         timeSinceBeginMove += 1
         timeSinceStopMove += 1
 
         // update target
+        val oldTargetPosition = target.position.clone()
         val ground = locateGround()
         groundPosition = locateGround()?.position
 
         if (isDisabled) {
-            target = disabledTarget()
+            target = disabledTarget(ground?.position)
         } else {
             if (ground != null) target = ground
 
@@ -135,50 +136,95 @@ class Leg(
             }
         }
 
-        // inherit parent velocity
-        if (!isGrounded()) {
-            endEffector.add(spider.velocity)
-            endEffector.rotateAroundY(spider.rotationalVelocity.y.toDouble(), spider.position)
+        // reset step if target has changed
+        val targetChanged = oldTargetPosition.distanceSquared(target.position) > 1e-6
+        if (targetChanged) {
+            softResetStep()
         }
 
+        // inherit parent motion while free
+        if (!isGrounded()) {
+            applyBodyMotion(endEffector)
+            if (isMoving) applyBodyMotion(stepStart)
+        }
+
+        var didStep = false
+        if (isMoving) {
+            didStep = updateMove()
+        } else {
+            canMove = spider.gait.type.canMoveLeg(this)
+            if (canMove) beginMove()
+        }
+
+
         // resolve ground collision
-        if (!touchingGround) {
-            val collision = spider.world.resolveCollision(endEffector, DOWN_VECTOR)
-            if (collision != null) {
+        val collision = spider.world.resolveCollision(endEffector, DOWN_VECTOR)
+        if (collision != null) {
+            // ignore collision if it would push the end effector further from the target
+            // e.g. when grazing an obstacle
+            val isFurtherFromTarget = collision.position.distance(target.position) > endEffector.distance(target.position)
+            if (!isFurtherFromTarget) {
                 didStep = true
                 touchingGround = true
                 endEffector.y = collision.position.y
             }
         }
 
-        if (isMoving) {
-            val legMoveSpeed = gait.legMoveSpeed
+        if (didStep) ecs.emit(LegStepEvent(entity = entity, spider = spider, leg = this))
+    }
 
-            endEffector.moveTowards(target.position, legMoveSpeed)
+    private fun applyBodyMotion(point: Vector) {
+        point.add(spider.velocity)
+        point.rotateAroundY(spider.rotationalVelocity.y.toDouble(), spider.position)
+    }
 
-            val targetY = target.position.y + gait.legLiftHeight
-            val hDistance = endEffector.horizontalDistance(target.position)
-            if (hDistance > gait.legDropDistance) {
-                endEffector.y = endEffector.y.moveTowards(targetY, legMoveSpeed)
-            }
+    private fun beginMove() {
+        isMoving = true
+        timeSinceBeginMove = 0
+        stepStart = endEffector.clone()
+        stepProgress = 0.0
+        touchingGround = false
+    }
 
-            if (endEffector.distance(target.position) < 0.0001) {
-                isMoving = false
+    private fun completeMove(): Boolean {
+        isMoving = false
+        timeSinceStopMove = 0
+        endEffector.copy(target.position)
+        touchingGround = touchingGround()
+        return touchingGround
+    }
 
-                touchingGround = touchingGround()
-                didStep = touchingGround
-            }
+    /** Parabolic height envelope: 0 at ends, 1 at mid-step. */
+    private fun stepLiftFactor(t: Double) = 4.0 * t * (1.0 - t)
 
-        } else {
-            canMove = spider.gait.type.canMoveLeg(this)
+    private fun sampleStepPosition(t: Double): Vector {
+        val position = Vector(
+            stepStart.x.lerp(target.position.x, t),
+            stepStart.y.lerp(target.position.y, t),
+            stepStart.z.lerp(target.position.z, t),
+        )
+        position.y += spider.gait.legLiftHeight * stepLiftFactor(t)
+        return position
+    }
 
-            if (canMove) {
-                isMoving = true
-                timeSinceBeginMove = 0
-            }
+    private fun updateMove(): Boolean {
+		val gait = spider.gait
+    	
+        val distance = stepStart.horizontalDistance(target.position).coerceAtLeast(1e-4)
+        stepProgress = stepProgress.moveTowards(1.0, gait.legMoveSpeed / distance)
+
+        endEffector.copy(sampleStepPosition(stepProgress))
+
+        if (stepProgress >= 1.0) {
+            return completeMove()
         }
 
-        if (didStep) ecs.emit(LegStepEvent(entity = entity, spider = spider, leg = this))
+        return false
+    }
+
+    private fun softResetStep() {
+        stepStart = endEffector.clone()
+        stepProgress = 0.0
     }
 
     private fun chain(): KinematicChain {
@@ -238,7 +284,7 @@ class Leg(
         return lookAhead
     }
 
-    private fun locateGround(): LegTarget? {
+    fun locateGround(): LegTarget? {
         val lookAhead = lookAheadPosition.toLocation(spider.world)
         val scanLength = scanVector.length()
 
@@ -304,7 +350,7 @@ class Leg(
         return LegTarget(position = lookAheadPosition.clone(), isGrounded = false, id = -1)
     }
 
-    private fun disabledTarget(): LegTarget {
+    private fun disabledTarget(groundPosition: Vector?): LegTarget {
         val lerpedGait = spider.lerpedGait()
         val upVector = UP_VECTOR.rotate(spider.orientation)
 

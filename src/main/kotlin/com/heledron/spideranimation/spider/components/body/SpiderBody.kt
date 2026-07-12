@@ -13,6 +13,7 @@ import com.heledron.spideranimation.utilities.resolveCollision
 import com.heledron.spideranimation.utilities.maths.DOWN_VECTOR
 import com.heledron.spideranimation.utilities.maths.FORWARD_VECTOR
 import com.heledron.spideranimation.utilities.maths.UP_VECTOR
+import com.heledron.spideranimation.utilities.maths.horizontal
 import com.heledron.spideranimation.utilities.maths.lerp
 import com.heledron.spideranimation.utilities.maths.pitch
 import com.heledron.spideranimation.utilities.maths.pitchRadians
@@ -22,7 +23,6 @@ import com.heledron.spideranimation.utilities.overloads.sendDebugChatMessage
 import org.bukkit.Location
 import org.bukkit.World
 import org.bukkit.util.Vector
-import org.joml.Quaterniond
 import org.joml.Quaternionf
 import org.joml.Vector2d
 import org.joml.Vector3f
@@ -54,6 +54,10 @@ class SpiderBody(
 
     private var lastAppliedBodyPlan: BodyPlan? = null
 
+    fun updateBodyPlan() {
+        lastAppliedBodyPlan = null
+    }
+
 
     // state
     var isWalking = false
@@ -84,7 +88,7 @@ class SpiderBody(
         return location
     }
 
-    fun forwardDirection() = FORWARD_VECTOR.rotate(Quaterniond(orientation))
+    fun forwardDirection() = FORWARD_VECTOR.rotate(orientation)
 
     // memo
     var preferredPitch = orientation.getEulerAnglesYXZ(Vector3f()).x
@@ -92,16 +96,14 @@ class SpiderBody(
     var preferredOrientation = Quaternionf(orientation)
 
     val velocity = Vector(0.0, 0.0, 0.0)
-    val rotationalVelocity = Vector3f(0f,0f,0f)
+    /** World-space angular velocity (axis × rate, rad/tick). */
+    val rotationalVelocity = Vector3f()
 
     fun accelerateRotation(axis: Vector, angle: Float) {
-        val acceleration = Quaternionf().rotateAxis(angle, axis.toVector3f())
-        val oldVelocity = Quaternionf().rotationYXZ(rotationalVelocity.y, rotationalVelocity.x, rotationalVelocity.z)
-
-        val rotVelocity = acceleration.mul(oldVelocity)
-
-        val rotEuler = rotVelocity.getEulerAnglesYXZ(Vector3f())
-        rotationalVelocity.set(rotEuler)
+        val a = axis.toVector3f()
+        if (a.lengthSquared() < 1e-12f) return
+        a.normalize().mul(angle)
+        rotationalVelocity.add(a)
     }
 
     fun teleport(entity: ECSEntity, newPosition: Vector) {
@@ -114,12 +116,12 @@ class SpiderBody(
     }
 
     private fun updatePreferredAngles() {
-        val currentEuler = orientation.getEulerAnglesYXZ(Vector3f())
+        val heading = orientation.horizontal()
 
         if (gait.disableAdvancedRotation) {
             preferredPitch = .0f
             preferredRoll = .0f
-            preferredOrientation = Quaternionf().rotationYXZ(currentEuler.y, .0f, .0f)
+            preferredOrientation = heading
             return
         }
 
@@ -151,29 +153,13 @@ class SpiderBody(
         if (preferredPitch < gait.preferLevelBreakpoint) preferredPitch *= 1 - gait.preferLevelBias
         if (preferredRoll < gait.preferLevelBreakpoint) preferredRoll *= 1 - gait.preferLevelBias
 
-
-        preferredOrientation = Quaternionf().rotationYXZ(currentEuler.y, preferredPitch, preferredRoll)
-    }
-
-    fun init(ecs: ECS, entity: ECSEntity) {
-        legs = bodyPlan.legs.map { Leg(ecs, entity, this, it) }
+        preferredOrientation = Quaternionf(heading).rotateX(preferredPitch).rotateZ(preferredRoll)
     }
 
     fun update(ecs: ECS, entity: ECSEntity) {
         if (lastAppliedBodyPlan !== bodyPlan) {
-            if (lastAppliedBodyPlan != null) {
-                legs = bodyPlan.legs.map { Leg(ecs, entity, this, it) }
-            }
+            legs = bodyPlan.legs.map { Leg(ecs, entity, this, it) }
             lastAppliedBodyPlan = bodyPlan
-        }
-
-        if (legs.isEmpty()) {
-            init(ecs, entity)
-
-            if (legs.isEmpty()) {
-                sendDebugChatMessage("WARNING: No legs")
-                return
-            }
         }
 
         updatePreferredAngles()
@@ -186,8 +172,17 @@ class SpiderBody(
         velocity.y *= (1 - gait.airDragCoefficient)
 
         // apply rotational velocity
-        val rotVelocity = Quaternionf().rotationYXZ(rotationalVelocity.y, rotationalVelocity.x, rotationalVelocity.z)
-        orientation.set(rotVelocity.mul(orientation))
+        val angularSpeed = rotationalVelocity.length()
+        if (angularSpeed > 1e-8f) {
+            orientation.premul(
+                Quaternionf().rotateAxis(
+                    angularSpeed,
+                    rotationalVelocity.x / angularSpeed,
+                    rotationalVelocity.y / angularSpeed,
+                    rotationalVelocity.z / angularSpeed,
+                )
+            )
+        }
 
         // apply drag while leg on ground
         if (!isWalking) {

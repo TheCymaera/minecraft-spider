@@ -7,9 +7,9 @@ import com.heledron.spideranimation.utilities.ecs.ECSEntity
 import com.heledron.spideranimation.utilities.maths.FORWARD_VECTOR
 import com.heledron.spideranimation.utilities.maths.moveTowards
 import org.bukkit.util.Vector
+import org.joml.AxisAngle4f
 import org.joml.Quaternionf
 import org.joml.Vector3f
-import kotlin.math.PI
 
 
 interface SpiderBehaviour
@@ -69,11 +69,6 @@ fun setupBehaviours(app: ECS) {
 
 
 private fun SpiderBody.rotateTowards(targetVector: Vector) {
-//    val maxAcceleration = moveGait.rotateAcceleration * body.legs.filter { it.isGrounded() }.size / body.legs.size
-//    yawVelocity = yawVelocity.moveTowards(.0f, maxAcceleration)
-//    pitchVelocity = pitchVelocity.moveTowards(.0f, maxAcceleration)
-//    rollVelocity = rollVelocity.moveTowards(.0f, maxAcceleration)
-
     val currentEuler = orientation.getEulerAnglesYXZ(Vector3f())
 
     val targetEuler = Quaternionf()
@@ -89,23 +84,24 @@ private fun SpiderBody.rotateTowards(targetVector: Vector) {
     // clamp yaw if uncomfortable
     if (legs.any { it.isUncomfortable && !it.isMoving }) targetEuler.y = currentEuler.y
 
-    // get diff
-    val diffEuler = Vector3f(targetEuler).sub(currentEuler)
-    if (diffEuler.y > PI) diffEuler.y -= 2 * PI.toFloat()
-    if (diffEuler.y < -PI) diffEuler.y += 2 * PI.toFloat()
+    val targetOrientation = Quaternionf().rotationYXZ(targetEuler.y, targetEuler.x, targetEuler.z)
 
-    isRotatingYaw = (diffEuler.x + diffEuler.y + diffEuler.z) > 0.001f
-    diffEuler.lerp(Vector3f(), gait.rotationLerp)
+    // Soften error the same way Euler.lerp(zero, rotationLerp) did: blend towards current
+    val softenedTarget = Quaternionf(orientation).slerp(targetOrientation, 1f - gait.rotationLerp)
 
+    // World-space delta → angular velocity (premultiplied: orientation = Rot(ω) * orientation)
+    val desiredDelta = Quaternionf(softenedTarget).mul(Quaternionf(orientation).invert())
+    val axisAngle = AxisAngle4f().set(desiredDelta)
+    val desiredOmega = if (axisAngle.angle < 1e-8f) {
+        Vector3f()
+    } else {
+        Vector3f(axisAngle.x, axisAngle.y, axisAngle.z).mul(axisAngle.angle)
+    }
 
-    val diff = Quaternionf().rotationYXZ(diffEuler.y, diffEuler.x, diffEuler.z)
+    isRotatingYaw = desiredOmega.lengthSquared() > 0.001f * 0.001f
 
-    // convert to premultiplied
-    val conjugated = Quaternionf(orientation).mul(diff).mul(Quaternionf(orientation).invert())
-
-    val conjugatedEuler = conjugated.getEulerAnglesYXZ(Vector3f())
     val maxAcceleration = gait.rotateAcceleration * legs.filter { it.isGrounded() }.size / legs.size
-    rotationalVelocity.moveTowards(conjugatedEuler, maxAcceleration)
+    rotationalVelocity.moveTowards(desiredOmega, maxAcceleration)
 }
 
 private fun SpiderBody.walkAt(targetVelocity: Vector, tridentDetector: TridentHitDetector?) {

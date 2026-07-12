@@ -49,7 +49,18 @@ fun Vector.yaw(): Float {
 
 fun Vector.rotate(quaternion: Quaterniond) = copy(Vector3d(x, y, z).rotate(quaternion))
 
-fun Vector.rotate(quaternion: Quaternionf) = copy(Vector3d(x, y, z).rotate(Quaterniond(quaternion)))
+fun Vector.rotate(quaternion: Quaternionf) = copy(Vector3f(x.toFloat(), y.toFloat(), z.toFloat()).rotate(quaternion))
+
+/** Yaw-only orientation: same heading as this quaternion, zero pitch/roll. */
+fun Quaternionf.horizontal(): Quaternionf {
+    val forward = Vector3f(0f, 0f, 1f).rotate(this)
+    forward.y = 0f
+    if (forward.lengthSquared() < 1e-10f) {
+        return Quaternionf().rotationYXZ(getEulerAnglesYXZ(Vector3f()).y, 0f, 0f)
+    }
+    forward.normalize()
+    return Quaternionf().rotationTo(Vector3f(0f, 0f, 1f), forward)
+}
 
 fun Vector.lerp(other: Vector, t: Double): Vector {
     this.x = x + (other.x - x) * t
@@ -84,7 +95,7 @@ fun Location.yawRadians() = -yaw.toRadians()
 fun Location.pitchRadians() = pitch.toRadians()
 
 fun Location.getQuaternion(): Quaternionf {
-    return Quaternionf().rotateYXZ(yawRadians(), pitchRadians(), 0f)
+    return Quaternionf().rotationYXZ(yawRadians(), pitchRadians(), 0f)
 }
 
 fun Quaterniond.transform(vector: Vector): Vector {

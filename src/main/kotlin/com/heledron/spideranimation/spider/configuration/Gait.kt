@@ -3,6 +3,7 @@ package com.heledron.spideranimation.spider.configuration
 import com.heledron.spideranimation.spider.components.body.GaitType
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.utilities.SplitDistance
+import com.heledron.spideranimation.utilities.maths.horizontal
 import com.heledron.spideranimation.utilities.maths.lerp
 import com.heledron.spideranimation.utilities.maths.toRadians
 import org.joml.Quaternionf
@@ -57,7 +58,6 @@ class Gait(
         moveAcceleration *= scale
         legMoveSpeed *= scale
         legLiftHeight *= scale
-        legDropDistance *= scale
         comfortZone = comfortZone.scale(scale)
         legScanHeightBias *= scale
         tridentRotationalKnockBack /= scale
@@ -84,7 +84,6 @@ class Gait(
     var legMoveSpeed = walkSpeed * 2.5
 
     var legLiftHeight = .35
-    var legDropDistance = legLiftHeight
 
     var comfortZone = SplitDistance(1.2, 1.6)
 
@@ -132,7 +131,7 @@ class Gait(
 
 
 enum class PivotMode(val get: (spider: SpiderBody) -> Quaternionf) {
-    YAxis({ spider -> Quaternionf().rotateY(spider.orientation.getEulerAnglesYXZ(org.joml.Vector3f()).y) }),
+    YAxis({ spider -> spider.orientation.horizontal() }),
     SpiderOrientation({ spider -> spider.orientation }),
     GroundOrientation({ spider -> spider.preferredOrientation })
 }
