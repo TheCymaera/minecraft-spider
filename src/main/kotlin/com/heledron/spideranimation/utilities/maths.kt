@@ -2,7 +2,6 @@ package com.heledron.spideranimation.utilities
 
 import com.heledron.spideranimation.utilities.maths.DOWN_VECTOR
 import com.heledron.spideranimation.utilities.maths.FORWARD_VECTOR
-import com.heledron.spideranimation.utilities.maths.lerp
 import org.bukkit.FluidCollisionMode
 import org.bukkit.World
 import org.bukkit.util.RayTraceResult
@@ -47,35 +46,32 @@ fun List<Vector>.average(): Vector {
     return out
 }
 
-class SplitDistance(
-    val horizontal: Double,
-    val vertical: Double
+class Capsule(
+    val point1: Vector,
+    val point2: Vector,
+    val radius: Double,
 ) {
-    fun clone(): SplitDistance {
-        return SplitDistance(horizontal, vertical)
+    fun contains(point: Vector): Boolean = distanceSquared(point) <= radius * radius
+
+    fun distance(point: Vector): Double = sqrt(distanceSquared(point))
+
+    fun distanceSquared(point: Vector): Double {
+        val abX = point2.x - point1.x
+        val abY = point2.y - point1.y
+        val abZ = point2.z - point1.z
+        val lenSq = abX * abX + abY * abY + abZ * abZ
+        val apX = point.x - point1.x
+        val apY = point.y - point1.y
+        val apZ = point.z - point1.z
+        val t = if (lenSq < 1e-12) 0.0 else ((apX * abX + apY * abY + apZ * abZ) / lenSq).coerceIn(0.0, 1.0)
+        val dx = point.x - (point1.x + abX * t)
+        val dy = point.y - (point1.y + abY * t)
+        val dz = point.z - (point1.z + abZ * t)
+        return dx * dx + dy * dy + dz * dz
     }
 
-    fun scale(factor: Double): SplitDistance {
-        return SplitDistance(horizontal * factor, vertical * factor)
-    }
-
-    fun lerp(target: SplitDistance, factor: Double): SplitDistance {
-        return SplitDistance(horizontal.lerp(target.horizontal, factor), vertical.lerp(target.vertical, factor))
-    }
+    val axis: Vector get() = point2.clone().subtract(point1)
 }
-
-class SplitDistanceZone(
-    val center: Vector,
-    val size: SplitDistance
-) {
-    fun contains(point: Vector): Boolean {
-        return center.horizontalDistance(point) <= size.horizontal && center.verticalDistance(point) <= size.vertical
-    }
-
-    val horizontal: Double; get() = size.horizontal
-    val vertical: Double; get() = size.vertical
-}
-
 
 fun World.raycastGround(position: Vector, direction: Vector, maxDistance: Double): RayTraceResult? {
     val location = position.toLocation(this)

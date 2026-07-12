@@ -2,7 +2,6 @@ package com.heledron.spideranimation.spider.configuration
 
 import com.heledron.spideranimation.spider.components.body.GaitType
 import com.heledron.spideranimation.spider.components.body.SpiderBody
-import com.heledron.spideranimation.utilities.SplitDistance
 import com.heledron.spideranimation.utilities.maths.horizontal
 import com.heledron.spideranimation.utilities.maths.lerp
 import com.heledron.spideranimation.utilities.maths.toRadians
@@ -11,22 +10,22 @@ import org.joml.Quaternionf
 
 class LerpGait(
     var bodyHeight: Double,
-    var triggerZone: SplitDistance
+    var triggerZoneRadius: Double,
 ) {
     fun scale(scale: Double): LerpGait {
         bodyHeight *= scale
-        triggerZone = triggerZone.scale(scale)
+        triggerZoneRadius *= scale
         return this
     }
 
     fun clone() = LerpGait(
         bodyHeight = bodyHeight,
-        triggerZone = triggerZone
+        triggerZoneRadius = triggerZoneRadius,
     )
 
     fun lerp(target: LerpGait, factor: Double): LerpGait {
         this.bodyHeight = bodyHeight.lerp(target.bodyHeight, factor)
-        this.triggerZone = triggerZone.lerp(target.triggerZone, factor)
+        this.triggerZoneRadius = triggerZoneRadius.lerp(target.triggerZoneRadius, factor)
         return this
     }
 }
@@ -58,19 +57,19 @@ class Gait(
         moveAcceleration *= scale
         legMoveSpeed *= scale
         legLiftHeight *= scale
-        comfortZone = comfortZone.scale(scale)
+        comfortZoneRadius *= scale
         legScanHeightBias *= scale
         tridentRotationalKnockBack /= scale
     }
 
     var stationary = LerpGait(
         bodyHeight = 1.1,
-        triggerZone = SplitDistance(.25, 1.5)
+        triggerZoneRadius = .25,
     )
 
     var moving = LerpGait(
         bodyHeight = 1.1,
-        triggerZone = SplitDistance(.8,1.5)
+        triggerZoneRadius = .8,
     )
 
     var maxBodyDistanceFromGround = .25
@@ -85,7 +84,7 @@ class Gait(
 
     var legLiftHeight = .35
 
-    var comfortZone = SplitDistance(1.2, 1.6)
+    var comfortZoneRadius = 1.2
 
     var gravityAcceleration = .08
     var airDragCoefficient = .02

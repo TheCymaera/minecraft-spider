@@ -41,54 +41,19 @@ fun spiderDebugRenderEntities(spider: SpiderBody, pointDetector: PointDetector):
             }
         )
 
-        // Render trigger zone
-        if (spider.debug.triggerZones) group["triggerZoneVertical" to legIndex] = renderBlock(
+        // Render trigger capsule
+        if (spider.debug.triggerZones) group["triggerZone" to legIndex] = renderLine(
             world = spider.world,
-            position = leg.triggerZone.center,
+            position = leg.triggerZone.point1,
+            vector = leg.triggerZone.axis,
+            thickness = (2 * leg.triggerZone.radius).toFloat() * scale,
+//            thickness = .07f * scale,
             init = {
-                it.teleportDuration = 1
-                it.interpolationDuration = 1
                 it.brightness = Display.Brightness(15, 15)
             },
             update = {
                 val material = if (leg.isUncomfortable) Material.RED_STAINED_GLASS else Material.CYAN_STAINED_GLASS
                 it.block = material.createBlockData()
-
-                val thickness = .07f * scale
-                val transform = Matrix4f()
-                    .rotate(spider.gait.scanPivotMode.get(spider))
-                    .scale(thickness, 2 * leg.triggerZone.vertical.toFloat(), thickness)
-                    .translate(-.5f,-.5f,-.5f)
-
-                it.interpolateTransform(transform)
-            }
-        )
-
-        // Render trigger zone
-        if (spider.debug.triggerZones) group["triggerZoneHorizontal" to legIndex] = renderBlock(
-            world = spider.world,
-            position = run {
-                val pos = leg.triggerZone.center.clone()
-                pos.y = leg.target.position.y.coerceIn(pos.y - leg.triggerZone.vertical, pos.y + leg.triggerZone.vertical)
-                pos
-            },
-            init = {
-                it.teleportDuration = 1
-                it.interpolationDuration = 1
-                it.brightness = Display.Brightness(15, 15)
-            },
-            update = {
-                val material = if (leg.isUncomfortable) Material.RED_STAINED_GLASS else Material.CYAN_STAINED_GLASS
-                it.block = material.createBlockData()
-
-                val size = 2 * leg.triggerZone.horizontal.toFloat()
-                val ySize = 0.02f
-                val transform = Matrix4f()
-                    .rotate(spider.gait.scanPivotMode.get(spider))
-                    .scale(size, ySize, size)
-                    .translate(-.5f,-.5f,-.5f)
-
-                it.interpolateTransform(transform)
             }
         )
 

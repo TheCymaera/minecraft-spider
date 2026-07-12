@@ -30,8 +30,8 @@ class Leg(
     var legPlan: LegPlan
 ) {
     // memo
-    lateinit var triggerZone: SplitDistanceZone; private set
-    lateinit var comfortZone: SplitDistanceZone; private set
+    lateinit var triggerZone: Capsule; private set
+    lateinit var comfortZone: Capsule; private set
 
     var groundPosition: Vector? = null; private set
     lateinit var restPosition: Vector; private set
@@ -76,35 +76,26 @@ class Leg(
         val orientation = spider.gait.scanPivotMode.get(spider)
 
         val upVector = UP_VECTOR.rotate(orientation)
-        val scanStartAxis = upVector.clone().multiply(lerpedGait.bodyHeight * 1.6)
-        val scanAxis = upVector.clone().multiply(-lerpedGait.bodyHeight * 3.5)
 
         // rest position
         restPosition = legPlan.restPosition.clone()
         restPosition.add(upVector.clone().multiply(-lerpedGait.bodyHeight))
         restPosition.rotate(orientation).add(spider.position)
 
-        // trigger zone
-        triggerZone = SplitDistanceZone(restPosition, lerpedGait.triggerZone)
-
-        // comfort zone
-        // we want the comfort zone to extend above the spider's body
-        // and below the rest position
-        // TODO: Replace with capsule?		
-        val comfortZoneCenter = restPosition.clone()
-        comfortZoneCenter.y = restPosition.y.lerp(spider.position.y, .5)
-        val comfortZoneSize = SplitDistance(
-            horizontal = spider.gait.comfortZone.horizontal,
-            vertical = spider.gait.comfortZone.vertical + (spider.position.y - restPosition.y).coerceAtLeast(.0)
-        )
-        comfortZone = SplitDistanceZone(comfortZoneCenter, comfortZoneSize)
-
         // lookahead
-        lookAheadPosition = lookAheadPosition(restPosition, triggerZone.size.horizontal)
+        lookAheadPosition = lookAheadPosition(restPosition, lerpedGait.triggerZoneRadius)
 
-        // scan
+        // scan (from lookahead position)
+        val scanStartAxis = upVector.clone().multiply(lerpedGait.bodyHeight * 1.6)
+        val scanAxis = upVector.clone().multiply(-lerpedGait.bodyHeight * 3.5)
         scanStartPosition = lookAheadPosition.clone().add(scanStartAxis)
         scanVector = scanAxis
+
+        // trigger/comfort zone capsules (from rest position; same axis as scan)
+        val zoneStart = restPosition.clone().add(scanStartAxis)
+        val zoneEnd = zoneStart.clone().add(scanAxis)
+        triggerZone = Capsule(zoneStart, zoneEnd, lerpedGait.triggerZoneRadius)
+        comfortZone = Capsule(zoneStart, zoneEnd, spider.gait.comfortZoneRadius)
 
         // attachment position
         attachmentPosition = legPlan.attachmentPosition.clone().rotate(spider.orientation).add(spider.position)
