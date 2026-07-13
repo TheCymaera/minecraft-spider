@@ -270,8 +270,7 @@ class KinematicChainVisualizer(
 
             group[i] = renderLine(
                 world = world,
-                position = a,
-                vector = b.clone().subtract(a),
+                line = LineSegment(a, b),
                 thickness = .1f,
                 interpolation = 3,
                 update = {

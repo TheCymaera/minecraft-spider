@@ -29,8 +29,7 @@ fun spiderDebugRenderEntities(spider: SpiderBody, pointDetector: PointDetector):
         // Render scan bars
         if (spider.debug.scanBars) group["scanBar" to legIndex] = renderLine(
             world = spider.world,
-            position = leg.scanStartPosition,
-            vector = leg.scanVector,
+            line = leg.scanLine,
             thickness = .05f * scale,
             init = {
                 it.brightness = Display.Brightness(15, 15)
@@ -44,8 +43,7 @@ fun spiderDebugRenderEntities(spider: SpiderBody, pointDetector: PointDetector):
         // Render trigger capsule
         if (spider.debug.triggerZones) group["triggerZone" to legIndex] = renderLine(
             world = spider.world,
-            position = leg.triggerZone.point1,
-            vector = leg.triggerZone.axis,
+            line = leg.triggerZone.line(),
             thickness = (2 * leg.triggerZone.radius).toFloat() * scale,
 //            thickness = .07f * scale,
             init = {
@@ -158,8 +156,7 @@ fun spiderDebugRenderEntities(spider: SpiderBody, pointDetector: PointDetector):
 
             group["polygon" to i] = renderLine(
                 world = spider.world,
-                position = a,
-                vector = b.clone().subtract(a),
+                line = LineSegment(a, b),
                 thickness = .05f * scale,
                 interpolation = 0,
                 init = { it.brightness = Display.Brightness(15, 15) },
@@ -187,8 +184,7 @@ fun spiderDebugRenderEntities(spider: SpiderBody, pointDetector: PointDetector):
 
     if (spider.debug.normalForce && normal.centreOfMass != null && normal.origin !== null) group["acceleration"] = renderLine(
         world = spider.world,
-        position = normal.origin,
-        vector = normal.centreOfMass.clone().subtract(normal.origin),
+        line = LineSegment(normal.origin, normal.centreOfMass),
         thickness = .02f * scale,
         interpolation = 1,
         init = { it.brightness = Display.Brightness(15, 15) },
@@ -203,22 +199,22 @@ fun spiderDebugRenderEntities(spider: SpiderBody, pointDetector: PointDetector):
 
 fun renderLine(
     world: World,
-    position: Vector,
-    vector: Vector,
-    upVector: Vector = if (vector.x + vector.z != 0.0) UP_VECTOR else FORWARD_VECTOR,
+    line: LineSegment,
+    upVector: Vector = upVector(line.vector()),
     thickness: Float = .1f,
     interpolation: Int = 1,
     init: (BlockDisplay) -> Unit = {},
     update: (BlockDisplay) -> Unit = {}
 ) = renderBlock(
     world = world,
-    position = position,
+    position = line.point1,
     init = {
         it.teleportDuration = interpolation
         it.interpolationDuration = interpolation
         init(it)
     },
     update = {
+        val vector = line.vector()
         val matrix = Matrix4f().rotateTowards(vector.toVector3f(), upVector.toVector3f())
             .translate(-thickness / 2, -thickness / 2, 0f)
             .scale(thickness, thickness, vector.length().toFloat())
@@ -227,3 +223,5 @@ fun renderLine(
         update(it)
     }
 )
+
+private fun upVector(vector: Vector) = if (vector.x + vector.z != 0.0) UP_VECTOR else FORWARD_VECTOR

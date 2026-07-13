@@ -8,6 +8,7 @@ import org.bukkit.util.RayTraceResult
 import org.bukkit.util.Transformation
 import org.bukkit.util.Vector
 import org.joml.*
+import javax.sound.sampled.Line
 import kotlin.math.abs
 import kotlin.math.sqrt
 
@@ -51,7 +52,20 @@ class Capsule(
     val point2: Vector,
     val radius: Double,
 ) {
-    fun contains(point: Vector): Boolean = distanceSquared(point) <= radius * radius
+    fun line() = LineSegment(point1, point2)
+    fun contains(point: Vector): Boolean = line().distanceSquared(point) <= radius * radius
+    fun axis() = point2.clone().subtract(point1)
+}
+
+class LineSegment(
+    val point1: Vector,
+    val point2: Vector,
+) {
+    companion object {
+        fun fromOffset(origin: Vector, offset: Vector) = LineSegment(origin, origin.clone().add(offset))
+    }
+
+    fun vector() = point2.clone().subtract(point1)
 
     fun distance(point: Vector): Double = sqrt(distanceSquared(point))
 
@@ -69,8 +83,6 @@ class Capsule(
         val dz = point.z - (point1.z + abZ * t)
         return dx * dx + dy * dy + dz * dz
     }
-
-    val axis: Vector get() = point2.clone().subtract(point1)
 }
 
 fun World.raycastGround(position: Vector, direction: Vector, maxDistance: Double): RayTraceResult? {

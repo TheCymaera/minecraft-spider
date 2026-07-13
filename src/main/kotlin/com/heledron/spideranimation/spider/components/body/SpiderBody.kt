@@ -127,7 +127,7 @@ class SpiderBody(
 
         fun getPos(leg: Leg): Vector {
 //            if (leg.isOutsideTriggerZone) return leg.endEffector
-            return leg.groundPosition ?: leg.restPosition
+            return leg.groundTarget?.position ?: leg.restPosition
         }
 
         val frontLeft  = getPos(legs.getOrNull(0) ?: return)
