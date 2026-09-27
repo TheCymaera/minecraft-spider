@@ -1,6 +1,8 @@
 package com.heledron.spideranimation.spider.components
 
 import com.heledron.spideranimation.spider.components.body.SpiderBody
+import com.heledron.spideranimation.spider.configuration.SpiderOptions
+import com.heledron.spideranimation.utilities.ecs.Component
 import com.heledron.spideranimation.utilities.ecs.ECS
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
 import com.heledron.spideranimation.utilities.maths.UP_VECTOR
@@ -9,14 +11,14 @@ import org.bukkit.entity.Trident
 
 class TridentHitEvent(val entity: ECSEntity, val spider: SpiderBody, val trident: Trident)
 
-class TridentHitDetector() {
+class TridentHitDetector : Component {
     var stunned = false
 }
 
 
 fun setupTridentHitDetector(app: ECS) {
     app.onTick {
-        for ((entity, spider, _) in app.query<ECSEntity, SpiderBody, TridentHitDetector>()) {
+        for ((entity, spider, options, _) in app.query<ECSEntity, SpiderBody, SpiderOptions, TridentHitDetector>()) {
             val rider = entity.query<Mountable>()?.getRider()
 
             val location = spider.position.toLocation(spider.world)
@@ -33,14 +35,14 @@ fun setupTridentHitDetector(app: ECS) {
                 trident.velocity = tridentDirection.clone().multiply(-.3)
                 app.emit(TridentHitEvent(entity = entity, spider = spider, trident = trident))
 
-                spider.velocity.add(tridentDirection.multiply(spider.gait.tridentKnockBack))
+                spider.velocity.add(tridentDirection.multiply(options.gait.tridentKnockBack))
 
                 // apply rotational acceleration
                 val hitDirection = spider.position.clone().subtract(trident.position).normalize()
                 val axis = UP_VECTOR.crossProduct(tridentDirection)
                 val angle = hitDirection.angle(UP_VECTOR)
 
-                val accelerationMagnitude = angle * spider.gait.tridentRotationalKnockBack.toFloat()
+                val accelerationMagnitude = angle * options.gait.tridentRotationalKnockBack.toFloat()
 
                 spider.accelerateRotation(axis, accelerationMagnitude)
             }

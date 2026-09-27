@@ -27,28 +27,30 @@ object AppState {
     fun createSpider(location: Location, options: SpiderOptions): ECSEntity {
         location.y += options.walkGait.stationary.bodyHeight
         return ecs.spawn(
-            SpiderBody.fromLocation(location, options.bodyPlan, walkGait = options.walkGait, gallopGait = options.gallopGait, gallop = false),
+            SpiderBody.fromLocation(location),
+            options,
             TridentHitDetector(),
-            Cloak(options.cloak),
-            SoundsAndParticles(options.sound),
+            Cloak(),
+            SoundsAndParticles(),
             Mountable(),
             PointDetector(),
             SpiderRenderer(),
         )
     }
 
-    fun findSpiderByUUID(uuid: java.util.UUID): Pair<ECSEntity, SpiderBody>? {
-        return ecs.query<ECSEntity, SpiderBody>().find { it.second.uuid == uuid }
+    fun findSpiderByUUID(uuid: java.util.UUID): ECSEntity? {
+        return ecs.query<ECSEntity, SpiderBody>().find { it.second.uuid == uuid }?.first
     }
 
-    fun findNearestSpider(player: Player): Pair<ECSEntity, SpiderBody>? {
+    fun findNearestSpider(player: Player): ECSEntity? {
         return findNearestSpider(player.location)
     }
 
-    fun findNearestSpider(location: Location): Pair<ECSEntity, SpiderBody>? {
+    fun findNearestSpider(location: Location): ECSEntity? {
         return ecs.query<ECSEntity, SpiderBody>()
             .filter { it.second.world == location.world }
             .minByOrNull { it.second.position.distanceSquared(location.toVector()) }
+            ?.first
     }
 
     fun createChainVisualizer(location: Location, bodyPlan: BodyPlan = hexBot(4, 1.0).bodyPlan): ECSEntity {

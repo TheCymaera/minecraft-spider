@@ -3,6 +3,8 @@ package com.heledron.spideranimation.spider.components.rendering
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.components.Cloak
 import com.heledron.spideranimation.spider.components.PointDetector
+import com.heledron.spideranimation.spider.configuration.SpiderOptions
+import com.heledron.spideranimation.utilities.ecs.Component
 import com.heledron.spideranimation.utilities.ecs.ECS
 import com.heledron.spideranimation.utilities.events.interval
 import org.bukkit.Location
@@ -10,7 +12,7 @@ import org.bukkit.Particle
 import org.bukkit.util.Vector
 import kotlin.random.Random
 
-class SpiderRenderer {
+class SpiderRenderer : Component {
     var renderDebugVisuals = false
     var useParticles = false
 }
@@ -18,12 +20,12 @@ class SpiderRenderer {
 fun setupRenderer(app: ECS) {
     // apply eye blinking effect
     interval(0,10) {
-        for (spider in app.query<SpiderBody>()) {
-            val pieces = spider.bodyPlan.bodyModel.pieces.filter { it.tags.contains("eye") }
+        for ((spider, options) in app.query<SpiderBody, SpiderOptions>()) {
+            val pieces = options.bodyPlan.bodyModel.pieces.filter { it.tags.contains("eye") }
 
             if (Random.nextBoolean()) return@interval
             for (piece in pieces) {
-                val block = spider.bodyPlan.eyePalette.random()
+                val block = options.bodyPlan.eyePalette.random()
                 piece.block = block.first
                 piece.brightness = block.second
             }
@@ -32,12 +34,12 @@ fun setupRenderer(app: ECS) {
 
     // apply blinking lights effect
     interval(0,5) {
-        for (spider in app.query<SpiderBody>()) {
-            val pieces = spider.bodyPlan.bodyModel.pieces.filter { it.tags.contains("blinking_lights") }
+        for ((spider, options) in app.query<SpiderBody, SpiderOptions>()) {
+            val pieces = options.bodyPlan.bodyModel.pieces.filter { it.tags.contains("blinking_lights") }
 
             if (Random.nextBoolean()) return@interval
             for (piece in pieces) {
-                val block = spider.bodyPlan.blinkingPalette.random()
+                val block = options.bodyPlan.blinkingPalette.random()
                 piece.block = block.first
                 piece.brightness = block.second
             }
@@ -45,15 +47,15 @@ fun setupRenderer(app: ECS) {
     }
 
     app.onRender {
-        for ((spider, cloak, pointDetector, renderer) in app.query<SpiderBody, Cloak, PointDetector, SpiderRenderer>()) {
+        for ((spider, cloak, pointDetector, renderer, options) in app.query<SpiderBody, Cloak, PointDetector, SpiderRenderer, SpiderOptions>()) {
             if (renderer.useParticles) {
                 SpiderParticleRenderer.renderSpider(spider)
             } else {
-                renderSpider(spider, cloak).submit(spider)
+                renderSpider(spider, cloak, options).submit(spider)
             }
 
 
-            if (renderer.renderDebugVisuals) spiderDebugRenderEntities(spider, pointDetector).submit(spider to "debug")
+            if (renderer.renderDebugVisuals) spiderDebugRenderEntities(spider, pointDetector, options).submit(spider to "debug")
         }
     }
 }

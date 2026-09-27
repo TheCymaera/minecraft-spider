@@ -1,9 +1,27 @@
 package com.heledron.spideranimation.utilities
 
-import com.google.gson.Gson
+import com.google.gson.GsonBuilder
+import com.google.gson.JsonDeserializationContext
+import com.google.gson.JsonDeserializer
+import com.google.gson.JsonElement
+import com.google.gson.JsonSerializationContext
+import com.google.gson.JsonSerializer
+import org.joml.Matrix4f
+import com.google.gson.JsonArray
+import com.google.gson.JsonPrimitive
+import net.kyori.adventure.key.Key
+import org.bukkit.Bukkit
+import org.bukkit.Registry
+import org.bukkit.Sound
+import org.bukkit.block.data.BlockData
+import java.lang.reflect.Type
 
 object Serializer {
-    val gson = Gson()
+    val gson = GsonBuilder()
+        .registerTypeHierarchyAdapter(BlockData::class.java, BlockDataAdapter)
+        .registerTypeHierarchyAdapter(Sound::class.java, SoundAdapter)
+        .registerTypeAdapter(Matrix4f::class.java, Matrix4fAdapter)
+        .create()
 
     fun toNullableMap(obj: Any?): Any? {
         if (obj == null) return null
@@ -89,5 +107,39 @@ object Serializer {
             field.isAccessible = true
             field.set(current, value)
         } catch (_: Exception) { }
+    }
+}
+
+private object BlockDataAdapter : JsonSerializer<BlockData>, JsonDeserializer<BlockData> {
+    override fun serialize(src: BlockData, type: Type, ctx: JsonSerializationContext): JsonElement {
+        return JsonPrimitive(src.asString)
+    }
+
+    override fun deserialize(json: JsonElement, type: Type, ctx: JsonDeserializationContext): BlockData {
+        return Bukkit.createBlockData(json.asString)
+    }
+}
+
+private object Matrix4fAdapter : JsonSerializer<Matrix4f>, JsonDeserializer<Matrix4f> {
+    override fun serialize(src: Matrix4f, type: Type, ctx: JsonSerializationContext): JsonElement {
+        return JsonArray().apply {
+            for (value in src.get(FloatArray(16))) add(value)
+        }
+    }
+
+    override fun deserialize(json: JsonElement, type: Type, ctx: JsonDeserializationContext): Matrix4f {
+        val array = json.asJsonArray
+        val values = FloatArray(16) { array[it].asFloat }
+        return Matrix4f().set(values)
+    }
+}
+
+private object SoundAdapter : JsonSerializer<Sound>, JsonDeserializer<Sound> {
+    override fun serialize(src: Sound, type: Type, ctx: JsonSerializationContext): JsonElement {
+        return JsonPrimitive(Registry.SOUNDS.getKey(src).toString())
+    }
+
+    override fun deserialize(json: JsonElement, type: Type, ctx: JsonDeserializationContext): Sound {
+        return Registry.SOUNDS.getOrThrow(Key.key(json.asString))
     }
 }

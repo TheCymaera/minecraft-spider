@@ -29,9 +29,9 @@ object WalkGaitType {
         if (crossPair.any { !it.isGrounded() && !it.isDisabled && it.target.isGrounded }) return false
 
         // cooldown
-        if (crossPair.any { it.target.isGrounded && it.timeSinceStopMove < spider.gait.crossPairCooldown }) return false
+        if (crossPair.any { it.target.isGrounded && it.timeSinceStopMove < leg.options.gait.crossPairCooldown }) return false
         val samePair = unIndexLeg(spider, LegLookUp.diagonal(index))
-        if (samePair.any { it.target.isGrounded && it.timeSinceBeginMove < spider.gait.samePairCooldown }) return false
+        if (samePair.any { it.target.isGrounded && it.timeSinceBeginMove < leg.options.gait.samePairCooldown }) return false
 
         val wantsToMove = leg.isOutsideTriggerZone || !leg.touchingGround
         val alreadyAtTarget = leg.endEffector.distanceSquared(leg.target.position) < 0.01
@@ -69,11 +69,11 @@ object GallopGaitType {
             // check cooldown
             val front = spider.legs.getOrNull(LegLookUp.diagonalFront(index))
             val back = spider.legs.getOrNull(LegLookUp.diagonalBack(index))
-            if (listOfNotNull(front).any { leg.target.isGrounded && (leg.timeSinceBeginMove < spider.gait.crossPairCooldown) }) return false
+            if (listOfNotNull(front).any { leg.target.isGrounded && (leg.timeSinceBeginMove < leg.options.gait.crossPairCooldown) }) return false
 
             return leg.isOutsideTriggerZone || !leg.touchingGround
         } else {
-            val hasCooldown = pair.target.isGrounded && (pair.timeSinceBeginMove < spider.gait.samePairCooldown)
+            val hasCooldown = pair.target.isGrounded && (pair.timeSinceBeginMove < leg.options.gait.samePairCooldown)
             return pair.isMoving && !hasCooldown
         }
     }

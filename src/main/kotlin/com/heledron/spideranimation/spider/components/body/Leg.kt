@@ -3,6 +3,7 @@ package com.heledron.spideranimation.spider.components.body
 import com.heledron.spideranimation.utilities.ChainSegment
 import com.heledron.spideranimation.utilities.KinematicChain
 import com.heledron.spideranimation.spider.configuration.LegPlan
+import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.utilities.*
 import com.heledron.spideranimation.utilities.ecs.ECS
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
@@ -26,7 +27,8 @@ class Leg(
     val ecs: ECS,
     val entity: ECSEntity,
     val spider: SpiderBody,
-    var legPlan: LegPlan
+    var legPlan: LegPlan,
+    val options: SpiderOptions,
 ) {
     // memo
     lateinit var triggerZone: Capsule; private set
@@ -77,8 +79,8 @@ class Leg(
     }
 
     fun updateMemo() {
-        val lerpedGait = spider.lerpedGait()
-        val scanOrientation = spider.gait.scanPivotMode.get(spider)
+        val lerpedGait = spider.lerpedGait(options.gait)
+        val scanOrientation = options.gait.scanPivotMode.get(spider)
 
         val upVector = UP_VECTOR.rotate(scanOrientation)
 
@@ -99,7 +101,7 @@ class Leg(
         val zoneStart = restPosition.clone().add(scanStartAxis)
         val zoneEnd = zoneStart.clone().add(scanAxis)
         triggerZone = Capsule(zoneStart, zoneEnd, lerpedGait.triggerZoneRadius)
-        comfortZone = Capsule(zoneStart, zoneEnd, spider.gait.comfortZoneRadius)
+        comfortZone = Capsule(zoneStart, zoneEnd, options.gait.comfortZoneRadius)
 
         // attachment position
         attachmentPosition = legPlan.attachmentPosition.clone().rotate(spider.orientation).add(spider.position)
@@ -111,19 +113,19 @@ class Leg(
         // update chain
         chain.root.copy(attachmentPosition)
 
-        if (spider.gait.straightenLegs) {
-            val pivot = Quaternionf(spider.gait.legChainPivotMode.get(spider))
+        if (options.gait.straightenLegs) {
+            val pivot = Quaternionf(options.gait.legChainPivotMode.get(spider))
 
             val direction = endEffector.clone().subtract(attachmentPosition)
             val rotation = direction.getRotationAroundAxis(pivot)
 
-            rotation.x += spider.gait.legStraightenRotation
+            rotation.x += options.gait.legStraightenRotation
             val orientation = pivot.rotateYXZ(rotation.y, rotation.x, .0f)
 
             chain.straightenDirection(orientation)
         }
 
-        if (!spider.debug.disableFabrik) {
+        if (!options.debug.disableFabrik) {
             chain.fabrik(endEffector)
         }
     }
@@ -165,7 +167,7 @@ class Leg(
         if (isMoving) {
             didStep = updateMove()
         } else {
-            canMove = spider.gait.type.canMoveLeg(this)
+            canMove = options.gait.type.canMoveLeg(this)
             if (canMove) beginMove()
         }
 
@@ -216,12 +218,12 @@ class Leg(
             stepStart.y.lerp(target.position.y, t),
             stepStart.z.lerp(target.position.z, t),
         )
-        position.y += spider.gait.legLiftHeight * stepLiftFactor(t)
+        position.y += options.gait.legLiftHeight * stepLiftFactor(t)
         return position
     }
 
     private fun updateMove(): Boolean {
-		val gait = spider.gait
+		val gait = options.gait
     	
         val distance = stepStart.horizontalDistance(target.position).coerceAtLeast(1e-4)
         stepProgress = stepProgress.moveTowards(1.0, gait.legMoveSpeed / distance)
@@ -249,7 +251,7 @@ class Leg(
 
         val direction = if (spider.velocity.isZero) spider.forwardDirection() else spider.velocity.clone().normalize()
 
-        val lookAhead = direction.multiply(triggerZoneRadius * spider.gait.legLookAheadFraction).add(restPosition)
+        val lookAhead = direction.multiply(triggerZoneRadius * options.gait.legLookAheadFraction).add(restPosition)
         lookAhead.rotateAroundY(spider.rotationalVelocity.y.toDouble(), spider.position)
         return lookAhead
     }
@@ -282,7 +284,7 @@ class Leg(
 
         val mainCandidate = rayCast(x, z)
 
-        if (!spider.gait.legScanAlternativeGround) return mainCandidate
+        if (!options.gait.legScanAlternativeGround) return mainCandidate
 
         if (mainCandidate != null) {
             if (mainCandidate.position.y in lookAhead.y - .24 .. lookAhead.y + 1.5) {
@@ -305,7 +307,7 @@ class Leg(
         val preferredPosition = lookAhead.toVector()
 
         val frontBlock = lookAhead.clone().add(spider.forwardDirection().clone().multiply(1)).block
-        if (!frontBlock.isPassable) preferredPosition.y += spider.gait.legScanHeightBias
+        if (!frontBlock.isPassable) preferredPosition.y += options.gait.legScanHeightBias
 
         val best = candidates
             .filterNotNull()
@@ -323,7 +325,7 @@ class Leg(
     }
 
     private fun disabledTarget(groundPosition: Vector?): LegTarget {
-        val lerpedGait = spider.lerpedGait()
+        val lerpedGait = spider.lerpedGait(options.gait)
         val upVector = UP_VECTOR.rotate(spider.orientation)
 
         val target = strandedTarget()

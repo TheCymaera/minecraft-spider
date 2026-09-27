@@ -7,6 +7,7 @@ import com.heledron.spideranimation.utilities.rendering.renderText
 import com.heledron.spideranimation.spider.configuration.SegmentPlan
 import com.heledron.spideranimation.utilities.*
 import com.heledron.spideranimation.utilities.centredTransform
+import com.heledron.spideranimation.utilities.ecs.Component as EcsComponent
 import com.heledron.spideranimation.utilities.ecs.ECS
 import com.heledron.spideranimation.utilities.maths.FORWARD_VECTOR
 import com.heledron.spideranimation.utilities.maths.UP_VECTOR
@@ -31,7 +32,7 @@ class KinematicChainVisualizer(
     val segments: List<ChainSegment>,
     val segmentPlans: List<SegmentPlan>,
     val straightenRotation: Float
-) {
+) : EcsComponent {
     enum class Stage {
         Backwards,
         Forwards

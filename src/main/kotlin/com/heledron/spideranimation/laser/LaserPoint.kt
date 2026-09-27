@@ -5,6 +5,8 @@ import com.heledron.spideranimation.kinematic_chain_visualizer.KinematicChainVis
 import com.heledron.spideranimation.spider.components.SpiderBehaviour
 import com.heledron.spideranimation.spider.components.TargetBehaviour
 import com.heledron.spideranimation.spider.components.body.SpiderBody
+import com.heledron.spideranimation.spider.configuration.SpiderOptions
+import com.heledron.spideranimation.utilities.ecs.Component
 import com.heledron.spideranimation.utilities.ecs.ECS
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
 import com.heledron.spideranimation.utilities.centredTransform
@@ -17,20 +19,20 @@ class LaserPoint(
     var world: World,
     var position: Vector,
     var isVisible: Boolean,
-)
+) : Component
 
 fun setupLaserPointer(app: ECS) {
     app.onTick {
         val lasers = app.query<LaserPoint>()
 
         // get spiders to follow the laser
-        for ((spiderEntity, spider) in app.query<ECSEntity, SpiderBody>()) {
+        for ((spiderEntity, spider, options) in app.query<ECSEntity, SpiderBody, SpiderOptions>()) {
             val nearestLaser = lasers
                 .filter { it.world == spider.world }
                 .minByOrNull { it.position.distanceSquared(spider.position) }
                 ?: continue
 
-            val distance = spider.walkGait.stationary.bodyHeight * 2
+            val distance = options.walkGait.stationary.bodyHeight * 2
             val behaviour = TargetBehaviour(nearestLaser.position, distance)
             spiderEntity.replaceComponent<SpiderBehaviour>(behaviour)
         }

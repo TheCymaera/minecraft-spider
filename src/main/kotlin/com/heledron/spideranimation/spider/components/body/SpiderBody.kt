@@ -3,8 +3,9 @@ package com.heledron.spideranimation.spider.components.body
 import com.heledron.spideranimation.spider.configuration.BodyPlan
 import com.heledron.spideranimation.spider.configuration.Gait
 import com.heledron.spideranimation.spider.configuration.LerpGait
-import com.heledron.spideranimation.spider.configuration.SpiderDebugOptions
+import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.utilities.*
+import com.heledron.spideranimation.utilities.ecs.Component
 import com.heledron.spideranimation.utilities.ecs.ECS
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
 import com.heledron.spideranimation.utilities.isOnGround
@@ -37,20 +38,15 @@ class SpiderBody(
     val world: World,
     val position: Vector,
     val orientation: Quaternionf,
-    var bodyPlan: BodyPlan,
-    var walkGait: Gait,
-    var gallopGait: Gait,
-) {
+) : Component {
     var onGround = false; private set
     var legs: List<Leg> = emptyList()
     var normal: NormalInfo? = null; private set
     var normalAcceleration = Vector(0.0, 0.0, 0.0); private set
 
-    var debug = SpiderDebugOptions()
-
-    // params
-    var gallop = false
-    val gait get() = if (gallop) gallopGait else walkGait
+    // state
+    var isWalking = false
+    var isRotatingYaw = false
 
     private var lastAppliedBodyPlan: BodyPlan? = null
 
@@ -58,12 +54,7 @@ class SpiderBody(
         lastAppliedBodyPlan = null
     }
 
-
-    // state
-    var isWalking = false
-    var isRotatingYaw = false
-
-    fun lerpedGait(): LerpGait {
+    fun lerpedGait(gait: Gait): LerpGait {
         if (isRotatingYaw) {
             return gait.moving.clone()
         }
@@ -73,11 +64,11 @@ class SpiderBody(
     }
 
     companion object {
-        fun fromLocation(location: Location, bodyPlan: BodyPlan, walkGait: Gait, gallopGait: Gait, uuid: UUID = UUID.randomUUID(), gallop: Boolean = false): SpiderBody {
+        fun fromLocation(location: Location, uuid: UUID = UUID.randomUUID()): SpiderBody {
             val world = location.world!!
             val position = location.toVector()
             val orientation = Quaternionf().rotationYXZ(location.yawRadians(), location.pitchRadians(), 0f)
-            return SpiderBody(uuid, world, position, orientation, bodyPlan, walkGait, gallopGait).apply { this.gallop = gallop }
+            return SpiderBody(uuid, world, position, orientation)
         }
     }
 
@@ -115,7 +106,7 @@ class SpiderBody(
         for (leg in body.legs) leg.endEffector.add(diff)
     }
 
-    private fun updatePreferredAngles() {
+    private fun updatePreferredAngles(gait: Gait) {
         val heading = orientation.horizontal()
 
         if (gait.disableAdvancedRotation) {
@@ -156,13 +147,15 @@ class SpiderBody(
         preferredOrientation = Quaternionf(heading).rotateX(preferredPitch).rotateZ(preferredRoll)
     }
 
-    fun update(ecs: ECS, entity: ECSEntity) {
-        if (lastAppliedBodyPlan !== bodyPlan) {
-            legs = bodyPlan.legs.map { Leg(ecs, entity, this, it) }
-            lastAppliedBodyPlan = bodyPlan
+    fun update(ecs: ECS, entity: ECSEntity, options: SpiderOptions) {
+        val gait = options.gait
+
+        if (lastAppliedBodyPlan !== options.bodyPlan) {
+            legs = options.bodyPlan.legs.map { Leg(ecs, entity, this, it, options) }
+            lastAppliedBodyPlan = options.bodyPlan
         }
 
-        updatePreferredAngles()
+        updatePreferredAngles(gait)
 
         val groundedLegs = legs.filter { it.isGrounded() }
         val fractionOfLegsGrounded = groundedLegs.size.toDouble() / legs.size
@@ -204,12 +197,12 @@ class SpiderBody(
             rotationalVelocity.mul(bodyDrag)
         }
 
-        val normal = calcNormal()
+        val normal = calcNormal(gait)
         this.normal = normal
 
         normalAcceleration = Vector(0.0, 0.0, 0.0)
         if (normal != null) {
-            val preferredY = calcPreferredY()
+            val preferredY = calcPreferredY(gait)
             val preferredYAcceleration = (preferredY - position.y - velocity.y).coerceAtLeast(0.0)
             val capableAcceleration = gait.bodyHeightCorrectionAcceleration * fractionOfLegsGrounded
             val accelerationMagnitude = min(preferredYAcceleration, capableAcceleration)
@@ -246,7 +239,7 @@ class SpiderBody(
         for (leg in updateOrder) leg.updateMemo()
         for (leg in updateOrder) leg.update()
 
-        updatePreferredAngles()
+        updatePreferredAngles(gait)
     }
 
     private fun legsInPolygonalOrder(): List<Int> {
@@ -256,12 +249,12 @@ class SpiderBody(
     }
 
 
-    private fun calcPreferredY(): Double {
+    private fun calcPreferredY(gait: Gait): Double {
         val lookAhead = position.clone().add(velocity)
-        val ground = world.raycastGround(lookAhead, DOWN_VECTOR.rotate(preferredOrientation), lerpedGait().bodyHeight)
+        val ground = world.raycastGround(lookAhead, DOWN_VECTOR.rotate(preferredOrientation), lerpedGait(gait).bodyHeight)
         val groundY = ground?.hitPosition?.y ?: -Double.MAX_VALUE
 
-        val averageY = legs.map { it.target.position.y }.average() + lerpedGait().bodyHeight
+        val averageY = legs.map { it.target.position.y }.average() + lerpedGait(gait).bodyHeight
 
         val pivot = gait.legChainPivotMode.get(this)
         val target = UP_VECTOR.rotate(pivot).multiply(gait.maxBodyDistanceFromGround)
@@ -271,7 +264,7 @@ class SpiderBody(
         return stabilizedY
     }
 
-    private fun applyStabilization(normal: NormalInfo) {
+    private fun applyStabilization(normal: NormalInfo, gait: Gait) {
         if (normal.origin == null) return
         if (normal.centreOfMass == null) return
 
@@ -295,7 +288,7 @@ class SpiderBody(
         return null
     }
 
-    private fun calcNormal(): NormalInfo? {
+    private fun calcNormal(gait: Gait): NormalInfo? {
         if (gait.useLegacyNormalForce) return calcLegacyNormal()
 
         val centreOfMass = legs.map { it.endEffector }.average()
@@ -316,7 +309,7 @@ class SpiderBody(
                 origin = origin,
                 centreOfMass = centreOfMass,
                 contactPolygon = legsPolygon
-            ).apply { applyStabilization(this) }
+            ).apply { applyStabilization(this, gait) }
         }
 
         val polygon2D = legsPolygon.map { Vector2d(it.x, it.z) }
@@ -337,7 +330,7 @@ class SpiderBody(
             origin = origin,
             centreOfMass = centreOfMass,
             contactPolygon = legsPolygon
-        ).apply { applyStabilization(this)}
+        ).apply { applyStabilization(this, gait)}
     }
 }
 
@@ -351,8 +344,8 @@ class NormalInfo(
 
 fun setupSpiderBody(app: ECS) {
     app.onTick {
-        for ((entity, spider) in app.query<ECSEntity, SpiderBody>()) {
-            spider.update(app, entity)
+        for ((entity, spider, options) in app.query<ECSEntity, SpiderBody, SpiderOptions>()) {
+            spider.update(app, entity, options)
         }
     }
 }

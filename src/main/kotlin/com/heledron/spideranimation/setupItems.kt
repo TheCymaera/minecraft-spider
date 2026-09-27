@@ -6,16 +6,19 @@ import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.components.Cloak
 import com.heledron.spideranimation.spider.components.PointDetector
 import com.heledron.spideranimation.spider.components.rendering.SpiderRenderer
+import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.spider.presets.hexBot
 import com.heledron.spideranimation.laser.LaserPoint
+import com.heledron.spideranimation.utilities.Serializer
 import com.heledron.spideranimation.utilities.custom_items.CustomItemComponent
 import com.heledron.spideranimation.utilities.custom_items.attach
 import com.heledron.spideranimation.utilities.custom_items.createNamedItem
 import com.heledron.spideranimation.utilities.custom_items.customItemRegistry
+import com.heledron.spideranimation.utilities.currentPlugin
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
+import com.heledron.spideranimation.utilities.events.onTick
 import com.heledron.spideranimation.utilities.namespacedID
 import com.heledron.spideranimation.utilities.raycastGround
-import com.heledron.spideranimation.utilities.events.onTick
 import com.heledron.spideranimation.utilities.overloads.direction
 import com.heledron.spideranimation.utilities.overloads.eyePosition
 import com.heledron.spideranimation.utilities.overloads.playSound
@@ -26,6 +29,7 @@ import org.bukkit.Material
 import org.bukkit.Sound
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
+import org.bukkit.persistence.PersistentDataType
 import org.bukkit.util.Vector
 import java.util.UUID
 import kotlin.math.roundToInt
@@ -39,7 +43,10 @@ fun setupItems() {
 		val existing = if (storedUuid == null) null else AppState.findSpiderByUUID(storedUuid)
 		if (existing != null) {
 			player.world.playSound(player.position, Sound.ENTITY_ITEM_FRAME_REMOVE_ITEM, 1.0f, 0.0f)
-			existing.first.remove()
+
+			item.spiderOptions = existing.query<SpiderOptions>()
+
+			existing.remove()
 			item.spiderUUID = null
 			player.sendActionBar(Component.text("Spider removed"))
 		} else {
@@ -49,7 +56,9 @@ fun setupItems() {
 			val hitPosition = player.world.raycastGround(player.eyePosition, player.direction, 100.0)?.hitPosition ?: return@onGestureUse
 
 			player.world.playSound(hitPosition, Sound.BLOCK_NETHERITE_BLOCK_PLACE, 1.0f, 1.0f)
-			val entity = AppState.createSpider(hitPosition.toLocation(player.world).apply { this.yaw = yaw }, hexBot(4, 1.0))
+
+			val options = item.spiderOptions ?: hexBot(4, 1.0)
+			val entity = AppState.createSpider(hitPosition.toLocation(player.world).apply { this.yaw = yaw }, options)
 			val spider = entity.query<SpiderBody>() ?: return@onGestureUse
 			item.spiderUUID = spider.uuid
 
@@ -97,7 +106,7 @@ fun setupItems() {
     val switchRendererComponent = CustomItemComponent("switchRenderer")
     customItemRegistry += { createNamedItem(Material.LIGHT_BLUE_DYE, "Switch Renderer").attach(switchRendererComponent) }
     switchRendererComponent.onGestureUse { player, _ ->
-        val renderer = AppState.findNearestSpider(player)?.first?.query<SpiderRenderer>() ?: return@onGestureUse
+        val renderer = AppState.findNearestSpider(player)?.query<SpiderRenderer>() ?: return@onGestureUse
         renderer.useParticles = !renderer.useParticles
 
         if (renderer.useParticles) {
@@ -110,10 +119,8 @@ fun setupItems() {
     val toggleCloakComponent = CustomItemComponent("toggleCloak")
     customItemRegistry += { createNamedItem(Material.GREEN_DYE, "Toggle Cloak").attach(toggleCloakComponent) }
     toggleCloakComponent.onGestureUse { player, _ ->
-        val (cloak, entity) = AppState.findNearestSpider(player)?.let { (e, _) ->
-            val c = e.query<Cloak>() ?: return@onGestureUse
-            c to e
-        } ?: return@onGestureUse
+        val entity = AppState.findNearestSpider(player) ?: return@onGestureUse
+        val cloak = entity.query<Cloak>() ?: return@onGestureUse
         cloak.toggleCloak(AppState.ecs, entity)
     }
 
@@ -138,10 +145,11 @@ fun setupItems() {
     val switchGaitComponent = CustomItemComponent("switchGait")
     customItemRegistry += { createNamedItem(Material.BREEZE_ROD, "Switch Gait").attach(switchGaitComponent) }
     switchGaitComponent.onGestureUse { player, _ ->
-        val spider = AppState.findNearestSpider(player)?.second ?: return@onGestureUse
-        spider.gallop = !spider.gallop
+        val entity = AppState.findNearestSpider(player) ?: return@onGestureUse
+        val options = entity.query<SpiderOptions>() ?: return@onGestureUse
+        options.gallop = !options.gallop
         player.world.playSound(player.position, Sound.BLOCK_DISPENSER_FAIL, 1.0f, 2.0f)
-        player.sendActionBar(Component.text(if (!spider.gallop) "Walk mode" else "Gallop mode"))
+        player.sendActionBar(Component.text(if (!options.gallop) "Walk mode" else "Gallop mode"))
     }
 
     val laserPointerComponent = CustomItemComponent("laserPointer")
@@ -150,7 +158,7 @@ fun setupItems() {
     val comeHereComponent = CustomItemComponent("comeHere")
     customItemRegistry += { createNamedItem(Material.CARROT_ON_A_STICK, "Come Here").attach(comeHereComponent) }
 
-    class LaserPointExpire(val owner: Player) {
+    class LaserPointExpire(val owner: Player) : com.heledron.spideranimation.utilities.ecs.Component {
         var expired = false
     }
 
@@ -215,6 +223,7 @@ fun setupItems() {
 }
 
 private val SPIDER_UUID_KEY = namespacedID("spider_uuid")
+private val SPIDER_OPTIONS_KEY = namespacedID("spider_options")
 
 private var ItemStack.spiderUUID
     get(): UUID? {
@@ -227,5 +236,29 @@ private var ItemStack.spiderUUID
         } else {
             meta.persistentDataContainer.set(SPIDER_UUID_KEY, UUIDDataType, value)
         }
+        itemMeta = meta
+    }
+
+private var ItemStack.spiderOptions
+    get(): SpiderOptions? {
+        val json = itemMeta?.persistentDataContainer?.get(SPIDER_OPTIONS_KEY, PersistentDataType.STRING) ?: return null
+        return runCatching { Serializer.gson.fromJson(json, SpiderOptions::class.java) }.getOrNull()
+    }
+    set(value) {
+        val meta = itemMeta
+        if (value == null) {
+            meta.persistentDataContainer.remove(SPIDER_OPTIONS_KEY)
+            itemMeta = meta
+            return
+        }
+
+        val json = try {
+            Serializer.gson.toJson(value)
+        } catch (e: Exception) {
+            currentPlugin.logger.severe("Could not serialize spider options, so they will not persist: $e")
+            return
+        }
+
+        meta.persistentDataContainer.set(SPIDER_OPTIONS_KEY, PersistentDataType.STRING, json)
         itemMeta = meta
     }

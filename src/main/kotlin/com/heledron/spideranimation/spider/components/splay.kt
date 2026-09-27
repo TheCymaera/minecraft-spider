@@ -1,6 +1,7 @@
 package com.heledron.spideranimation.spider.components
 
 import com.heledron.spideranimation.spider.components.body.SpiderBody
+import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.utilities.*
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
 import com.heledron.spideranimation.utilities.events.interval
@@ -35,6 +36,7 @@ fun Transformation.clone() = Transformation(
 
 fun splay(spiderEntity: ECSEntity) {
     val spider = spiderEntity.query<SpiderBody>() ?: return
+    val options = spiderEntity.query<SpiderOptions>() ?: return
     spiderEntity.remove()
 
     // detach and get entities
@@ -51,13 +53,13 @@ fun splay(spiderEntity: ECSEntity) {
 
 
     val pieces = mutableListOf<BlockDisplayModelPiece>()
-    for (piece in spider.bodyPlan.bodyModel.pieces) {
+    for (piece in options.bodyPlan.bodyModel.pieces) {
         pieces += piece
     }
 
     for ((legIndex, leg) in spider.legs.withIndex()) {
         for ((segmentIndex, segment) in leg.chain.segments.withIndex()) {
-            val model = spider.bodyPlan.legs[legIndex].segments[segmentIndex].model
+            val model = options.bodyPlan.legs[legIndex].segments[segmentIndex].model
             for (piece in model.pieces) pieces += piece
         }
     }

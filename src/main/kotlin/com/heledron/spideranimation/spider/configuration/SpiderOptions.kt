@@ -1,12 +1,17 @@
 package com.heledron.spideranimation.spider.configuration
 
+import com.heledron.spideranimation.utilities.ecs.Component
 import org.bukkit.Sound
 import org.bukkit.util.Vector
 import kotlin.random.Random
 
-class SpiderOptions {
+class SpiderOptions : Component {
     var walkGait = Gait.defaultWalk()
     var gallopGait = Gait.defaultGallop()
+
+    var gallop = false
+	/** Currently active gait. */
+    val gait get() = if (gallop) gallopGait else walkGait
 
     var cloak = CloakOptions()
 
@@ -14,6 +19,16 @@ class SpiderOptions {
     var debug = SpiderDebugOptions()
 
     var sound = SoundOptions()
+
+    fun copyFrom(other: SpiderOptions) {
+        walkGait = other.walkGait
+        gallopGait = other.gallopGait
+        gallop = other.gallop
+        cloak = other.cloak
+        bodyPlan = other.bodyPlan
+        debug = other.debug
+        sound = other.sound
+    }
 
 //    fun scale(scale: Double) {
 //        walkGait.scale(scale)

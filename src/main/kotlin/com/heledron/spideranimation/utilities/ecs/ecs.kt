@@ -1,5 +1,9 @@
 package com.heledron.spideranimation.utilities.ecs
 
+interface Queryable
+
+interface Component : Queryable
+
 /**
  * Bevy-style Entity Component System
  */
@@ -25,7 +29,7 @@ class ECS {
         for (listener in eventListeners) listener(message)
     }
 
-    fun spawn(vararg components: Any): ECSEntity {
+    fun spawn(vararg components: Component): ECSEntity {
         val entity = ECSEntity()
         for (component in components) {
             entity.addComponent(component)
@@ -35,13 +39,13 @@ class ECS {
     }
 
     @JvmName("query1")
-    inline fun <reified T : Any> query(): Iterable<T> {
+    inline fun <reified T : Queryable> query(): Iterable<T> {
 //        if (!inSystem) throw Error("Cannot query outside of a system")
         return entities.mapNotNull { it.query<T>()  }
     }
 
     @JvmName("query2")
-    inline fun <reified A : Any, reified B : Any> query(): Iterable<Pair<A, B>> {
+    inline fun <reified A : Queryable, reified B : Queryable> query(): Iterable<Pair<A, B>> {
 //        if (!inSystem) throw Error("Cannot query outside of a system")
        return entities.mapNotNull { entity ->
             val comp1 = entity.query<A>() ?: return@mapNotNull null
@@ -51,7 +55,7 @@ class ECS {
     }
 
     @JvmName("query3")
-    inline fun <reified A : Any, reified B : Any, reified C : Any> query(): Iterable<Triple<A, B, C>> {
+    inline fun <reified A : Queryable, reified B : Queryable, reified C : Queryable> query(): Iterable<Triple<A, B, C>> {
 //        if (!inSystem) throw Error("Cannot query outside of a system")
        return entities.mapNotNull { entity ->
             val comp1 = entity.query<A>() ?: return@mapNotNull null
@@ -62,7 +66,7 @@ class ECS {
     }
 
     @JvmName("query4")
-    inline fun <reified A : Any, reified B : Any, reified C : Any, reified D : Any> query(): Iterable<Quadruple<A, B, C, D>> {
+    inline fun <reified A : Queryable, reified B : Queryable, reified C : Queryable, reified D : Queryable> query(): Iterable<Quadruple<A, B, C, D>> {
 //        if (!inSystem) throw Error("Cannot query outside of a system")
         return entities.mapNotNull { entity ->
             val comp1 = entity.query<A>() ?: return@mapNotNull null
@@ -70,6 +74,18 @@ class ECS {
             val comp3 = entity.query<C>() ?: return@mapNotNull null
             val comp4 = entity.query<D>() ?: return@mapNotNull null
             Quadruple(comp1, comp2, comp3, comp4)
+        }
+    }
+
+    @JvmName("query5")
+    inline fun <reified A : Queryable, reified B : Queryable, reified C : Queryable, reified D : Queryable, reified E : Queryable> query(): Iterable<Quintuple<A, B, C, D, E>> {
+        return entities.mapNotNull { entity ->
+            val comp1 = entity.query<A>() ?: return@mapNotNull null
+            val comp2 = entity.query<B>() ?: return@mapNotNull null
+            val comp3 = entity.query<C>() ?: return@mapNotNull null
+            val comp4 = entity.query<D>() ?: return@mapNotNull null
+            val comp5 = entity.query<E>() ?: return@mapNotNull null
+            Quintuple(comp1, comp2, comp3, comp4, comp5)
         }
     }
 
@@ -89,8 +105,8 @@ class ECS {
 }
 
 
-class ECSEntity {
-    val components = mutableListOf<Any>()
+class ECSEntity : Queryable {
+    val components = mutableListOf<Component>()
 
     var scheduledForRemoval = false
 
@@ -98,20 +114,21 @@ class ECSEntity {
         this.scheduledForRemoval = true
     }
 
-    inline fun <reified T : Any> addComponent(component: T) {
+    fun addComponent(component: Component) {
         components.add(component)
     }
 
-    inline fun <reified  T: Any> removeComponent() {
+    inline fun <reified T : Component> removeComponent() {
         components.removeIf { it is T }
     }
 
-    inline fun <reified Old: Any> replaceComponent(component: Old) {
+    inline fun <reified Old : Component> replaceComponent(component: Old) {
         removeComponent<Old>()
         addComponent(component)
     }
 
-    inline fun <reified T : Any> query(): T? {
+    @Suppress("UNCHECKED_CAST")
+    inline fun <reified T : Queryable> query(): T? {
         if (this is T) return this
         return components.find { it is T } as T?
     }
@@ -128,4 +145,18 @@ class Quadruple<A, B, C, D>(
     operator fun component2() = second
     operator fun component3() = third
     operator fun component4() = fourth
+}
+
+class Quintuple<A, B, C, D, E>(
+    val first: A,
+    val second: B,
+    val third: C,
+    val fourth: D,
+    val fifth: E,
+) {
+    operator fun component1() = first
+    operator fun component2() = second
+    operator fun component3() = third
+    operator fun component4() = fourth
+    operator fun component5() = fifth
 }

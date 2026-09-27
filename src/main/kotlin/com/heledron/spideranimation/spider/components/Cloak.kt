@@ -2,6 +2,8 @@ package com.heledron.spideranimation.spider.components
 
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.configuration.CloakOptions
+import com.heledron.spideranimation.spider.configuration.SpiderOptions
+import com.heledron.spideranimation.utilities.ecs.Component
 import com.heledron.spideranimation.utilities.ecs.ECS
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
 import com.heledron.spideranimation.utilities.block_colors.findBlockWithColor
@@ -25,7 +27,7 @@ class CloakDamageEvent(val entity: ECSEntity, val spider: SpiderBody, val cloak:
 
 class CloakToggleEvent(val entity: ECSEntity, val spider: SpiderBody)
 
-class Cloak(var options: CloakOptions) {
+class Cloak : Component {
     var active = false
     private var cloakColor = WeakHashMap<Any, Oklab>()
     private var cloakOverride = WeakHashMap<Any, BlockData>()
@@ -37,8 +39,8 @@ class Cloak(var options: CloakOptions) {
         app.emit(CloakToggleEvent(entity = entity, spider = spider))
     }
 
-    fun getPiece(id: Any, world: World, position: Vector, originalBlock: BlockData, originalBrightness: Display.Brightness?): Pair<BlockData, Display.Brightness?> {
-        applyCloak(id, world, position, originalBlock, originalBrightness?.skyLight ?: 15)
+    fun getPiece(id: Any, world: World, position: Vector, originalBlock: BlockData, originalBrightness: Display.Brightness?, options: CloakOptions): Pair<BlockData, Display.Brightness?> {
+        applyCloak(id, world, position, originalBlock, originalBrightness?.skyLight ?: 15, options)
 
         val override = cloakOverride[id]
         if (override != null) return override to Display.Brightness(0, 15)
@@ -48,7 +50,7 @@ class Cloak(var options: CloakOptions) {
         return match.block to Display.Brightness(0, match.brightness)
     }
 
-    private fun applyCloak(id: Any, world: World, position: Vector, originalBlock: BlockData, originalBrightness: Int) {
+    private fun applyCloak(id: Any, world: World, position: Vector, originalBlock: BlockData, originalBrightness: Int, options: CloakOptions) {
         if (cloakGlitching) return
 
         fun groundCast(): RayTraceResult? {
@@ -85,7 +87,7 @@ class Cloak(var options: CloakOptions) {
     }
 
 
-    fun breakCloak() {
+    fun breakCloak(options: CloakOptions) {
         cloakGlitching = true
 
         val originalColors = cloakColor.values.toList()
@@ -157,8 +159,9 @@ fun setupCloak(app: ECS) {
     app.onEvent<TridentHitEvent> { event ->
         val cloak = event.entity.query<Cloak>() ?: return@onEvent
         if (cloak.active) {
+            val options = event.entity.query<SpiderOptions>()?.cloak ?: return@onEvent
             app.emit(CloakDamageEvent(entity = event.entity, spider = event.spider, cloak = cloak))
-            cloak.breakCloak()
+            cloak.breakCloak(options)
         }
         cloak.active = false
     }

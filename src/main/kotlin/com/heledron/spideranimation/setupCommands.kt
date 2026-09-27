@@ -2,8 +2,6 @@ package com.heledron.spideranimation
 
 import com.google.gson.Gson
 import com.heledron.spideranimation.spider.components.splay
-import com.heledron.spideranimation.spider.components.Cloak
-import com.heledron.spideranimation.spider.components.SoundsAndParticles
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.configuration.CloakOptions
 import com.heledron.spideranimation.spider.configuration.Gait
@@ -22,24 +20,24 @@ fun setupCommands(plugin: SpiderAnimationPlugin) {
 
     getCommand("options").apply {
         setExecutor { sender, _, _, args ->
-            val (spiderBody, cloak) = AppState.ecs.query<SpiderBody, Cloak>().firstOrNull() ?: run {
+            val optionsComponent = AppState.ecs.query<SpiderOptions>().firstOrNull() ?: run {
                 sender.sendMessage("No spider found")
                 return@setExecutor true
             }
 
 
             val options = mapOf(
-                "walkGait" to { spiderBody.walkGait },
-                "gallopGait" to { spiderBody.gallopGait },
+                "walkGait" to { optionsComponent.walkGait },
+                "gallopGait" to { optionsComponent.gallopGait },
 
-                "debug" to { spiderBody.debug },
+                "debug" to { optionsComponent.debug },
                 "misc" to { AppState.miscOptions },
-                "cloak" to { cloak.options },
+                "cloak" to { optionsComponent.cloak },
             )
 
             val defaultObjects = mapOf(
-                "walkGait" to { Gait.defaultWalk().apply { scale(spiderBody.bodyPlan.scale) } },
-                "gallopGait" to { Gait.defaultGallop().apply { scale(spiderBody.bodyPlan.scale) } },
+                "walkGait" to { Gait.defaultWalk().apply { scale(optionsComponent.bodyPlan.scale) } },
+                "gallopGait" to { Gait.defaultGallop().apply { scale(optionsComponent.bodyPlan.scale) } },
 
                 "debug" to { SpiderDebugOptions() },
                 "misc" to { MiscellaneousOptions() },
@@ -82,18 +80,17 @@ fun setupCommands(plugin: SpiderAnimationPlugin) {
         }
 
         setTabCompleter { _, _, _, args ->
-            val (spiderBody, cloak) = AppState.ecs.query<SpiderBody, Cloak>().firstOrNull() ?: run {
-                return@setTabCompleter emptyList()
-            }
+            val optionsComponent = AppState.ecs.query<SpiderOptions>().firstOrNull()
+                ?: return@setTabCompleter emptyList()
 
 
             val options = mapOf(
-                "walkGait" to { spiderBody.walkGait },
-                "gallopGait" to { spiderBody.gallopGait },
+                "walkGait" to { optionsComponent.walkGait },
+                "gallopGait" to { optionsComponent.gallopGait },
 
-                "debug" to { spiderBody.debug },
+                "debug" to { optionsComponent.debug },
                 "misc" to { AppState.miscOptions },
-                "cloak" to { cloak.options },
+                "cloak" to { optionsComponent.cloak },
             )
 
             if (args.size == 1) {
@@ -436,17 +433,13 @@ fun setupCommands(plugin: SpiderAnimationPlugin) {
 				return@setExecutor true
 			}
 			
-			val (entity, oldSpider) = AppState.findNearestSpider(senderLocation) ?: run {
+			val entity = AppState.findNearestSpider(senderLocation) ?: run {
 				sender.sendMessage("No spider found")
 				return@setExecutor true
 			}
 
 			val newOptions = createPreset(segmentCount, segmentLength)
-			oldSpider.bodyPlan = newOptions.bodyPlan
-			oldSpider.walkGait = newOptions.walkGait
-			oldSpider.gallopGait = newOptions.gallopGait
-			entity.query<Cloak>()?.options = newOptions.cloak
-			entity.query<SoundsAndParticles>()?.options = newOptions.sound
+			entity.query<SpiderOptions>()?.copyFrom(newOptions)
 
             return@setExecutor true
         }
@@ -467,12 +460,12 @@ fun setupCommands(plugin: SpiderAnimationPlugin) {
             return@setExecutor true
         }
 
-        val spider = AppState.ecs.query<SpiderBody>().firstOrNull() ?: return@setExecutor true
+        val (spider, options) = AppState.ecs.query<SpiderBody, SpiderOptions>().firstOrNull() ?: return@setExecutor true
 
-        val oldScale = spider.bodyPlan.scale
-        spider.walkGait.scale(scale / oldScale)
-        spider.gallopGait.scale(scale / oldScale)
-        spider.bodyPlan.scale(scale / oldScale)
+        val oldScale = options.bodyPlan.scale
+        options.walkGait.scale(scale / oldScale)
+        options.gallopGait.scale(scale / oldScale)
+        options.bodyPlan.scale(scale / oldScale)
         spider.updateBodyPlan()
 
         plugin.writeAndSaveConfig()
@@ -547,9 +540,7 @@ fun setupCommands(plugin: SpiderAnimationPlugin) {
                 return@setExecutor true
             }
 
-            val spider = AppState.findNearestSpider(senderLocation)
-
-            val (entity, _) = spider ?: run {
+            val entity = AppState.findNearestSpider(senderLocation) ?: run {
                 sender.sendMessage("No spider found")
                 return@setExecutor true
             }

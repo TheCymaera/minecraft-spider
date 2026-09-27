@@ -4,8 +4,9 @@ import com.heledron.spideranimation.spider.components.body.Leg
 import com.heledron.spideranimation.spider.components.body.LegStepEvent
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.components.body.SpiderBodyHitGroundEvent
-import com.heledron.spideranimation.spider.configuration.SoundOptions
 import com.heledron.spideranimation.spider.configuration.SoundPlayer
+import com.heledron.spideranimation.spider.configuration.SpiderOptions
+import com.heledron.spideranimation.utilities.ecs.Component
 import com.heledron.spideranimation.utilities.ecs.ECS
 import com.heledron.spideranimation.utilities.overloads.playSound
 import org.bukkit.Particle
@@ -17,17 +18,17 @@ import java.util.*
 import kotlin.collections.set
 import kotlin.random.Random
 
-class SoundsAndParticles(var options: SoundOptions) {
+class SoundsAndParticles : Component {
     var timeSinceLastSound = 0
     var wetness = WeakHashMap<Leg, Int>()
     val maxWetness = 20 * 3
 
-    fun underwaterStepSound() = SoundPlayer(
-        sound = options.step.sound,
-        volume = options.step.volume * .5f,
-        pitch = options.step.pitch * .75f,
-        volumeVary = options.step.volumeVary,
-        pitchVary = options.step.pitchVary
+    fun underwaterStepSound(step: SoundPlayer) = SoundPlayer(
+        sound = step.sound,
+        volume = step.volume * .5f,
+        pitch = step.pitch * .75f,
+        volumeVary = step.volumeVary,
+        pitchVary = step.pitchVary
     )
 }
 
@@ -54,8 +55,9 @@ fun setupSoundAndParticles(app: ECS) {
         val isUnderWater = event.spider.world.getBlockAt(event.leg.endEffector.toLocation(event.spider.world)).isLiquid
 
         val sounds = event.entity.query<SoundsAndParticles>() ?: return@onEvent
+        val options = event.entity.query<SpiderOptions>() ?: return@onEvent
 
-        val sound = if (isUnderWater) sounds.underwaterStepSound() else sounds.options.step
+        val sound = if (isUnderWater) sounds.underwaterStepSound(options.sound.step) else options.sound.step
 
         sound.play(event.spider.world, event.leg.endEffector)
     }

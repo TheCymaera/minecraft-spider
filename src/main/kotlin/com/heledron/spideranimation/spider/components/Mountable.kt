@@ -2,6 +2,7 @@ package com.heledron.spideranimation.spider.components
 
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.utilities.*
+import com.heledron.spideranimation.utilities.ecs.Component
 import com.heledron.spideranimation.utilities.ecs.ECS
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
 import com.heledron.spideranimation.utilities.events.addEventListener
@@ -24,7 +25,7 @@ import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.util.Vector
 import org.joml.Quaternionf
 
-class Mountable {
+class Mountable : Component {
     var currentMarker: ArmorStand? = null
     var currentPig: Pig? = null
     fun getRider() = currentMarker?.passengers?.firstOrNull() as? Player

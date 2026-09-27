@@ -1,7 +1,10 @@
 package com.heledron.spideranimation.spider.components
 
 import com.heledron.spideranimation.spider.components.body.SpiderBody
+import com.heledron.spideranimation.spider.configuration.Gait
+import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.utilities.*
+import com.heledron.spideranimation.utilities.ecs.Component
 import com.heledron.spideranimation.utilities.ecs.ECS
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
 import com.heledron.spideranimation.utilities.maths.FORWARD_VECTOR
@@ -12,7 +15,7 @@ import org.joml.Quaternionf
 import org.joml.Vector3f
 
 
-interface SpiderBehaviour
+interface SpiderBehaviour : Component
 
 class StayStillBehaviour() : SpiderBehaviour
 
@@ -23,44 +26,45 @@ class DirectionBehaviour(val targetDirection: Vector, val walkDirection: Vector)
 fun setupBehaviours(app: ECS) {
     // Stay still behaviour
     app.onTick {
-        for ((entity, spider, _) in app.query<ECSEntity, SpiderBody, StayStillBehaviour>()) {
+        for ((entity, spider, options, _) in app.query<ECSEntity, SpiderBody, SpiderOptions, StayStillBehaviour>()) {
             val tridentDetector = entity.query<TridentHitDetector>()
-            spider.walkAt(Vector(0.0, 0.0, 0.0), tridentDetector)
-            spider.rotateTowards(spider.forwardDirection().setY(0.0))
+            spider.walkAt(Vector(0.0, 0.0, 0.0), tridentDetector, options.gait)
+            spider.rotateTowards(spider.forwardDirection().setY(0.0), options.gait)
         }
     }
 
     // Target behaviour
     app.onTick {
-        for ((entity, spider, behaviour) in app.query<ECSEntity, SpiderBody, TargetBehaviour>()) {
+        for ((entity, spider, options, behaviour) in app.query<ECSEntity, SpiderBody, SpiderOptions, TargetBehaviour>()) {
             val direction = behaviour.target.clone().subtract(spider.position).normalize()
-            spider.rotateTowards(direction)
+            spider.rotateTowards(direction, options.gait)
 
             val currentSpeed = spider.velocity.length()
 
-            val decelerateDistance = (currentSpeed * currentSpeed) / (2 * spider.gait.moveAcceleration)
+            val decelerateDistance = (currentSpeed * currentSpeed) / (2 * options.gait.moveAcceleration)
 
             val currentDistance = spider.position.horizontalDistance(behaviour.target)
 
             val tridentDetector = entity.query<TridentHitDetector>()
             if (currentDistance > behaviour.distance + decelerateDistance) {
-                spider.walkAt(direction.clone().multiply(spider.gait.maxSpeed), tridentDetector)
+                spider.walkAt(direction.clone().multiply(options.gait.maxSpeed), tridentDetector, options.gait)
             } else {
-                spider.walkAt(Vector(0.0, 0.0, 0.0), tridentDetector)
+                spider.walkAt(Vector(0.0, 0.0, 0.0), tridentDetector, options.gait)
             }
         }
     }
 
     // Direction behaviour
     app.onTick {
-        for ((entity, spider, behaviour) in app.query<ECSEntity, SpiderBody, DirectionBehaviour>()) {
-            spider.rotateTowards(behaviour.targetDirection)
+        for ((entity, spider, options, behaviour) in app.query<ECSEntity, SpiderBody, SpiderOptions, DirectionBehaviour>()) {
+            spider.rotateTowards(behaviour.targetDirection, options.gait)
 
 
             val tridentDetector = entity.query<TridentHitDetector>()
             spider.walkAt(
-                behaviour.walkDirection.clone().multiply(spider.gait.maxSpeed),
-                tridentDetector
+                behaviour.walkDirection.clone().multiply(options.gait.maxSpeed),
+                tridentDetector,
+                options.gait
             )
         }
     }
@@ -68,7 +72,7 @@ fun setupBehaviours(app: ECS) {
 
 
 
-private fun SpiderBody.rotateTowards(targetVector: Vector) {
+private fun SpiderBody.rotateTowards(targetVector: Vector, gait: Gait) {
     val currentEuler = orientation.getEulerAnglesYXZ(Vector3f())
 
     val targetEuler = Quaternionf()
@@ -104,7 +108,7 @@ private fun SpiderBody.rotateTowards(targetVector: Vector) {
     rotationalVelocity.moveTowards(desiredOmega, maxAcceleration)
 }
 
-private fun SpiderBody.walkAt(targetVelocity: Vector, tridentDetector: TridentHitDetector?) {
+private fun SpiderBody.walkAt(targetVelocity: Vector, tridentDetector: TridentHitDetector?, gait: Gait) {
     val acceleration = gait.moveAcceleration// * body.legs.filter { it.isGrounded() }.size / body.legs.size
     val target = targetVelocity.clone()
 
