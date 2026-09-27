@@ -1,6 +1,5 @@
 package com.heledron.spideranimation
 
-import com.heledron.spideranimation.kinematic_chain_visualizer.KinematicChainVisualizer
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.spider.configuration.BodyPlan
 import com.heledron.spideranimation.spider.components.body.SpiderBody
@@ -51,19 +50,6 @@ object AppState {
             .filter { it.second.world == location.world }
             .minByOrNull { it.second.position.distanceSquared(location.toVector()) }
             ?.first
-    }
-
-    fun createChainVisualizer(location: Location, bodyPlan: BodyPlan = hexBot(4, 1.0).bodyPlan): ECSEntity {
-        val segmentPlans = bodyPlan.legs.lastOrNull()?.segments ?: throw Error("Cannot find segment plans")
-
-        return ecs.spawn(KinematicChainVisualizer.create(
-            segmentPlans = segmentPlans,
-            root = location.toVector(),
-            world = location.world ?: throw Error("location.world is null"),
-            straightenRotation = 0f,
-        ).apply {
-            detailed = renderDebugVisuals
-        })
     }
 }
 

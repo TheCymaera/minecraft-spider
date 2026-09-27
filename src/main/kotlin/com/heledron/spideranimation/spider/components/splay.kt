@@ -57,10 +57,9 @@ fun splay(spiderEntity: ECSEntity) {
         pieces += piece
     }
 
-    for ((legIndex, leg) in spider.legs.withIndex()) {
-        for ((segmentIndex, segment) in leg.chain.segments.withIndex()) {
-            val model = options.bodyPlan.legs[legIndex].segments[segmentIndex].model
-            for (piece in model.pieces) pieces += piece
+    for (legPlan in options.bodyPlan.legs) {
+        for (segment in legPlan.segments) {
+            for (piece in segment.model.pieces) pieces += piece
         }
     }
 

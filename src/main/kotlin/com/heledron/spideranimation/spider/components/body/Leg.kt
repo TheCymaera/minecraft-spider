@@ -5,6 +5,7 @@ import com.heledron.spideranimation.utilities.KinematicChain
 import com.heledron.spideranimation.spider.configuration.LegPlan
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.utilities.*
+import com.heledron.spideranimation.utilities.inverse_kinematics.IKChain3D
 import com.heledron.spideranimation.utilities.ecs.ECS
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
 import com.heledron.spideranimation.utilities.isOnGround
@@ -16,7 +17,6 @@ import com.heledron.spideranimation.utilities.maths.lerp
 import com.heledron.spideranimation.utilities.maths.moveTowards
 import com.heledron.spideranimation.utilities.maths.rotate
 import org.bukkit.util.Vector
-import org.joml.Quaternionf
 import kotlin.math.ceil
 import kotlin.math.floor
 
@@ -27,7 +27,7 @@ class Leg(
     val ecs: ECS,
     val entity: ECSEntity,
     val spider: SpiderBody,
-    var legPlan: LegPlan,
+    val legPlan: LegPlan,
     val options: SpiderOptions,
 ) {
     // memo
@@ -38,8 +38,6 @@ class Leg(
     lateinit var lookAheadPosition: Vector; private set
     lateinit var scanLine: LineSegment; private set
 
-    lateinit var attachmentPosition: Vector; private set
-
     init {
         updateMemo()
     }
@@ -49,14 +47,8 @@ class Leg(
     var target = groundTarget ?: strandedTarget()
     var endEffector = target.position.clone()
     var previousEndEffector = endEffector.clone()
-    var chain = run {
-        var stride = 0.0
-        KinematicChain(attachmentPosition, legPlan.segments.map {
-            stride += it.length
-            val position = spider.position.clone().add(legPlan.restPosition.clone().normalize().multiply(stride))
-            ChainSegment(position, it.length, it.initDirection)
-        })
-    }
+
+    val ik = createSpiderLegIK(legPlan)
 
     var touchingGround = true; private set
     var isMoving = false; private set
@@ -102,32 +94,11 @@ class Leg(
         val zoneEnd = zoneStart.clone().add(scanAxis)
         triggerZone = Capsule(zoneStart, zoneEnd, lerpedGait.triggerZoneRadius)
         comfortZone = Capsule(zoneStart, zoneEnd, options.gait.comfortZoneRadius)
-
-        // attachment position
-        attachmentPosition = legPlan.attachmentPosition.clone().rotate(spider.orientation).add(spider.position)
     }
 
     fun update() {
         updateMovement()
-
-        // update chain
-        chain.root.copy(attachmentPosition)
-
-        if (options.gait.straightenLegs) {
-            val pivot = Quaternionf(options.gait.legChainPivotMode.get(spider))
-
-            val direction = endEffector.clone().subtract(attachmentPosition)
-            val rotation = direction.getRotationAroundAxis(pivot)
-
-            rotation.x += options.gait.legStraightenRotation
-            val orientation = pivot.rotateYXZ(rotation.y, rotation.x, .0f)
-
-            chain.straightenDirection(orientation)
-        }
-
-        if (!options.debug.disableFabrik) {
-            chain.fabrik(endEffector)
-        }
+        ik.solve(spider.position, spider.orientation, endEffector)
     }
 
     private fun updateMovement() {

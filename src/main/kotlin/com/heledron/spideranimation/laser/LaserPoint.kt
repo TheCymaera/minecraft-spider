@@ -1,7 +1,6 @@
 package com.heledron.spideranimation.laser
 
 import com.heledron.spideranimation.utilities.rendering.renderBlock
-import com.heledron.spideranimation.kinematic_chain_visualizer.KinematicChainVisualizer
 import com.heledron.spideranimation.spider.components.SpiderBehaviour
 import com.heledron.spideranimation.spider.components.TargetBehaviour
 import com.heledron.spideranimation.spider.components.body.SpiderBody
@@ -36,15 +35,6 @@ fun setupLaserPointer(app: ECS) {
             val behaviour = TargetBehaviour(nearestLaser.position, distance)
             spiderEntity.replaceComponent<SpiderBehaviour>(behaviour)
         }
-
-        // update chain visualizer target
-        for (chain in app.query<KinematicChainVisualizer>()) {
-            val nearestLaser = lasers
-                .minByOrNull { it.position.distanceSquared(chain.root) }
-                ?: continue
-
-            chain.target = nearestLaser.position
-        }
     }
 
 
@@ -53,11 +43,6 @@ fun setupLaserPointer(app: ECS) {
         for (laser in app.query<LaserPoint>()) {
             if (!laser.isVisible) continue
             renderLaserPoint(laser.world, laser.position, size).submit(laser)
-        }
-
-        for (chain in app.query<KinematicChainVisualizer>()) {
-            renderLaserPoint(chain.world, chain.target ?: continue, size - 0.001f)
-                .submit(chain to "laser")
         }
     }
 }

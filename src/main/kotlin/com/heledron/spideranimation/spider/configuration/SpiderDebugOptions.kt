@@ -5,11 +5,10 @@ class SpiderDebugOptions {
     var triggerZones = true
     var endEffectors = true
     var targetPositions = true
+    var ikGuides = true
     var legPolygons = true
     var centreOfMass = true
     var normalForce = true
     var orientation = true
     var preferredOrientation = true
-
-    var disableFabrik = false
 }

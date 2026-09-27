@@ -114,10 +114,10 @@ private fun spawnLegParticles(sounds: SoundsAndParticles, world: World, leg: Leg
 
     // particles
     val wetness = sounds.wetness[leg] ?: 0
-    for (segment in leg.chain.segments) {
-        val segmentIsUnderWater = isInWater(world, segment.position)
+    for (segment in leg.ik.segmentTipPositions) {
+        val segmentIsUnderWater = isInWater(world, segment)
 
-        val location = segment.position.toLocation(world).add(.0, -.1, .0)
+        val location = segment.toLocation(world).add(.0, -.1, .0)
 
         if (segmentIsUnderWater) {
             if (justEnteredWater || justExitedWater) {

@@ -20,17 +20,16 @@ fun renderSpider(spider: SpiderBody, cloak: Cloak, options: SpiderOptions): Rend
 
 
     for ((legIndex, leg) in spider.legs.withIndex()) {
-        val chain = leg.chain
+        val positions = leg.ik.nodes
+        val rotations = leg.ik.segmentModelRotations
 
-        val pivot = options.gait.legChainPivotMode.get(spider)
-        for ((segmentIndex, rotation) in chain.getRotations(pivot).withIndex()) {
+        for (segmentIndex in rotations.indices) {
             val segmentPlan = options.bodyPlan.legs.getOrNull(legIndex)?.segments?.getOrNull(segmentIndex) ?: continue
 
-            val parent = chain.segments.getOrNull(segmentIndex - 1)?.position ?: chain.root
+            val parent = positions[segmentIndex].position
 
-            val segmentTransform = Matrix4f().rotate(rotation)
+            val segmentTransform = Matrix4f().rotate(rotations[segmentIndex])
             group[legIndex to segmentIndex] = renderModel(spider, cloak, parent, segmentPlan.model, segmentTransform, options)
-
         }
     }
 

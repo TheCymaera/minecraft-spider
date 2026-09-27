@@ -6,6 +6,7 @@ import com.heledron.spideranimation.utilities.maths.horizontal
 import com.heledron.spideranimation.utilities.maths.lerp
 import com.heledron.spideranimation.utilities.maths.toRadians
 import org.joml.Quaternionf
+import kotlin.math.PI
 
 
 class LerpGait(
@@ -114,9 +115,6 @@ class Gait(
 
     var disableAdvancedRotation = false
     var preferredPitchLeeway = 10f.toRadians()
-
-    var straightenLegs = true
-    var legStraightenRotation = (-80f).toRadians()
 
     var scanPivotMode = PivotMode.YAxis
     var legChainPivotMode = PivotMode.SpiderOrientation

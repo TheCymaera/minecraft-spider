@@ -25,9 +25,9 @@ fun setupRenderer(app: ECS) {
 
             if (Random.nextBoolean()) return@interval
             for (piece in pieces) {
-                val block = options.bodyPlan.eyePalette.random()
-                piece.block = block.first
-                piece.brightness = block.second
+                val entry = options.bodyPlan.eyePalette.random()
+                piece.block = entry.block
+                piece.brightness = entry.brightness
             }
         }
     }
@@ -39,9 +39,9 @@ fun setupRenderer(app: ECS) {
 
             if (Random.nextBoolean()) return@interval
             for (piece in pieces) {
-                val block = options.bodyPlan.blinkingPalette.random()
-                piece.block = block.first
-                piece.brightness = block.second
+                val entry = options.bodyPlan.blinkingPalette.random()
+                piece.block = entry.block
+                piece.brightness = entry.brightness
             }
         }
     }
@@ -68,13 +68,13 @@ private object SpiderParticleRenderer {
     fun renderSpider(spider: SpiderBody) {
         for (leg in spider.legs) {
             val world = leg.spider.world
-            val chain = leg.chain
-            var current = chain.root.toLocation(world)
+            val positions = leg.ik.nodes
+            var current = positions.first().position.toLocation(world)
 
-            for ((i, segment) in chain.segments.withIndex()) {
-                val thickness = (chain.segments.size - i - 1) * 0.025
-                renderLine(current, segment.position, thickness)
-                current = segment.position.toLocation(world)
+            for ((i, node) in positions.drop(1).withIndex()) {
+                val thickness = (positions.size - i - 2) * 0.025
+                renderLine(current, node.position, thickness)
+                current = node.position.toLocation(world)
             }
         }
     }

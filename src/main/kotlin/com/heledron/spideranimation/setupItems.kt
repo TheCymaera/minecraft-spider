@@ -1,15 +1,14 @@
 package com.heledron.spideranimation
 
 import com.heledron.spideranimation.AppState.ecs
-import com.heledron.spideranimation.kinematic_chain_visualizer.KinematicChainVisualizer
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.components.Cloak
 import com.heledron.spideranimation.spider.components.PointDetector
 import com.heledron.spideranimation.spider.components.rendering.SpiderRenderer
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
+import com.heledron.spideranimation.spider.configuration.SpiderOptionsSerializer
 import com.heledron.spideranimation.spider.presets.hexBot
 import com.heledron.spideranimation.laser.LaserPoint
-import com.heledron.spideranimation.utilities.Serializer
 import com.heledron.spideranimation.utilities.custom_items.CustomItemComponent
 import com.heledron.spideranimation.utilities.custom_items.attach
 import com.heledron.spideranimation.utilities.custom_items.createNamedItem
@@ -94,10 +93,6 @@ fun setupItems() {
     toggleDebugComponent.onGestureUse { player, _ ->
         AppState.renderDebugVisuals = !AppState.renderDebugVisuals
 
-        AppState.ecs.query<KinematicChainVisualizer>().forEach {
-            it.detailed = AppState.renderDebugVisuals
-        }
-
         val pitch = if (AppState.renderDebugVisuals) 2.0f else 1.5f
         player.world.playSound(player.position, Sound.BLOCK_DISPENSER_FAIL, 1.0f, pitch)
     }
@@ -122,24 +117,6 @@ fun setupItems() {
         val entity = AppState.findNearestSpider(player) ?: return@onGestureUse
         val cloak = entity.query<Cloak>() ?: return@onGestureUse
         cloak.toggleCloak(AppState.ecs, entity)
-    }
-
-    val chainVisualizerStep = CustomItemComponent("chainVisualizerStep")
-    customItemRegistry += { createNamedItem(Material.PURPLE_DYE, "Chain Visualizer Step").attach(chainVisualizerStep) }
-    chainVisualizerStep.onGestureUse { player, _ ->
-        AppState.ecs.query<KinematicChainVisualizer>().forEach {
-            player.world.playSound(player.position, Sound.BLOCK_DISPENSER_FAIL, 1.0f, 2.0f)
-            it.step()
-        }
-    }
-
-    val chainVisualizerStraighten = CustomItemComponent("chainVisualizerStraighten")
-    customItemRegistry += { createNamedItem(Material.MAGENTA_DYE, "Chain Visualizer Straighten").attach(chainVisualizerStraighten) }
-    chainVisualizerStraighten.onGestureUse { player, _ ->
-        ecs.query<KinematicChainVisualizer>().forEach {
-            player.world.playSound(player.position, Sound.BLOCK_DISPENSER_FAIL, 1.0f, 2.0f)
-            it.straighten(it.target ?: return@onGestureUse)
-        }
     }
 
     val switchGaitComponent = CustomItemComponent("switchGait")
@@ -242,7 +219,13 @@ private var ItemStack.spiderUUID
 private var ItemStack.spiderOptions
     get(): SpiderOptions? {
         val json = itemMeta?.persistentDataContainer?.get(SPIDER_OPTIONS_KEY, PersistentDataType.STRING) ?: return null
-        return runCatching { Serializer.gson.fromJson(json, SpiderOptions::class.java) }.getOrNull()
+
+        return try {
+            SpiderOptionsSerializer.deserialize(json)
+        } catch (e: Exception) {
+            currentPlugin.logger.warning("Ignoring unreadable stored spider options: $e")
+            null
+        }
     }
     set(value) {
         val meta = itemMeta
@@ -253,9 +236,9 @@ private var ItemStack.spiderOptions
         }
 
         val json = try {
-            Serializer.gson.toJson(value)
+            SpiderOptionsSerializer.serialize(value)
         } catch (e: Exception) {
-            currentPlugin.logger.severe("Could not serialize spider options, so they will not persist: $e")
+            currentPlugin.logger.severe("Could not serialize spider options: $e")
             return
         }
 

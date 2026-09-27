@@ -40,16 +40,24 @@ fun applyLineLegModel(bodyPlan: BodyPlan, block: BlockData) {
 
 fun applyMechanicalLegModel(bodyPlan: BodyPlan) {
     for (leg in bodyPlan.legs) {
-        for ((index, segment) in leg.segments.withIndex()) {
-            val model = when (index) {
+        val visibleSegments = leg.segments.filter { it.length > 0.0 }
+
+        var modelIndex = 0
+        for (segment in leg.segments) {
+            if (segment.length <= 0.0) {
+                segment.model = DisplayModel.empty()
+                continue
+            }
+
+            val model = when (modelIndex) {
                 0 -> SpiderLegModel.BASE
-                1 -> SpiderLegModel.FEMUR
-                leg.segments.size - 2 -> SpiderLegModel.TIBIA
-                leg.segments.size - 1 -> SpiderLegModel.TIP
+                visibleSegments.size - 2 -> SpiderLegModel.TIBIA
+                visibleSegments.size - 1 -> SpiderLegModel.TIP
                 else -> SpiderLegModel.FEMUR
             }
 
             segment.model = model.clone().scale(1f, 1f, segment.length.toFloat())
+            modelIndex++
         }
     }
 }

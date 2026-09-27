@@ -1,11 +1,11 @@
 package com.heledron.spideranimation
 
 import com.heledron.spideranimation.AppState.ecs
-import com.heledron.spideranimation.kinematic_chain_visualizer.KinematicChainVisualizer
-import com.heledron.spideranimation.kinematic_chain_visualizer.setupChainVisualizer
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.components.rendering.SpiderRenderer
 import com.heledron.spideranimation.spider.setupSpider
+import com.heledron.spideranimation.inverse_kinematics.IKDemo
+import com.heledron.spideranimation.inverse_kinematics.setupIKDemo
 import com.heledron.spideranimation.laser.setupLaserPointer
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
 import com.heledron.spideranimation.utilities.events.onSpawnEntity
@@ -36,7 +36,7 @@ class SpiderAnimationPlugin : JavaPlugin() {
         setupCommands(this)
         setupItems()
         setupSpider(ecs)
-        setupChainVisualizer(ecs)
+        setupIKDemo(ecs)
         setupLaserPointer(ecs)
 
         ecs.start()
@@ -46,22 +46,19 @@ class SpiderAnimationPlugin : JavaPlugin() {
                 entity.query<SpiderRenderer>()?.renderDebugVisuals = AppState.renderDebugVisuals
             }
 
+            ecs.query<IKDemo>().forEach { it.renderDebugVisuals = AppState.renderDebugVisuals }
+
             ecs.update()
             ecs.render()
         }
 
-
         onSpawnEntity { entity ->
-            // Use this command to spawn a chain visualizer
-            // /summon minecraft:area_effect_cloud ~ ~ ~ {Tags:["spider.chain_visualizer"]}
-            if (!entity.scoreboardTags.contains("spider.chain_visualizer")) return@onSpawnEntity
+            // Use this command to spawn an IK demo
+            // /summon minecraft:area_effect_cloud ~ ~ ~ {Tags:["spider.ik_demo"]}
+            if (!entity.scoreboardTags.contains("spider.ik_demo")) return@onSpawnEntity
 
-            val oldVisualizer = ecs.query<ECSEntity, KinematicChainVisualizer>().firstOrNull()?.first
-            if (oldVisualizer == null) {
-                AppState.createChainVisualizer(entity.location)
-            } else {
-                oldVisualizer.remove()
-            }
+            ecs.query<ECSEntity, IKDemo>().forEach { (existing, _) -> existing.remove() }
+            ecs.spawn(IKDemo.create(entity.world, entity.location))
 
             entity.remove()
         }

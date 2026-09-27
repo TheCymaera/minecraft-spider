@@ -6,11 +6,13 @@ import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.components.PointDetector
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.utilities.*
+import com.heledron.spideranimation.utilities.inverse_kinematics.renderIKGuides
 import com.heledron.spideranimation.utilities.centredTransform
 import com.heledron.spideranimation.utilities.maths.FORWARD_VECTOR
 import com.heledron.spideranimation.utilities.maths.RIGHT_VECTOR
 import com.heledron.spideranimation.utilities.maths.UP_VECTOR
 import com.heledron.spideranimation.utilities.rendering.RenderGroup
+import com.heledron.spideranimation.utilities.rendering.renderLine
 import org.bukkit.Material
 import org.bukkit.World
 import org.bukkit.entity.BlockDisplay
@@ -25,6 +27,16 @@ fun spiderDebugRenderEntities(spider: SpiderBody, pointDetector: PointDetector, 
     val group = RenderGroup()
 
     val scale = options.bodyPlan.scale.toFloat()
+
+    for ((legIndex, leg) in spider.legs.withIndex()) {
+		// Render IK guides
+        if (options.debug.ikGuides) group.renderIKGuides(
+            world = spider.world,
+            chain = leg.ik.chain,
+            pose = leg.ik.pose,
+            handlePrefix = "legIKGuides" to legIndex,
+        )
+    }
 
     for ((legIndex, leg) in spider.legs.withIndex()) {
         // Render scan bars
@@ -197,32 +209,5 @@ fun spiderDebugRenderEntities(spider: SpiderBody, pointDetector: PointDetector, 
 
     return group
 }
-
-fun renderLine(
-    world: World,
-    line: LineSegment,
-    upVector: Vector = upVector(line.vector()),
-    thickness: Float = .1f,
-    interpolation: Int = 1,
-    init: (BlockDisplay) -> Unit = {},
-    update: (BlockDisplay) -> Unit = {}
-) = renderBlock(
-    world = world,
-    position = line.point1,
-    init = {
-        it.teleportDuration = interpolation
-        it.interpolationDuration = interpolation
-        init(it)
-    },
-    update = {
-        val vector = line.vector()
-        val matrix = Matrix4f().rotateTowards(vector.toVector3f(), upVector.toVector3f())
-            .translate(-thickness / 2, -thickness / 2, 0f)
-            .scale(thickness, thickness, vector.length().toFloat())
-
-        it.interpolateTransform(matrix)
-        update(it)
-    }
-)
 
 private fun upVector(vector: Vector) = if (vector.x + vector.z != 0.0) UP_VECTOR else FORWARD_VECTOR
