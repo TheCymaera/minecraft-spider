@@ -28,6 +28,7 @@ object Serializer {
         .registerTypeHierarchyAdapter(Sound::class.java, SoundAdapter)
         .registerTypeAdapter(IKJoint3D::class.java, IKJointAdapter)
         .registerTypeAdapter(Matrix4f::class.java, Matrix4fAdapter)
+        .disableHtmlEscaping()
         .create()
 
     val path: ObjectPath = ObjectPath(gson)

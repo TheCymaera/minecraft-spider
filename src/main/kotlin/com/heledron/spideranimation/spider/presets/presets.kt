@@ -17,10 +17,11 @@ import kotlin.math.PI
 
 private const val ROOT_MAX_SWING = 0.3 * PI
 
-private const val ROOT_TWIST = 0.1 * PI
+private const val ROOT_TWIST = 0.075 * PI
 
 
-private const val FIRST_KNEE_LEEWAY = 0.1 * PI
+private const val FIRST_KNEE_LEEWAY = 0.3 * PI
+private const val FIRST_KNEE_LEEWAY_MAX = FIRST_KNEE_LEEWAY * 1.5
 private const val KNEE_LEEWAY = 0.8 * PI
 
 private fun hipJoint(): IKJoint3D = IKSwingTwistJoint3D(
@@ -54,7 +55,7 @@ private fun createRobotSegments(segmentCount: Int, lengthScale: Double): List<Se
     return List(segmentCount + 1) { index ->
         when (index) {
             0 -> SegmentPlan(0.0, hipJoint(), DisplayModel.empty())
-            1 -> SegmentPlan(lengthScale * .5, kneeJoint(min = FIRST_KNEE_LEEWAY * 1.0, max = FIRST_KNEE_LEEWAY * 2.0), DisplayModel.empty())
+            1 -> SegmentPlan(lengthScale * .5, kneeJoint(min = FIRST_KNEE_LEEWAY, max = FIRST_KNEE_LEEWAY_MAX), DisplayModel.empty())
             2 -> SegmentPlan(lengthScale * .8, kneeJoint(inverted = true), DisplayModel.empty())
             else -> SegmentPlan(lengthScale, kneeJoint(), DisplayModel.empty())
         }
@@ -130,3 +131,5 @@ fun octoBot(segmentCount: Int, segmentLength: Double): SpiderOptions {
     applyMechanicalLegModel(options.bodyPlan)
     return options
 }
+
+fun defaultPreset() = hexBot(4, 1.0);

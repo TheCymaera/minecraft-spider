@@ -6,9 +6,6 @@ import com.heledron.spideranimation.MiscellaneousOptions
 import com.heledron.spideranimation.SpiderAnimationPlugin
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.components.splay
-import com.heledron.spideranimation.spider.configuration.CloakOptions
-import com.heledron.spideranimation.spider.configuration.Gait
-import com.heledron.spideranimation.spider.configuration.SpiderDebugOptions
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.spider.presets.*
 import com.heledron.spideranimation.utilities.Serializer
@@ -91,7 +88,7 @@ private fun optionsCommand(afterChange: () -> Unit): LiteralArgumentBuilder<Comm
 
 private fun getOption(ctx: CommandContext<CommandSourceStack>): Int {
     val groupName = StringArgumentType.getString(ctx, "group")
-    val group = optionGroup(groupName)
+    val group = requireOptionGroup(groupName)
     val options = requireSpiderOptions()
     val path = StringArgumentType.getString(ctx, "path")
 
@@ -104,7 +101,7 @@ private fun getOption(ctx: CommandContext<CommandSourceStack>): Int {
 
 private fun setOption(ctx: CommandContext<CommandSourceStack>, afterChange: () -> Unit): Int {
     val groupName = StringArgumentType.getString(ctx, "group")
-    val group = optionGroup(groupName)
+    val group = requireOptionGroup(groupName)
     val options = requireSpiderOptions()
     val path = StringArgumentType.getString(ctx, "path")
     val raw = StringArgumentType.getString(ctx, "value")
@@ -117,23 +114,24 @@ private fun setOption(ctx: CommandContext<CommandSourceStack>, afterChange: () -
         raw
     }
 
-    if (!group.edit(options, groupName) { Serializer.path.set(it, path, value) }) {
+    if (!group.edit(options) { writeOption(it, path, value) }) {
         throw commandError("Could not set $path")
     }
 
     afterChange()
-    val applied = Serializer.path.get(group.live(options), path)
-    ctx.source.sender.sendPlainMessage("$path = ${Serializer.serialize(applied)}")
+
+    val applied = constant?.name ?: Serializer.serialize(Serializer.path.get(group.live(options), path))
+    ctx.source.sender.sendPlainMessage("$path = $applied")
     return SUCCESS
 }
 
 private fun resetOptionGroup(ctx: CommandContext<CommandSourceStack>, afterChange: () -> Unit): Int {
     val groupName = StringArgumentType.getString(ctx, "group")
-    val group = optionGroup(groupName)
+    val group = requireOptionGroup(groupName)
     val options = requireSpiderOptions()
     val defaults = Serializer.toMap(group.default(options)) as Map<*, *>
 
-    if (!group.edit(options, groupName) { Serializer.path.setAll(it, defaults) }) {
+    if (!group.edit(options) { Serializer.path.setAll(it, defaults) }) {
         throw commandError("Could not reset $groupName")
     }
 
@@ -144,14 +142,14 @@ private fun resetOptionGroup(ctx: CommandContext<CommandSourceStack>, afterChang
 
 private fun resetOptionPath(ctx: CommandContext<CommandSourceStack>, afterChange: () -> Unit): Int {
     val groupName = StringArgumentType.getString(ctx, "group")
-    val group = optionGroup(groupName)
+    val group = requireOptionGroup(groupName)
     val options = requireSpiderOptions()
     val path = StringArgumentType.getString(ctx, "path")
 
     val value = Serializer.path.get(group.default(options), path)
         ?: throw commandError("\"$path\" does not exist in $groupName")
 
-    if (!group.edit(options, groupName) { Serializer.path.set(it, path, value) }) {
+    if (!group.edit(options) { writeOption(it, path, value) }) {
         throw commandError("Could not reset $path")
     }
 
@@ -247,6 +245,14 @@ private fun itemsCommand(): LiteralArgumentBuilder<CommandSourceStack> =
         SUCCESS
     }
 
+private fun writeOption(target: Any, path: String, value: Any?): Boolean {
+    if (path.isNotEmpty()) return Serializer.path.set(target, path, value)
+
+    val root = value ?: return false
+    val fields = Serializer.toMap(root) as? Map<*, *> ?: return false
+    return Serializer.path.setAll(target, fields)
+}
+
 private fun commandError(message: String) = SimpleCommandExceptionType({ message }).create()
 
 private fun suggest(builder: SuggestionsBuilder, options: Iterable<String>): CompletableFuture<Suggestions> {
@@ -275,39 +281,28 @@ private fun suggestionSource(group: OptionGroup): Any {
 private class OptionGroup(
     val live: (SpiderOptions) -> Any,
     val default: (SpiderOptions) -> Any,
-    /** Edit a detached copy and swap it in, rather than mutating `live`. */
-    val detached: Boolean = false,
+    val swap: ((options: SpiderOptions, draft: Any) -> Boolean)? = null,
 ) {
-    fun edit(options: SpiderOptions, name: String, edit: (target: Any) -> Boolean): Boolean {
-        val live = live(options)
-        if (!detached) return edit(live)
+    fun edit(options: SpiderOptions, edit: (target: Any) -> Boolean): Boolean {
+        // edit in place
+        if (swap == null) return edit(live(options))
 
-        val draft = Serializer.copyOf(live)
-        if (!edit(draft)) return false
-        return Serializer.path.set(options, name, draft)
+        // edit draft then swap
+        val draft = Serializer.copyOf(live(options))
+        return edit(draft) && swap.invoke(options, draft)
     }
 }
 
 private val OPTION_GROUPS = mapOf(
-    "walkGait" to OptionGroup(
-        live = { it.walkGait },
-        default = { Gait.defaultWalk().apply { scale(it.bodyPlan.scale) } },
+    "spider_options" to OptionGroup(
+        live = { it },
+        default = { defaultPreset() },
+        swap = { options, draft -> options.copyFrom(draft as SpiderOptions); true },
     ),
-    "gallopGait" to OptionGroup(
-        live = { it.gallopGait },
-        default = { Gait.defaultGallop().apply { scale(it.bodyPlan.scale) } },
-    ),
-    "bodyPlan" to OptionGroup(
-        live = { it.bodyPlan },
-        default = { it.bodyPlan },
-        detached = true,
-    ),
-    "debug" to OptionGroup(live = { it.debug }, default = { SpiderDebugOptions() }),
-    "misc" to OptionGroup(live = { AppState.miscOptions }, default = { MiscellaneousOptions() }),
-    "cloak" to OptionGroup(live = { it.cloak }, default = { CloakOptions() }),
+    "global" to OptionGroup(live = { AppState.miscOptions }, default = { MiscellaneousOptions() }),
 )
 
-private fun optionGroup(groupName: String): OptionGroup =
+private fun requireOptionGroup(groupName: String): OptionGroup =
     OPTION_GROUPS[groupName]
         ?: throw commandError("Unknown option group \"$groupName\", expected one of ${OPTION_GROUPS.keys.joinToString()}")
 

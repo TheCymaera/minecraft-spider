@@ -6,8 +6,8 @@ import com.heledron.spideranimation.spider.components.Cloak
 import com.heledron.spideranimation.spider.components.PointDetector
 import com.heledron.spideranimation.spider.components.rendering.SpiderRenderer
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
-import com.heledron.spideranimation.spider.presets.hexBot
 import com.heledron.spideranimation.laser.LaserPoint
+import com.heledron.spideranimation.spider.presets.defaultPreset
 import com.heledron.spideranimation.utilities.custom_items.CustomItemComponent
 import com.heledron.spideranimation.utilities.custom_items.attach
 import com.heledron.spideranimation.utilities.custom_items.createNamedItem
@@ -56,7 +56,7 @@ fun setupItems() {
 
 			player.world.playSound(hitPosition, Sound.BLOCK_NETHERITE_BLOCK_PLACE, 1.0f, 1.0f)
 
-			val options = item.spiderOptions ?: hexBot(4, 1.0)
+			val options = item.spiderOptions ?: defaultPreset()
 			val entity = AppState.createSpider(hitPosition.toLocation(player.world).apply { this.yaw = yaw }, options)
 			val spider = entity.query<SpiderBody>() ?: return@onGestureUse
 			item.spiderUUID = spider.uuid

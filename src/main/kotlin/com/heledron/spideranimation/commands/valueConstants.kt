@@ -1,9 +1,17 @@
 package com.heledron.spideranimation.commands
 
 import com.heledron.spideranimation.spider.configuration.PaletteEntry
+import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.spider.presets.AnimatedPalettes
 import com.heledron.spideranimation.spider.presets.SpiderLegModel
 import com.heledron.spideranimation.spider.presets.SpiderTorsoModels
+import com.heledron.spideranimation.spider.presets.biped
+import com.heledron.spideranimation.spider.presets.hexBot
+import com.heledron.spideranimation.spider.presets.hexapod
+import com.heledron.spideranimation.spider.presets.octoBot
+import com.heledron.spideranimation.spider.presets.octopod
+import com.heledron.spideranimation.spider.presets.quadBot
+import com.heledron.spideranimation.spider.presets.quadruped
 import com.heledron.spideranimation.utilities.DisplayModel
 
 internal class ValueConstant(
@@ -25,6 +33,18 @@ internal val valueConstants: Map<(value: Any) -> Boolean, List<ValueConstant>> b
         { value: Any -> value is List<*> && value.all { it is PaletteEntry } } to AnimatedPalettes.entries.map { palette ->
             ValueConstant("PALETTE_${palette.name}") { palette.palette }
         },
+
+        { value: Any -> value is SpiderOptions } to listOf(
+            ValueConstant("HEX_BOT") { hexBot(4, 1.0) },
+            ValueConstant("QUAD_BOT") { quadBot(4, 1.0) },
+            ValueConstant("OCTO_BOT") { octoBot(4, 1.0) },
+
+            ValueConstant("HEXAPOD") { hexapod(3, 1.0) },
+            ValueConstant("QUADRUPED") { quadruped(3, 1.0) },
+            ValueConstant("OCTOPOD") { octopod(3, 1.0) },
+
+            ValueConstant("BIPED") { biped(3, 1.0) },
+        )
     )
 }
 
