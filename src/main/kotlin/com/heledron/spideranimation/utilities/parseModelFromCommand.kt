@@ -1,7 +1,7 @@
 package com.heledron.spideranimation.utilities
 
 import com.google.gson.Gson
-import org.bukkit.Material
+import org.bukkit.Bukkit
 import org.joml.Matrix4f
 
 
@@ -21,11 +21,19 @@ fun parseModelFromCommand(command: String): DisplayModel {
     for (passenger in parsed["Passengers"] as List<Map<*, *>>) {
         val blockDisplay = passenger["block_state"] as? Map<*, *> ?: throw IllegalArgumentException("Missing block_state")
         val blockName = blockDisplay["Name"] as? String ?: throw IllegalArgumentException("Missing block_state.Name")
-        val blockProperties = blockDisplay["Properties"] as Map<*, *>
-        val blockData = Material.matchMaterial(blockName)?.createBlockData() ?: throw IllegalArgumentException("Unknown block name: $blockName")
-        if (blockProperties.contains("facing")) {
-            val directional = blockData as? org.bukkit.block.data.Directional ?: throw IllegalArgumentException("Block is not directional")
-            directional.facing = org.bukkit.block.BlockFace.valueOf((blockProperties["facing"] as String).uppercase())
+        val blockProperties = blockDisplay["Properties"] as? Map<*, *> ?: emptyMap<Any, Any>()
+
+        // convert nbt form ({Name, Properties}) to the string form NAME[key=value,...]
+        val blockString = if (blockProperties.isEmpty()) {
+            blockName
+        } else {
+            "$blockName[${blockProperties.entries.joinToString(",") { (key, value) -> "$key=$value" }}]"
+        }
+
+        val blockData = try {
+            Bukkit.createBlockData(blockString)
+        } catch (e: IllegalArgumentException) {
+            throw IllegalArgumentException("Invalid block_state $blockString: ${e.message}")
         }
 
         val transformation = passenger["transformation"] as? List<Float> ?: throw IllegalArgumentException("Missing transformation")

@@ -6,7 +6,6 @@ import com.heledron.spideranimation.spider.components.Cloak
 import com.heledron.spideranimation.spider.components.PointDetector
 import com.heledron.spideranimation.spider.components.rendering.SpiderRenderer
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
-import com.heledron.spideranimation.spider.configuration.SpiderOptionsSerializer
 import com.heledron.spideranimation.spider.presets.hexBot
 import com.heledron.spideranimation.laser.LaserPoint
 import com.heledron.spideranimation.utilities.custom_items.CustomItemComponent
@@ -18,6 +17,7 @@ import com.heledron.spideranimation.utilities.ecs.ECSEntity
 import com.heledron.spideranimation.utilities.events.onTick
 import com.heledron.spideranimation.utilities.namespacedID
 import com.heledron.spideranimation.utilities.raycastGround
+import com.heledron.spideranimation.utilities.Serializer
 import com.heledron.spideranimation.utilities.overloads.direction
 import com.heledron.spideranimation.utilities.overloads.eyePosition
 import com.heledron.spideranimation.utilities.overloads.playSound
@@ -221,7 +221,7 @@ private var ItemStack.spiderOptions
         val json = itemMeta?.persistentDataContainer?.get(SPIDER_OPTIONS_KEY, PersistentDataType.STRING) ?: return null
 
         return try {
-            SpiderOptionsSerializer.deserialize(json)
+            Serializer.deserialize<SpiderOptions>(json)
         } catch (e: Exception) {
             currentPlugin.logger.warning("Ignoring unreadable stored spider options: $e")
             null
@@ -236,7 +236,7 @@ private var ItemStack.spiderOptions
         }
 
         val json = try {
-            SpiderOptionsSerializer.serialize(value)
+            Serializer.serialize(value)
         } catch (e: Exception) {
             currentPlugin.logger.severe("Could not serialize spider options: $e")
             return

@@ -3,7 +3,6 @@ package com.heledron.spideranimation.utilities.custom_items
 import com.heledron.spideranimation.utilities.events.onGestureUseItem
 import com.heledron.spideranimation.utilities.events.onTick
 import com.heledron.spideranimation.utilities.namespacedID
-import com.heledron.spideranimation.utilities.requireCommand
 import net.kyori.adventure.text.Component
 import org.bukkit.Bukkit
 import org.bukkit.Bukkit.createInventory
@@ -21,19 +20,6 @@ fun openCustomItemInventory(player: Player) {
     val inventory = createInventory(null, InventoryType.CHEST, Component.text("Items"))
     customItemRegistry.forEach { inventory.addItem(it()) }
     player.openInventory(inventory)
-}
-
-fun setupCustomItemCommand() {
-    requireCommand("items").apply {
-        setExecutor { sender, _, _, _ ->
-            if (sender !is Player) {
-                sender.sendMessage("This command can only be used by players.")
-                return@setExecutor true
-            }
-            openCustomItemInventory(sender)
-            true
-        }
-    }
 }
 
 class CustomItemComponent(val id: String) {

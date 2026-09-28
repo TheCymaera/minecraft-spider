@@ -1,6 +1,7 @@
 package com.heledron.spideranimation
 
 import com.heledron.spideranimation.AppState.ecs
+import com.heledron.spideranimation.commands.setupCommands
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.components.rendering.SpiderRenderer
 import com.heledron.spideranimation.spider.setupSpider

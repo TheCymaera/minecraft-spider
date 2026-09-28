@@ -12,7 +12,6 @@ import org.bukkit.NamespacedKey
 import org.bukkit.Sound
 import org.bukkit.World
 import org.bukkit.command.CommandSender
-import org.bukkit.command.PluginCommand
 import org.bukkit.entity.Entity
 import org.bukkit.entity.LivingEntity
 import org.bukkit.entity.Player
@@ -44,10 +43,6 @@ fun namespacedID(id: String): NamespacedKey {
 
 fun requireResource(name: String): InputStream {
     return currentPlugin.getResource(name) ?: error("Resource $name not found")
-}
-
-fun requireCommand(name: String): PluginCommand {
-    return currentPlugin.getCommand(name) ?: error("Command $name not found")
 }
 
 private var commandBlockMinecart: CommandMinecart? = null

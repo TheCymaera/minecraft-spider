@@ -1,113 +1,46 @@
 package com.heledron.spideranimation.utilities
 
+import com.google.gson.Gson
 import com.google.gson.GsonBuilder
+import com.google.gson.JsonArray
 import com.google.gson.JsonDeserializationContext
 import com.google.gson.JsonDeserializer
 import com.google.gson.JsonElement
+import com.google.gson.JsonObject
+import com.google.gson.JsonParseException
+import com.google.gson.JsonPrimitive
 import com.google.gson.JsonSerializationContext
 import com.google.gson.JsonSerializer
-import org.joml.Matrix4f
-import com.google.gson.JsonArray
-import com.google.gson.JsonPrimitive
+import com.heledron.spideranimation.utilities.inverse_kinematics.IKHingeJoint3D
+import com.heledron.spideranimation.utilities.inverse_kinematics.IKJoint3D
+import com.heledron.spideranimation.utilities.inverse_kinematics.IKSwingTwistJoint3D
 import net.kyori.adventure.key.Key
 import org.bukkit.Bukkit
 import org.bukkit.Registry
 import org.bukkit.Sound
 import org.bukkit.block.data.BlockData
+import org.joml.Matrix4f
 import java.lang.reflect.Type
 
 object Serializer {
     val gson = GsonBuilder()
         .registerTypeHierarchyAdapter(BlockData::class.java, BlockDataAdapter)
         .registerTypeHierarchyAdapter(Sound::class.java, SoundAdapter)
+        .registerTypeAdapter(IKJoint3D::class.java, IKJointAdapter)
         .registerTypeAdapter(Matrix4f::class.java, Matrix4fAdapter)
         .create()
 
-    fun toNullableMap(obj: Any?): Any? {
-        if (obj == null) return null
-        return toMap(obj)
-    }
+    val path: ObjectPath = ObjectPath(gson)
 
-    fun toMap(obj: Any): Any {
-        return gson.fromJson(gson.toJson(obj), Any::class.java)
-    }
+    fun <T> serialize(value: T): String = gson.toJson(value)
 
-    fun <T> fromMap(map: Any, clazz: Class<T>): T {
-        return gson.fromJson(gson.toJson(map), clazz)
-    }
+    fun <T : Any> deserialize(json: String, clazz: Class<T>): T = gson.fromJson(json, clazz)
 
-    fun writeFromMap(obj: Any, map: Map<*, *>) {
-        for ((key, value) in map) {
-            setShallow(obj, key.toString(), value)
-        }
-    }
+    inline fun <reified T : Any> deserialize(json: String): T = gson.fromJson(json, T::class.java)
 
-    fun get(obj: Any, path: String): Any? {
-        return get(obj, parsePath(path))
-    }
+    fun <T : Any> copyOf(value: T): T = deserialize(serialize(value), value.javaClass)
 
-    private fun get(obj: Any, path: List<String>): Any? {
-        var current: Any? = obj
-        for (key in path) current = getShallow(current ?: return null, key)
-        return current
-    }
-
-    fun setMap(obj: Any, path: String, map: Any?) {
-        val pathList = parsePath(path)
-        val newObj = withSetMap(obj, pathList, map)
-        set(obj, path, get(newObj, path))
-    }
-
-    fun set(obj: Any, path: String, value: Any?) {
-        val pathList = parsePath(path)
-        val parent = get(obj, pathList.dropLast(1)) ?: return
-        setShallow(parent, pathList.last(), value)
-    }
-
-    private fun parsePath(path: String): List<String> {
-        return path.split("[.\\[\\]]".toRegex()).map { it.trim() }.filter { it.isNotEmpty() }
-    }
-
-    private fun<T : Any> withSetMap(obj: T, path: List<String>, value: Any?): T {
-        val map = toMap(obj)
-        val mapParent = get(map, path.dropLast(1)) ?: return obj
-        setShallow(mapParent, path.last(), value)
-        return fromMap(map, obj.javaClass)
-    }
-
-    private fun getShallow(current: Any, key: String): Any? {
-        if (current is Map<*, *>) return current[key]
-
-        if (current is List<*>) return current[key.toInt()]
-
-        return try {
-            val field = current.javaClass.getDeclaredField(key)
-            field.isAccessible = true
-            field.get(current)
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    private fun setShallow(current: Any, key: String, value: Any?) {
-        try {
-            if (current is MutableMap<*, *>) {
-                (current as MutableMap<String, Any?>)[key] = value
-                return
-            }
-
-            if (current is MutableList<*>) {
-                val index = key.toInt()
-                if (index == current.size) (current as MutableList<Any?>).add(value)
-                else (current as MutableList<Any?>)[index] = value
-                return
-            }
-
-            val field = current.javaClass.getDeclaredField(key)
-            field.isAccessible = true
-            field.set(current, value)
-        } catch (_: Exception) { }
-    }
+    fun toMap(obj: Any): Any = gson.fromJson(gson.toJson(obj), Any::class.java)
 }
 
 private object BlockDataAdapter : JsonSerializer<BlockData>, JsonDeserializer<BlockData> {
@@ -141,5 +74,44 @@ private object SoundAdapter : JsonSerializer<Sound>, JsonDeserializer<Sound> {
 
     override fun deserialize(json: JsonElement, type: Type, ctx: JsonDeserializationContext): Sound {
         return Registry.SOUNDS.getOrThrow(Key.key(json.asString))
+    }
+}
+
+private object IKJointAdapter : JsonSerializer<IKJoint3D>, JsonDeserializer<IKJoint3D> {
+    private const val KEY = "joint"
+    private const val HINGE = "hinge"
+    private const val SWING_TWIST = "swingTwist"
+
+    private fun jointTagOf(joint: IKJoint3D): String = when (joint) {
+        is IKHingeJoint3D -> HINGE
+        is IKSwingTwistJoint3D -> SWING_TWIST
+    }
+
+    override fun serialize(src: IKJoint3D, type: Type, ctx: JsonSerializationContext): JsonElement {
+        val body = ctx.serialize(src, src.javaClass)
+        require(body is JsonObject) { "An IKJoint3D must serialise to a JSON object, got $body" }
+
+        return JsonObject().apply {
+            addProperty(KEY, jointTagOf(src))
+            for (entry in body.entrySet()) add(entry.key, entry.value)
+        }
+    }
+
+    override fun deserialize(json: JsonElement, type: Type, ctx: JsonDeserializationContext): IKJoint3D {
+        val body = json.asJsonObject
+
+        val tag = body.get(KEY)?.asString
+            ?: throw JsonParseException("IKJoint3D is missing its \"$KEY\" discriminator")
+
+        // Drop the tag so the implementation only sees its own fields
+        val fields = JsonObject().apply {
+            for (entry in body.entrySet()) if (entry.key != KEY) add(entry.key, entry.value)
+        }
+
+        return when (tag) {
+            HINGE -> ctx.deserialize(fields, IKHingeJoint3D::class.java)
+            SWING_TWIST -> ctx.deserialize(fields, IKSwingTwistJoint3D::class.java)
+            else -> throw JsonParseException("Unknown IKJoint3D type \"$tag\"")
+        }
     }
 }

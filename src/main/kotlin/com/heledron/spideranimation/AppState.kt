@@ -21,8 +21,6 @@ object AppState {
 
     val ecs = ECS()
 
-    var target: Location? = null
-
     fun createSpider(location: Location, options: SpiderOptions): ECSEntity {
         location.y += options.walkGait.stationary.bodyHeight
         return ecs.spawn(
