@@ -1,5 +1,6 @@
 package com.heledron.spideranimation.commands
 
+import com.google.gson.JsonPrimitive
 import com.google.gson.JsonSyntaxException
 import com.heledron.spideranimation.AppState
 import com.heledron.spideranimation.MiscellaneousOptions
@@ -296,17 +297,18 @@ private fun valueSuggestions(current: Any): List<Pair<String, String?>> {
 
         is Number, is Char -> listOf(current.toString() to current.javaClass.simpleName)
 
-        is String -> if (needsQuoting(current)) {
-            listOf(Serializer.serialize(current) to "String")
-        } else {
-            listOf(current to "String")
-        }
-
         else -> {
-            val json = Serializer.serialize(current)
             val type = describeType(current)
-            if (json.length <= MAX_VALUE_SUGGESTION_LENGTH) listOf(json to type)
-            else listOf(type to type)
+
+            val text = (Serializer.gson.toJsonTree(current) as? JsonPrimitive)?.takeIf { it.isString }?.asString
+            if (text == null) {
+                val json = Serializer.serialize(current)
+                if (json.length <= MAX_VALUE_SUGGESTION_LENGTH) listOf(json to type)
+                else listOf(type to type)
+            } else {
+                val suggestion = if (needsQuoting(text)) Serializer.serialize(text) else text
+                listOf(suggestion to type)
+            }
         }
     }
 }

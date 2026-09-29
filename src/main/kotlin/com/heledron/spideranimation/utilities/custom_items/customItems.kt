@@ -3,10 +3,10 @@ package com.heledron.spideranimation.utilities.custom_items
 import com.heledron.spideranimation.utilities.events.onGestureUseItem
 import com.heledron.spideranimation.utilities.events.onTick
 import com.heledron.spideranimation.utilities.namespacedID
+import io.papermc.paper.datacomponent.DataComponentTypes
 import net.kyori.adventure.text.Component
 import org.bukkit.Bukkit
 import org.bukkit.Bukkit.createInventory
-import org.bukkit.ChatColor
 import org.bukkit.Material
 import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
@@ -23,14 +23,14 @@ fun openCustomItemInventory(player: Player) {
 }
 
 class CustomItemComponent(val id: String) {
+    private val key by lazy { namespacedID("item_component_$id") }
+
     fun isAttached(item: ItemStack): Boolean {
-        return item.itemMeta?.persistentDataContainer?.get(namespacedID("item_component_$id"), PersistentDataType.BOOLEAN) == true
+        return item.persistentDataContainer.get(key, PersistentDataType.BOOLEAN) == true
     }
 
     fun attach(item: ItemStack) {
-        val itemMeta = item.itemMeta ?: return
-        itemMeta.persistentDataContainer.set(namespacedID("item_component_$id"), PersistentDataType.BOOLEAN, true)
-        item.itemMeta = itemMeta
+        item.editPersistentDataContainer { it.set(key, PersistentDataType.BOOLEAN, true) }
     }
 
     fun getPlayersHoldingItem() = Bukkit.getOnlinePlayers().filter { player ->
@@ -66,9 +66,7 @@ class CustomItemComponent(val id: String) {
 
 fun createNamedItem(material: Material, name: String): ItemStack {
     val item = ItemStack(material)
-    val itemMeta = item.itemMeta ?: throw Exception("ItemMeta is null")
-    itemMeta.itemName(Component.text(name))
-    item.itemMeta = itemMeta
+    item.setData(DataComponentTypes.ITEM_NAME, Component.text(name))
     return item
 }
 
