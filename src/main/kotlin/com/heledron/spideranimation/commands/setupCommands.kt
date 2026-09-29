@@ -44,11 +44,10 @@ fun spiderCommandTree(afterChange: () -> Unit): LiteralArgumentBuilder<CommandSo
     Commands.literal("spider")
         .requires { it.sender.hasPermission(PERMISSION) }
         .executes { ctx ->
-            ctx.source.sender.sendPlainMessage("Usage: /spider <options|preset|scale|splay|items>")
+            ctx.source.sender.sendPlainMessage("Usage: /spider <options|scale|splay|items>")
             SUCCESS
         }
         .then(optionsCommand(afterChange))
-        .then(presetCommand())
         .then(scaleCommand(afterChange))
         .then(splayCommand())
         .then(itemsCommand())
@@ -60,145 +59,85 @@ private fun optionsCommand(afterChange: () -> Unit): LiteralArgumentBuilder<Comm
     // prevent auto-completion for subsequent arguments.
     // Replace with NBTPathArgument once Paper supports it, or if porting to a mod.
     fun pathArgument() =
-        Commands.argument("path", StringArgumentType.string()).suggests(::suggestOptionPaths)
+        Commands.argument("path", StringArgumentType.string())
+            .suggests { _, builder -> suggestOptionPath(builder) }
 
-    val groupArgument = Commands.argument("group", StringArgumentType.word())
-        .suggests { _, builder -> suggest(builder, OPTION_GROUPS.keys) }
-        .then(
-            pathArgument()
-                .executes(::getOption)
-                .then(
-                    Commands.literal("set").then(
-                        Commands.argument("value", StringArgumentType.greedyString())
-                            .suggests(::suggestOptionValue)
-                            .executes { ctx -> setOption(ctx, afterChange) }
-                    )
+    return Commands.literal("options").then(
+        pathArgument()
+            .executes(::getOption)
+            .then(
+                Commands.literal("set").then(
+                    Commands.argument("value", StringArgumentType.greedyString())
+                        .suggests(::suggestOptionValue)
+                        .executes { ctx -> setOption(ctx, afterChange) }
                 )
-        )
-        .then(
-            Commands.literal("reset")
-                .executes { ctx -> resetOptionGroup(ctx, afterChange) }
-                .then(
-                    pathArgument().executes { ctx -> resetOptionPath(ctx, afterChange) }
-                )
-        )
+            )
+            .then(
+                Commands.literal("reset").executes { ctx -> resetOption(ctx, afterChange) }
+            )
+    )
+}
 
-    return Commands.literal("options").then(groupArgument)
+private fun parsePath(option: String): Pair<String, String> {
+    val separator = option.indexOf('.')
+    return if (separator < 0) option to ""
+    else option.substring(0, separator) to option.substring(separator + 1)
 }
 
 private fun getOption(ctx: CommandContext<CommandSourceStack>): Int {
-    val groupName = StringArgumentType.getString(ctx, "group")
+    val rawPath = StringArgumentType.getString(ctx, "path")
+    val (groupName, subPath) = parsePath(rawPath)
     val group = requireOptionGroup(groupName)
-    val options = requireSpiderOptions()
-    val path = StringArgumentType.getString(ctx, "path")
+    val live = group.requireLive()
 
-    val value = Serializer.path.get(group.live(options), path)
-        ?: throw commandError("\"$path\" does not exist in $groupName")
+    val value = Serializer.path.get(live, subPath)
+        ?: throw commandError("\"$subPath\" does not exist in $groupName")
 
-    ctx.source.sender.sendPlainMessage("$path = ${Serializer.serialize(value)}")
+    ctx.source.sender.sendPlainMessage("$rawPath is ${Serializer.serialize(value)}")
     return SUCCESS
 }
 
 private fun setOption(ctx: CommandContext<CommandSourceStack>, afterChange: () -> Unit): Int {
-    val groupName = StringArgumentType.getString(ctx, "group")
+    val rawPath = StringArgumentType.getString(ctx, "path")
+    val (groupName, subPath) = parsePath(rawPath)
     val group = requireOptionGroup(groupName)
-    val options = requireSpiderOptions()
-    val path = StringArgumentType.getString(ctx, "path")
+    val live = group.requireLive()
     val raw = StringArgumentType.getString(ctx, "value")
 
-    val constant = findValueConstant(raw)
-    val value = constant?.produce() ?: try {
-        // treat unparseable values as raw strings (enums, block ids)
+    val value = resolveSymbol(raw) ?: try {
         Serializer.gson.fromJson(raw, Any::class.java)
     } catch (_: JsonSyntaxException) {
+        // treat unparseable values as raw strings (enums, block ids)
         raw
     }
 
-    if (!group.edit(options) { writeOption(it, path, value) }) {
-        throw commandError("Could not set $path")
+    if (!group.edit(live) { writeOption(it, subPath, value) }) {
+        throw commandError("Could not set $rawPath")
     }
 
     afterChange()
 
-    val applied = constant?.name ?: Serializer.serialize(Serializer.path.get(group.live(options), path))
-    ctx.source.sender.sendPlainMessage("$path = $applied")
+    ctx.source.sender.sendPlainMessage("Set $rawPath to $raw")
     return SUCCESS
 }
 
-private fun resetOptionGroup(ctx: CommandContext<CommandSourceStack>, afterChange: () -> Unit): Int {
-    val groupName = StringArgumentType.getString(ctx, "group")
+private fun resetOption(ctx: CommandContext<CommandSourceStack>, afterChange: () -> Unit): Int {
+    val rawPath = StringArgumentType.getString(ctx, "path")
+    val (groupName, subPath) = parsePath(rawPath)
     val group = requireOptionGroup(groupName)
-    val options = requireSpiderOptions()
-    val defaults = Serializer.toMap(group.default(options)) as Map<*, *>
+    val live = group.requireLive()
 
-    if (!group.edit(options) { Serializer.path.setAll(it, defaults) }) {
-        throw commandError("Could not reset $groupName")
+    val value = Serializer.path.get(group.default(), subPath)
+        ?: throw commandError("\"$rawPath\" does not exist")
+
+    if (!group.edit(live) { writeOption(it, subPath, value) }) {
+        throw commandError("Could not reset $rawPath")
     }
 
     afterChange()
-    ctx.source.sender.sendPlainMessage("Reset all of $groupName")
-    return SUCCESS
-}
 
-private fun resetOptionPath(ctx: CommandContext<CommandSourceStack>, afterChange: () -> Unit): Int {
-    val groupName = StringArgumentType.getString(ctx, "group")
-    val group = requireOptionGroup(groupName)
-    val options = requireSpiderOptions()
-    val path = StringArgumentType.getString(ctx, "path")
-
-    val value = Serializer.path.get(group.default(options), path)
-        ?: throw commandError("\"$path\" does not exist in $groupName")
-
-    if (!group.edit(options) { writeOption(it, path, value) }) {
-        throw commandError("Could not reset $path")
-    }
-
-    afterChange()
-    ctx.source.sender.sendPlainMessage("Reset $path to ${Serializer.serialize(value)}")
-    return SUCCESS
-}
-
-private val PRESETS: Map<String, (segmentCount: Int, segmentLength: Double) -> SpiderOptions> = mapOf(
-    "biped" to ::biped,
-    "quadruped" to ::quadruped,
-    "hexapod" to ::hexapod,
-    "octopod" to ::octopod,
-    "quadbot" to ::quadBot,
-    "hexbot" to ::hexBot,
-    "octobot" to ::octoBot,
-)
-
-private fun presetCommand(): LiteralArgumentBuilder<CommandSourceStack> {
-    val name = Commands.argument("name", StringArgumentType.word())
-        .suggests { _, builder -> suggest(builder, PRESETS.keys) }
-        .executes { ctx -> applyPreset(ctx, null, null) }
-        .then(
-            Commands.argument("segments", IntegerArgumentType.integer(1))
-                .executes { ctx -> applyPreset(ctx, IntegerArgumentType.getInteger(ctx, "segments"), null) }
-                .then(
-                    Commands.argument("segmentLength", DoubleArgumentType.doubleArg(0.0))
-                        .executes { ctx ->
-                            applyPreset(
-                                ctx,
-                                IntegerArgumentType.getInteger(ctx, "segments"),
-                                DoubleArgumentType.getDouble(ctx, "segmentLength"),
-                            )
-                        }
-                )
-        )
-
-    return Commands.literal("preset").then(name)
-}
-
-private fun applyPreset(ctx: CommandContext<CommandSourceStack>, segmentCount: Int?, segmentLength: Double?): Int {
-    val name = StringArgumentType.getString(ctx, "name")
-    val createPreset = PRESETS[name] ?: throw commandError("Unknown preset \"$name\"")
-
-    val spider = requireSpider(ctx.source)
-    val options = createPreset(segmentCount ?: if (name.contains("bot")) 4 else 3, segmentLength ?: 1.0)
-
-    spider.query<SpiderOptions>()?.copyFrom(options) ?: throw commandError("Spider has no options component")
-    ctx.source.sender.sendPlainMessage("Applied preset $name")
+    if (subPath.isEmpty()) ctx.source.sender.sendPlainMessage("Reset all of $groupName")
+    else ctx.source.sender.sendPlainMessage("Reset $rawPath to ${Serializer.serialize(value)}")
     return SUCCESS
 }
 
@@ -263,8 +202,6 @@ private fun suggest(builder: SuggestionsBuilder, options: Iterable<String>): Com
 
 private fun spiderOptionsOrNull() = AppState.ecs.query<SpiderOptions>().firstOrNull()
 
-private fun requireSpiderOptions() = spiderOptionsOrNull() ?: throw commandError("No spider found")
-
 private fun CommandSourceStack.senderLocation() =
     if (sender !is ConsoleCommandSender) location else throw commandError("This command can only be used by senders with a location")
 
@@ -273,55 +210,65 @@ private fun requireSpider(source: CommandSourceStack): ECSEntity {
     return AppState.findNearestSpider(location) ?: throw commandError("No spider found")
 }
 
-private fun suggestionSource(group: OptionGroup): Any {
-    val options = spiderOptionsOrNull() ?: return group.default(fallbackOptions)
-    return group.live(options)
-}
+private fun suggestionSource(group: OptionGroup): Any = group.live() ?: group.default()
 
 private class OptionGroup(
-    val live: (SpiderOptions) -> Any,
-    val default: (SpiderOptions) -> Any,
-    val swap: ((options: SpiderOptions, draft: Any) -> Boolean)? = null,
+    val live: () -> Any?,
+    val default: () -> Any,
+    val swap: ((live: Any, draft: Any) -> Boolean)? = null,
 ) {
-    fun edit(options: SpiderOptions, edit: (target: Any) -> Boolean): Boolean {
+    fun edit(live: Any, edit: (target: Any) -> Boolean): Boolean {
         // edit in place
-        if (swap == null) return edit(live(options))
+        if (swap == null) return edit(live)
 
         // edit draft then swap
-        val draft = Serializer.copyOf(live(options))
-        return edit(draft) && swap.invoke(options, draft)
+        val draft = Serializer.copyOf(live)
+        return edit(draft) && swap.invoke(live, draft)
     }
 }
 
+private fun OptionGroup.requireLive(): Any = live() ?: throw commandError("No spider found")
+
 private val OPTION_GROUPS = mapOf(
     "spider_options" to OptionGroup(
-        live = { it },
+        live = { spiderOptionsOrNull() },
         default = { defaultPreset() },
-        swap = { options, draft -> options.copyFrom(draft as SpiderOptions); true },
+        swap = { live, draft -> (live as SpiderOptions).copyFrom(draft as SpiderOptions); true },
     ),
-    "global" to OptionGroup(live = { AppState.miscOptions }, default = { MiscellaneousOptions() }),
+    "global" to OptionGroup(
+        live = { AppState.miscOptions },
+        default = { MiscellaneousOptions() },
+    ),
 )
 
 private fun requireOptionGroup(groupName: String): OptionGroup =
     OPTION_GROUPS[groupName]
         ?: throw commandError("Unknown option group \"$groupName\", expected one of ${OPTION_GROUPS.keys.joinToString()}")
 
-private fun suggestOptionPaths(ctx: CommandContext<CommandSourceStack>, builder: SuggestionsBuilder): CompletableFuture<Suggestions> {
-    val group = OPTION_GROUPS[StringArgumentType.getString(ctx, "group")] ?: return builder.buildFuture()
-
+private fun suggestOptionPath(builder: SuggestionsBuilder): CompletableFuture<Suggestions> {
     // Quoted string if needed. See NBT path comment.
     val typed = builder.remaining.removePrefix("\"")
-    for (path in Serializer.path.completions(suggestionSource(group), typed)) {
-        val unquotable = path.all(StringReader::isAllowedInUnquotedString)
-        builder.suggest(if (unquotable) path else "\"$path\"")
+    val (groupName, path) = parsePath(typed)
+
+    // Suggest groups
+    if (path.isEmpty()) suggest(builder, OPTION_GROUPS.keys)
+
+    // An exact group name falls through
+    val group = OPTION_GROUPS[groupName] ?: return builder.buildFuture()
+
+    for (candidate in Serializer.path.completions(suggestionSource(group), path)) {
+        val argument = "$groupName.$candidate"
+        val unquotable = argument.all(StringReader::isAllowedInUnquotedString)
+        builder.suggest(if (unquotable) argument else "\"$argument\"")
     }
     return builder.buildFuture()
 }
 
 private fun suggestOptionValue(ctx: CommandContext<CommandSourceStack>, builder: SuggestionsBuilder): CompletableFuture<Suggestions> {
-    val group = OPTION_GROUPS[StringArgumentType.getString(ctx, "group")] ?: return builder.buildFuture()
+    val (groupName, path) = parsePath(StringArgumentType.getString(ctx, "path"))
+    val group = OPTION_GROUPS[groupName] ?: return builder.buildFuture()
 
-    val current = Serializer.path.get(suggestionSource(group), StringArgumentType.getString(ctx, "path"))
+    val current = Serializer.path.get(suggestionSource(group), path)
         ?: return builder.buildFuture()
 
     for ((text, tooltip) in valueSuggestions(current)) {
@@ -330,16 +277,14 @@ private fun suggestOptionValue(ctx: CommandContext<CommandSourceStack>, builder:
     return builder.buildFuture()
 }
 
-private val fallbackOptions: SpiderOptions by lazy { SpiderOptions() }
-
 /**
  * Returns Pair<suggestion, tooltip>[]
  */
 private fun valueSuggestions(current: Any): List<Pair<String, String?>> {
-    val constants = valueConstantsFor(current).map { it.name to describeType(it) }
+    val symbols = suggestSymbolsFor(current)
 
-    // don't suggest json if constants are available
-    if (constants.isNotEmpty()) return constants
+    // don't suggest json if symbols are available
+    if (symbols.isNotEmpty()) return symbols
 
     return when (current) {
         is Boolean -> listOf("true" to "boolean", "false" to "boolean")
@@ -374,7 +319,7 @@ private fun needsQuoting(text: String): Boolean = try {
     false
 }
 
-private fun describeType(value: Any): String = when (value) {
+internal fun describeType(value: Any): String = when (value) {
     is Collection<*> -> value.firstOrNull()?.let { "List<${it.javaClass.simpleName}>" } ?: "List<unknown>"
     is Map<*, *> -> "map"
     else -> value.javaClass.simpleName

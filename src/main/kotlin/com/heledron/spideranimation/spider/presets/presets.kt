@@ -104,7 +104,7 @@ fun octopod(segmentCount: Int, segmentLength: Double): SpiderOptions {
 
 fun quadBot(segmentCount: Int, segmentLength: Double): SpiderOptions {
     val options = SpiderOptions()
-    options.bodyPlan.bodyModel = SpiderTorsoModels.FLAT.model.clone()
+    options.bodyPlan.bodyModel = SpiderTorsoModels.FLAT.clone()
     options.bodyPlan.addLegPair(root = Vector(.2,-.2 - .15, .2), rest = Vector(1.3 * 1.0,.0, 1.0), createRobotSegments(segmentCount, .9 * .7 * segmentLength))
     options.bodyPlan.addLegPair(root = Vector(.2,-.2 - .15,-.2), rest = Vector(1.3 * 1.1,.0,-1.2), createRobotSegments(segmentCount, 1.2 * .7 * segmentLength))
     applyMechanicalLegModel(options.bodyPlan)
@@ -113,7 +113,7 @@ fun quadBot(segmentCount: Int, segmentLength: Double): SpiderOptions {
 
 fun hexBot(segmentCount: Int, segmentLength: Double): SpiderOptions {
     val options = SpiderOptions()
-    options.bodyPlan.bodyModel = SpiderTorsoModels.FLAT.model.clone()
+    options.bodyPlan.bodyModel = SpiderTorsoModels.FLAT.clone()
     options.bodyPlan.addLegPair(root = Vector(.2,-.2 - .15, .2), rest = Vector(1.3 * 1.0,.0, 1.3), createRobotSegments(segmentCount, 1.1 * .7 * segmentLength))
     options.bodyPlan.addLegPair(root = Vector(.2,-.2 - .15, .0), rest = Vector(1.3 * 1.2,.0,-0.1), createRobotSegments(segmentCount, 1.1 * .7 * segmentLength))
     options.bodyPlan.addLegPair(root = Vector(.2,-.2 - .15,-.2), rest = Vector(1.3 * 1.1,.0,-1.6), createRobotSegments(segmentCount, 1.3 * .7 * segmentLength))
@@ -123,7 +123,7 @@ fun hexBot(segmentCount: Int, segmentLength: Double): SpiderOptions {
 
 fun octoBot(segmentCount: Int, segmentLength: Double): SpiderOptions {
     val options = SpiderOptions()
-    options.bodyPlan.bodyModel = SpiderTorsoModels.FLAT.model.clone()
+    options.bodyPlan.bodyModel = SpiderTorsoModels.FLAT.clone()
     options.bodyPlan.addLegPair(root = Vector(.2,-.2 - .15, .3), rest = Vector(1.3 * 1.0,.0, 1.3), createRobotSegments(segmentCount, 1.1 * .7 * segmentLength))
     options.bodyPlan.addLegPair(root = Vector(.2,-.2 - .15, .1), rest = Vector(1.3 * 1.2,.0, 0.5), createRobotSegments(segmentCount, 1.0 * .7 * segmentLength))
     options.bodyPlan.addLegPair(root = Vector(.2,-.2 - .15, .1), rest = Vector(1.3 * 1.2,.0,-0.7), createRobotSegments(segmentCount, 1.1 * .7 * segmentLength))

@@ -35,7 +35,7 @@ class BodyPlan {
     var scale = 1.0
     var legs = emptyList<LegPlan>()
 
-    var bodyModel = SpiderTorsoModels.EMPTY.model.clone()
+    var bodyModel = DisplayModel.empty()
 
     var eyePalette: List<PaletteEntry> = AnimatedPalettes.CYAN_EYES.palette
     var blinkingPalette: List<PaletteEntry> = AnimatedPalettes.CYAN_BLINKING_LIGHTS.palette
