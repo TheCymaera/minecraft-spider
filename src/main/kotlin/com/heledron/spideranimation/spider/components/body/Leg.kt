@@ -1,11 +1,8 @@
 package com.heledron.spideranimation.spider.components.body
 
-import com.heledron.spideranimation.utilities.ChainSegment
-import com.heledron.spideranimation.utilities.KinematicChain
 import com.heledron.spideranimation.spider.configuration.LegPlan
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.utilities.*
-import com.heledron.spideranimation.utilities.inverse_kinematics.IKChain3D
 import com.heledron.spideranimation.utilities.ecs.ECS
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
 import com.heledron.spideranimation.utilities.isOnGround
