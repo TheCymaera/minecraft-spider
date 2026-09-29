@@ -42,11 +42,12 @@ class SpiderOptions : ECSComponent {
 class SoundOptions {
     var step = SoundPlayer(
         sound = Sound.BLOCK_NETHERITE_BLOCK_STEP,
-        volume = .3f,
+        volume = .2f,
         pitch = 1.0f
     )
-}
 
+    var stepBlockOverlay = step.scale(volume = .75f)
+}
 
 class SoundPlayer(
     val sound: Sound,
@@ -60,4 +61,8 @@ class SoundPlayer(
         val pitch = pitch + Random.nextFloat() * pitchVary
         world.playSound(position.toLocation(world), sound, volume, pitch)
     }
+
+    fun scale(volume: Float = 1f, pitch: Float = 1f) = SoundPlayer(
+        sound, this@SoundPlayer.volume * volume, this@SoundPlayer.pitch * pitch, volumeVary * volume, pitchVary * pitch)
+    fun withSound(sound: Sound) = SoundPlayer(sound, volume, pitch, volumeVary, pitchVary)
 }

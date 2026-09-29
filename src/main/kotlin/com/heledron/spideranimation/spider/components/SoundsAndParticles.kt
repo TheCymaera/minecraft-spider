@@ -4,12 +4,13 @@ import com.heledron.spideranimation.spider.components.body.Leg
 import com.heledron.spideranimation.spider.components.body.LegStepEvent
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.components.body.SpiderBodyHitGroundEvent
-import com.heledron.spideranimation.spider.configuration.SoundPlayer
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.utilities.ecs.ECSComponent
 import com.heledron.spideranimation.utilities.ecs.ECS
 import com.heledron.spideranimation.utilities.overloads.playSound
+import org.bukkit.Material
 import org.bukkit.Particle
+import org.bukkit.Registry
 import org.bukkit.Sound
 import org.bukkit.World
 import org.bukkit.block.data.Waterlogged
@@ -22,14 +23,6 @@ class SoundsAndParticles : ECSComponent {
     var timeSinceLastSound = 0
     var wetness = WeakHashMap<Leg, Int>()
     val maxWetness = 20 * 3
-
-    fun underwaterStepSound(step: SoundPlayer) = SoundPlayer(
-        sound = step.sound,
-        volume = step.volume * .5f,
-        pitch = step.pitch * .75f,
-        volumeVary = step.volumeVary,
-        pitchVary = step.pitchVary
-    )
 }
 
 fun setupSoundAndParticles(app: ECS) {
@@ -52,14 +45,22 @@ fun setupSoundAndParticles(app: ECS) {
     }
 
     app.onEvent<LegStepEvent> { event ->
-        val isUnderWater = event.spider.world.getBlockAt(event.leg.endEffector.toLocation(event.spider.world)).isLiquid
+        val world = event.spider.world
+        val position = event.leg.endEffector
 
-        val sounds = event.entity.query<SoundsAndParticles>() ?: return@onEvent
         val options = event.entity.query<SpiderOptions>() ?: return@onEvent
 
-        val sound = if (isUnderWater) sounds.underwaterStepSound(options.sound.step) else options.sound.step
+        val isUnderwater = world.getBlockAt(position.toLocation(world)).isLiquid
+        val volumeScale = if (isUnderwater) 0.5f else 1.0f
+        val pitchScale = if (isUnderwater) 0.75f else 1.0f
 
-        sound.play(event.spider.world, event.leg.endEffector)
+        options.sound.step.scale(volume = volumeScale, pitch = pitchScale).play(world, position)
+
+        val blockSound = blockStepSound(world, position)
+        if (blockSound != null) options.sound.stepBlockOverlay
+            .withSound(blockSound)
+            .scale(volume = volumeScale, pitch = pitchScale)
+            .play(world, position)
     }
 
     app.onTick {
@@ -136,4 +137,16 @@ private fun spawnLegParticles(sounds: SoundsAndParticles, world: World, leg: Leg
             world.spawnParticle(Particle.FALLING_WATER, location, 1, offset, offset, offset, .1)
         }
     }
+}
+
+internal fun blockStepSound(world: World, position: Vector): Sound? {
+    val block = world.getBlockAt(position.toLocation(world).subtract(0.0, 1.0e-3, 0.0))
+    if (block.isEmpty) return null
+
+    if (block.type === Material.GRASS_BLOCK) return Sound.BLOCK_GRASS_BREAK
+
+    val sound = block.blockSoundGroup.hitSound
+    if (Registry.SOUNDS.getKey(sound).toString() == "minecraft:intentionally_empty") return null
+
+    return sound
 }
