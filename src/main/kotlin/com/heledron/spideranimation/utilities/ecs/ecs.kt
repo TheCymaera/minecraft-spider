@@ -13,10 +13,12 @@ class ECS {
 
     private val startSystems = mutableListOf<(ECS) -> Unit>()
     private val tickSystems = mutableListOf<(ECS) -> Unit>()
+    private val postTickSystems = mutableListOf<(ECS) -> Unit>()
     private val renderSystems = mutableListOf<(ECS) -> Unit>()
 
     fun onStart(func: (ECS) -> Unit) { startSystems += func }
     fun onTick(func: (ECS) -> Unit) { tickSystems += func }
+    fun onPostTick(func: (ECS) -> Unit) { postTickSystems += func }
     fun onRender(func: (ECS) -> Unit) { renderSystems += func }
 
     inline fun<reified T: Any> onEvent(listener: (T) -> Unit) {
@@ -95,6 +97,7 @@ class ECS {
 
     fun update() {
         for (system in tickSystems) system(this)
+        for (system in postTickSystems) system(this)
 
         entities.removeIf { it.scheduledForRemoval }
     }

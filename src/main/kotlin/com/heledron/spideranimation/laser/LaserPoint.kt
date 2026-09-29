@@ -1,14 +1,14 @@
 package com.heledron.spideranimation.laser
 
 import com.heledron.spideranimation.utilities.rendering.renderBlock
-import com.heledron.spideranimation.spider.components.SpiderBehaviour
-import com.heledron.spideranimation.spider.components.TargetBehaviour
+import com.heledron.spideranimation.spider.components.Locomotion
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.utilities.ecs.ECSComponent
 import com.heledron.spideranimation.utilities.ecs.ECS
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
 import com.heledron.spideranimation.utilities.centredTransform
+import com.heledron.spideranimation.utilities.horizontalDistance
 import org.bukkit.Material
 import org.bukkit.World
 import org.bukkit.entity.Display
@@ -31,9 +31,24 @@ fun setupLaserPointer(app: ECS) {
                 .minByOrNull { it.position.distanceSquared(spider.position) }
                 ?: continue
 
+            val locomotion = spiderEntity.query<Locomotion>() ?: continue
+
+            val direction = nearestLaser.position.clone().subtract(spider.position).normalize()
+            locomotion.face(direction, Locomotion.LASER_PRIORITY)
+
+            // only walk while far enough away to stop in time
             val distance = options.walkGait.stationary.bodyHeight * 2
-            val behaviour = TargetBehaviour(nearestLaser.position, distance)
-            spiderEntity.replaceComponent<SpiderBehaviour>(behaviour)
+            val currentSpeed = spider.velocity.length()
+            val decelerateDistance = (currentSpeed * currentSpeed) / (2 * options.gait.moveAcceleration)
+            val currentDistance = spider.position.horizontalDistance(nearestLaser.position)
+
+            val walkVelocity = if (currentDistance > distance + decelerateDistance) {
+                direction.clone().multiply(options.gait.maxSpeed)
+            } else {
+                Vector(0.0, 0.0, 0.0)
+            }
+
+            locomotion.walk(walkVelocity, Locomotion.LASER_PRIORITY)
         }
     }
 

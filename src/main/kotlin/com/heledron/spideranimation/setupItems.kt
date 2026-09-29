@@ -203,6 +203,10 @@ fun setupItems() {
 private val SPIDER_UUID_KEY = namespacedID("spider_uuid")
 private val SPIDER_OPTIONS_KEY = namespacedID("spider_options")
 
+internal fun Player.heldSpiderUUID(): UUID? =
+    this.inventory.itemInMainHand.spiderUUID
+        ?: this.inventory.itemInOffHand.spiderUUID
+
 private var ItemStack.spiderUUID
     get(): UUID? {
         return itemMeta?.persistentDataContainer?.get(SPIDER_UUID_KEY, UUIDDataType)

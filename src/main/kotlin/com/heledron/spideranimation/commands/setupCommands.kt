@@ -9,6 +9,7 @@ import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.components.splay
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.spider.presets.*
+import com.heledron.spideranimation.heldSpiderUUID
 import com.heledron.spideranimation.utilities.Serializer
 import com.heledron.spideranimation.utilities.custom_items.openCustomItemInventory
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
@@ -28,7 +29,6 @@ import io.papermc.paper.command.brigadier.Commands
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents
 import org.bukkit.Material
 import org.bukkit.block.data.BlockData
-import org.bukkit.command.ConsoleCommandSender
 import org.bukkit.entity.Player
 import java.util.concurrent.CompletableFuture
 
@@ -61,7 +61,7 @@ private fun optionsCommand(afterChange: () -> Unit): LiteralArgumentBuilder<Comm
     // Replace with NBTPathArgument once Paper supports it, or if porting to a mod.
     fun pathArgument() =
         Commands.argument("path", StringArgumentType.string())
-            .suggests { _, builder -> suggestOptionPath(builder) }
+            .suggests { ctx, builder -> suggestOptionPath(ctx.source, builder) }
 
     return Commands.literal("options").then(
         pathArgument()
@@ -89,7 +89,7 @@ private fun getOption(ctx: CommandContext<CommandSourceStack>): Int {
     val rawPath = StringArgumentType.getString(ctx, "path")
     val (groupName, subPath) = parsePath(rawPath)
     val group = requireOptionGroup(groupName)
-    val live = group.requireLive()
+    val live = group.requireLive(ctx.source)
 
     val value = Serializer.path.get(live, subPath)
         ?: throw commandError("\"$subPath\" does not exist in $groupName")
@@ -102,7 +102,7 @@ private fun setOption(ctx: CommandContext<CommandSourceStack>, afterChange: () -
     val rawPath = StringArgumentType.getString(ctx, "path")
     val (groupName, subPath) = parsePath(rawPath)
     val group = requireOptionGroup(groupName)
-    val live = group.requireLive()
+    val live = group.requireLive(ctx.source)
     val raw = StringArgumentType.getString(ctx, "value")
 
     val value = resolveSymbol(raw) ?: try {
@@ -126,7 +126,7 @@ private fun resetOption(ctx: CommandContext<CommandSourceStack>, afterChange: ()
     val rawPath = StringArgumentType.getString(ctx, "path")
     val (groupName, subPath) = parsePath(rawPath)
     val group = requireOptionGroup(groupName)
-    val live = group.requireLive()
+    val live = group.requireLive(ctx.source)
 
     val value = Serializer.path.get(group.default(), subPath)
         ?: throw commandError("\"$rawPath\" does not exist")
@@ -148,8 +148,9 @@ private fun scaleCommand(afterChange: () -> Unit): LiteralArgumentBuilder<Comman
             .executes { ctx ->
                 val scale = DoubleArgumentType.getDouble(ctx, "scale")
 
-                val (spider, options) = AppState.ecs.query<SpiderBody, SpiderOptions>().firstOrNull()
-                    ?: throw commandError("No spider found")
+                val entity = requireTargetSpider(ctx.source)
+                val spider = entity.query<SpiderBody>() ?: throw commandError("No spider found")
+                val options = entity.query<SpiderOptions>() ?: throw commandError("No spider found")
 
                 val oldScale = options.bodyPlan.scale
                 options.walkGait.scale(scale / oldScale)
@@ -172,7 +173,7 @@ private fun splayCommand(): LiteralArgumentBuilder<CommandSourceStack> =
         )
 
 private fun splaySpider(ctx: CommandContext<CommandSourceStack>, delay: Long): Int {
-    val spider = requireSpider(ctx.source)
+    val spider = requireTargetSpider(ctx.source)
     runLater(delay) { splay(spider) }
     return SUCCESS
 }
@@ -201,20 +202,22 @@ private fun suggest(builder: SuggestionsBuilder, options: Iterable<String>): Com
     return builder.buildFuture()
 }
 
-private fun spiderOptionsOrNull() = AppState.ecs.query<SpiderOptions>().firstOrNull()
+private fun findTargetSpider(source: CommandSourceStack): ECSEntity? {
+    val player = source.sender as? Player
+        ?: return AppState.ecs.query<ECSEntity, SpiderBody>().firstOrNull()?.first
 
-private fun CommandSourceStack.senderLocation() =
-    if (sender !is ConsoleCommandSender) location else throw commandError("This command can only be used by senders with a location")
-
-private fun requireSpider(source: CommandSourceStack): ECSEntity {
-    val location = source.senderLocation()
-    return AppState.findNearestSpider(location) ?: throw commandError("No spider found")
+    val named = player.heldSpiderUUID()?.let(AppState::findSpiderByUUID)
+    return named ?: AppState.findNearestSpider(player)
 }
 
-private fun suggestionSource(group: OptionGroup): Any = group.live() ?: group.default()
+private fun requireTargetSpider(source: CommandSourceStack): ECSEntity =
+    findTargetSpider(source) ?: throw commandError("No spider found")
+
+private fun suggestionSource(source: CommandSourceStack, group: OptionGroup): Any =
+    group.live(source) ?: group.default()
 
 private class OptionGroup(
-    val live: () -> Any?,
+    val live: (CommandSourceStack) -> Any?,
     val default: () -> Any,
     val swap: ((live: Any, draft: Any) -> Boolean)? = null,
 ) {
@@ -228,11 +231,12 @@ private class OptionGroup(
     }
 }
 
-private fun OptionGroup.requireLive(): Any = live() ?: throw commandError("No spider found")
+private fun OptionGroup.requireLive(source: CommandSourceStack): Any =
+    live(source) ?: throw commandError("No spider found")
 
 private val OPTION_GROUPS = mapOf(
     "spider_options" to OptionGroup(
-        live = { spiderOptionsOrNull() },
+        live = { source -> findTargetSpider(source)?.query<SpiderOptions>() },
         default = { defaultPreset() },
         swap = { live, draft -> (live as SpiderOptions).copyFrom(draft as SpiderOptions); true },
     ),
@@ -246,7 +250,7 @@ private fun requireOptionGroup(groupName: String): OptionGroup =
     OPTION_GROUPS[groupName]
         ?: throw commandError("Unknown option group \"$groupName\", expected one of ${OPTION_GROUPS.keys.joinToString()}")
 
-private fun suggestOptionPath(builder: SuggestionsBuilder): CompletableFuture<Suggestions> {
+private fun suggestOptionPath(source: CommandSourceStack, builder: SuggestionsBuilder): CompletableFuture<Suggestions> {
     // Quoted string if needed. See NBT path comment.
     val typed = builder.remaining.removePrefix("\"")
     val (groupName, path) = parsePath(typed)
@@ -257,7 +261,7 @@ private fun suggestOptionPath(builder: SuggestionsBuilder): CompletableFuture<Su
     // An exact group name falls through
     val group = OPTION_GROUPS[groupName] ?: return builder.buildFuture()
 
-    for (candidate in Serializer.path.completions(suggestionSource(group), path)) {
+    for (candidate in Serializer.path.completions(suggestionSource(source, group), path)) {
         val argument = "$groupName.$candidate"
         val unquotable = argument.all(StringReader::isAllowedInUnquotedString)
         builder.suggest(if (unquotable) argument else "\"$argument\"")
@@ -269,7 +273,7 @@ private fun suggestOptionValue(ctx: CommandContext<CommandSourceStack>, builder:
     val (groupName, path) = parsePath(StringArgumentType.getString(ctx, "path"))
     val group = OPTION_GROUPS[groupName] ?: return builder.buildFuture()
 
-    val current = Serializer.path.get(suggestionSource(group), path)
+    val current = Serializer.path.get(suggestionSource(ctx.source, group), path)
         ?: return builder.buildFuture()
 
     for ((text, tooltip) in valueSuggestions(current)) {

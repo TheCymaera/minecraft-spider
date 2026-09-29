@@ -3,9 +3,8 @@ package com.heledron.spideranimation.spider.components
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.configuration.Gait
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
-import com.heledron.spideranimation.utilities.*
-import com.heledron.spideranimation.utilities.ecs.ECSComponent
 import com.heledron.spideranimation.utilities.ecs.ECS
+import com.heledron.spideranimation.utilities.ecs.ECSComponent
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
 import com.heledron.spideranimation.utilities.maths.FORWARD_VECTOR
 import com.heledron.spideranimation.utilities.maths.moveTowards
@@ -15,61 +14,64 @@ import org.joml.Quaternionf
 import org.joml.Vector3f
 
 
-interface SpiderBehaviour : ECSComponent
+class Locomotion : ECSComponent {
+    var walkVelocity: Vector? = null; private set
+    var faceDirection: Vector? = null; private set
+    var pushVelocity: Vector? = null; private set
 
-class StayStillBehaviour() : SpiderBehaviour
+    private var walkPriority = Int.MIN_VALUE
+    private var facePriority = Int.MIN_VALUE
 
-class TargetBehaviour(val target: Vector, val distance: Double) : SpiderBehaviour
-
-class DirectionBehaviour(val targetDirection: Vector, val walkDirection: Vector) : SpiderBehaviour
-
-fun setupBehaviours(app: ECS) {
-    // Stay still behaviour
-    app.onTick {
-        for ((entity, spider, options, _) in app.query<ECSEntity, SpiderBody, SpiderOptions, StayStillBehaviour>()) {
-            val tridentDetector = entity.query<TridentHitDetector>()
-            spider.walkAt(Vector(0.0, 0.0, 0.0), tridentDetector, options.gait)
-            spider.rotateTowards(spider.forwardDirection().setY(0.0), options.gait)
-        }
+    fun walk(velocity: Vector, priority: Int = DEFAULT_PRIORITY) {
+        if (priority < walkPriority) return
+        walkPriority = priority
+        walkVelocity = velocity
     }
 
-    // Target behaviour
-    app.onTick {
-        for ((entity, spider, options, behaviour) in app.query<ECSEntity, SpiderBody, SpiderOptions, TargetBehaviour>()) {
-            val direction = behaviour.target.clone().subtract(spider.position).normalize()
-            spider.rotateTowards(direction, options.gait)
-
-            val currentSpeed = spider.velocity.length()
-
-            val decelerateDistance = (currentSpeed * currentSpeed) / (2 * options.gait.moveAcceleration)
-
-            val currentDistance = spider.position.horizontalDistance(behaviour.target)
-
-            val tridentDetector = entity.query<TridentHitDetector>()
-            if (currentDistance > behaviour.distance + decelerateDistance) {
-                spider.walkAt(direction.clone().multiply(options.gait.maxSpeed), tridentDetector, options.gait)
-            } else {
-                spider.walkAt(Vector(0.0, 0.0, 0.0), tridentDetector, options.gait)
-            }
-        }
+    fun face(direction: Vector, priority: Int = DEFAULT_PRIORITY) {
+        if (priority < facePriority) return
+        facePriority = priority
+        faceDirection = direction
     }
 
-    // Direction behaviour
-    app.onTick {
-        for ((entity, spider, options, behaviour) in app.query<ECSEntity, SpiderBody, SpiderOptions, DirectionBehaviour>()) {
-            spider.rotateTowards(behaviour.targetDirection, options.gait)
+    fun push(velocity: Vector) {
+        val accumulated = pushVelocity
+        if (accumulated == null) pushVelocity = velocity.clone()
+        else accumulated.add(velocity)
+    }
 
+    fun clear() {
+        walkVelocity = null
+        faceDirection = null
+        pushVelocity = null
+        walkPriority = Int.MIN_VALUE
+        facePriority = Int.MIN_VALUE
+    }
 
-            val tridentDetector = entity.query<TridentHitDetector>()
-            spider.walkAt(
-                behaviour.walkDirection.clone().multiply(options.gait.maxSpeed),
-                tridentDetector,
-                options.gait
-            )
-        }
+    companion object {
+        const val DEFAULT_PRIORITY = 0
+        const val LASER_PRIORITY = 10
+        const val RIDER_PRIORITY = 20
     }
 }
 
+fun setupLocomotion(app: ECS) {
+    app.onPostTick {
+        for ((entity, spider, options, locomotion) in app.query<ECSEntity, SpiderBody, SpiderOptions, Locomotion>()) {
+            val tridentDetector = entity.query<TridentHitDetector>()
+
+            val targetVelocity = Vector(0.0, 0.0, 0.0)
+            locomotion.walkVelocity?.let { targetVelocity.add(it) }
+            locomotion.pushVelocity?.let { targetVelocity.add(it) }
+
+            spider.walkAt(targetVelocity, tridentDetector, options.gait)
+
+            spider.rotateTowards(locomotion.faceDirection ?: spider.forwardDirection().setY(0.0), options.gait)
+
+            locomotion.clear()
+        }
+    }
+}
 
 
 private fun SpiderBody.rotateTowards(targetVector: Vector, gait: Gait) {
@@ -90,11 +92,11 @@ private fun SpiderBody.rotateTowards(targetVector: Vector, gait: Gait) {
 
     val targetOrientation = Quaternionf().rotationYXZ(targetEuler.y, targetEuler.x, targetEuler.z)
 
-    // Soften error the same way Euler.lerp(zero, rotationLerp) did: blend towards current
-    val softenedTarget = Quaternionf(orientation).slerp(targetOrientation, 1f - gait.rotationLerp)
+    // smooth target
+    val easedTarget = Quaternionf(orientation).slerp(targetOrientation, 1f - gait.rotationLerp)
 
-    // World-space delta → angular velocity (premultiplied: orientation = Rot(ω) * orientation)
-    val desiredDelta = Quaternionf(softenedTarget).mul(Quaternionf(orientation).invert())
+    // world-space delta → angular velocity (premultiplied: orientation = Rot(ω) * orientation)
+    val desiredDelta = Quaternionf(easedTarget).mul(Quaternionf(orientation).invert())
     val axisAngle = AxisAngle4f().set(desiredDelta)
     val desiredOmega = if (axisAngle.angle < 1e-8f) {
         Vector3f()

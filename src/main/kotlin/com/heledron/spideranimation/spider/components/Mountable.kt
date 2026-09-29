@@ -1,7 +1,7 @@
 package com.heledron.spideranimation.spider.components
 
 import com.heledron.spideranimation.spider.components.body.SpiderBody
-import com.heledron.spideranimation.utilities.*
+import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.utilities.ecs.ECSComponent
 import com.heledron.spideranimation.utilities.ecs.ECS
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
@@ -72,8 +72,9 @@ fun setupMountable(app: ECS) {
     // Handle user input
     @Suppress("UnstableApiUsage")
     app.onTick {
-        for ((mountable, _, entity) in app.query<Mountable, SpiderBody, ECSEntity>()) {
+        for ((mountable, _, options, entity) in app.query<Mountable, SpiderBody, SpiderOptions, ECSEntity>()) {
             val player = mountable.getRider() ?: continue
+            val locomotion = entity.query<Locomotion>() ?: continue
 
             val input = Vector()
             if (player.currentInput.isLeft) input.x += 1.0
@@ -84,8 +85,8 @@ fun setupMountable(app: ECS) {
             val rotation = Quaternionf().rotationYXZ(player.yawRadians(), .0f, .0f)
             val direction = if (input.isZero) input else input.rotate(rotation).normalize()
 
-            val behaviour = DirectionBehaviour(player.direction, direction)
-            entity.replaceComponent<SpiderBehaviour>(behaviour)
+            locomotion.face(player.direction, Locomotion.RIDER_PRIORITY)
+            locomotion.walk(direction.multiply(options.gait.maxSpeed), Locomotion.RIDER_PRIORITY)
         }
     }
 

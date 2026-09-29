@@ -1,14 +1,13 @@
 package com.heledron.spideranimation
 
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
-import com.heledron.spideranimation.spider.configuration.BodyPlan
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.components.Cloak
+import com.heledron.spideranimation.spider.components.Locomotion
 import com.heledron.spideranimation.spider.components.Mountable
 import com.heledron.spideranimation.spider.components.PointDetector
 import com.heledron.spideranimation.spider.components.SoundsAndParticles
 import com.heledron.spideranimation.spider.components.TridentHitDetector
-import com.heledron.spideranimation.spider.presets.hexBot
 import com.heledron.spideranimation.spider.components.rendering.SpiderRenderer
 import com.heledron.spideranimation.utilities.ecs.ECS
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
@@ -26,6 +25,7 @@ object AppState {
         return ecs.spawn(
             SpiderBody.fromLocation(location),
             options,
+            Locomotion(),
             TridentHitDetector(),
             Cloak(),
             SoundsAndParticles(),
