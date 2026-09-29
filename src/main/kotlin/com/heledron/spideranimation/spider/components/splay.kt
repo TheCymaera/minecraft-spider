@@ -72,9 +72,9 @@ fun splay(spiderEntity: ECSEntity) {
 }
 
 private fun splay(entity: BlockDisplay, offset: Vector3f) {
-    val start = entity.transformation
+    val start = entity.transformation.clone()
 
-    val end = entity.transformation
+    val end = start.clone()
     end.translation.apply {
         this
         .add(offset)
@@ -93,7 +93,7 @@ private fun splay(entity: BlockDisplay, offset: Vector3f) {
     interval(0, 1) {
         t = t.moveTowards(1f, .07f)
 
-        entity.transformation = start.lerp(end, t.eased())
+        entity.transformation = start.clone().lerp(end, t.eased())
         entity.interpolationDelay = 0
 
         if (t >= 1) it.close()
