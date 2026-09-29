@@ -18,6 +18,7 @@ import com.heledron.spideranimation.utilities.events.onTick
 import com.heledron.spideranimation.utilities.namespacedID
 import com.heledron.spideranimation.utilities.raycastGround
 import com.heledron.spideranimation.utilities.Serializer
+import com.heledron.spideranimation.utilities.ecs.ECSComponent
 import com.heledron.spideranimation.utilities.overloads.direction
 import com.heledron.spideranimation.utilities.overloads.eyePosition
 import com.heledron.spideranimation.utilities.overloads.playSound
@@ -135,7 +136,7 @@ fun setupItems() {
     val comeHereComponent = CustomItemComponent("comeHere")
     customItemRegistry += { createNamedItem(Material.CARROT_ON_A_STICK, "Come Here").attach(comeHereComponent) }
 
-    class LaserPointExpire(val owner: Player) : com.heledron.spideranimation.utilities.ecs.Component {
+    class LaserPointExpire(val owner: Player) : ECSComponent {
         var expired = false
     }
 

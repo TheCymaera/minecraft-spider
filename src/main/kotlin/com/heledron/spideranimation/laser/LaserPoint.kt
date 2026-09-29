@@ -5,7 +5,7 @@ import com.heledron.spideranimation.spider.components.SpiderBehaviour
 import com.heledron.spideranimation.spider.components.TargetBehaviour
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
-import com.heledron.spideranimation.utilities.ecs.Component
+import com.heledron.spideranimation.utilities.ecs.ECSComponent
 import com.heledron.spideranimation.utilities.ecs.ECS
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
 import com.heledron.spideranimation.utilities.centredTransform
@@ -18,7 +18,7 @@ class LaserPoint(
     var world: World,
     var position: Vector,
     var isVisible: Boolean,
-) : Component
+) : ECSComponent
 
 fun setupLaserPointer(app: ECS) {
     app.onTick {

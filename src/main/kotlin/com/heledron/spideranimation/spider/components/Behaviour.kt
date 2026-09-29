@@ -4,7 +4,7 @@ import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.configuration.Gait
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.utilities.*
-import com.heledron.spideranimation.utilities.ecs.Component
+import com.heledron.spideranimation.utilities.ecs.ECSComponent
 import com.heledron.spideranimation.utilities.ecs.ECS
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
 import com.heledron.spideranimation.utilities.maths.FORWARD_VECTOR
@@ -15,7 +15,7 @@ import org.joml.Quaternionf
 import org.joml.Vector3f
 
 
-interface SpiderBehaviour : Component
+interface SpiderBehaviour : ECSComponent
 
 class StayStillBehaviour() : SpiderBehaviour
 

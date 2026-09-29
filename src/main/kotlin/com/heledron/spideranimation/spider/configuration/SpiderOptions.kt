@@ -1,11 +1,11 @@
 package com.heledron.spideranimation.spider.configuration
 
-import com.heledron.spideranimation.utilities.ecs.Component
+import com.heledron.spideranimation.utilities.ecs.ECSComponent
 import org.bukkit.Sound
 import org.bukkit.util.Vector
 import kotlin.random.Random
 
-class SpiderOptions : Component {
+class SpiderOptions : ECSComponent {
     var walkGait = Gait.defaultWalk()
     var gallopGait = Gait.defaultGallop()
 

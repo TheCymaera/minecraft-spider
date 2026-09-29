@@ -3,7 +3,7 @@ package com.heledron.spideranimation.spider.components
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.configuration.CloakOptions
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
-import com.heledron.spideranimation.utilities.ecs.Component
+import com.heledron.spideranimation.utilities.ecs.ECSComponent
 import com.heledron.spideranimation.utilities.ecs.ECS
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
 import com.heledron.spideranimation.utilities.block_colors.findBlockWithColor
@@ -27,7 +27,7 @@ class CloakDamageEvent(val entity: ECSEntity, val spider: SpiderBody, val cloak:
 
 class CloakToggleEvent(val entity: ECSEntity, val spider: SpiderBody)
 
-class Cloak : Component {
+class Cloak : ECSComponent {
     var active = false
     private var cloakColor = WeakHashMap<Any, Oklab>()
     private var cloakOverride = WeakHashMap<Any, BlockData>()

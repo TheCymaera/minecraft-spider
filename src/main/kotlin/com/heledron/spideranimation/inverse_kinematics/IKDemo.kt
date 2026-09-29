@@ -3,7 +3,7 @@ package com.heledron.spideranimation.inverse_kinematics
 import com.heledron.spideranimation.spider.presets.SpiderLegModel
 import com.heledron.spideranimation.utilities.DisplayModel
 import com.heledron.spideranimation.utilities.centredTransform
-import com.heledron.spideranimation.utilities.ecs.Component
+import com.heledron.spideranimation.utilities.ecs.ECSComponent
 import com.heledron.spideranimation.utilities.ecs.ECS
 import com.heledron.spideranimation.utilities.inverse_kinematics.*
 import com.heledron.spideranimation.utilities.maths.rotate
@@ -40,7 +40,7 @@ class IKDemo(
     val solver: IKSolver3D,
     val evaluator: IKEvaluator3D,
     val models: List<DisplayModel>,
-) : Component {
+) : ECSComponent {
     private val targetOrigin = pose.position.clone()
         .add(IKChain3D.CHAIN_AXIS.rotate(pose.orientation).multiply(0.7))
 

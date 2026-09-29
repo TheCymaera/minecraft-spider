@@ -6,7 +6,7 @@ import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.components.body.SpiderBodyHitGroundEvent
 import com.heledron.spideranimation.spider.configuration.SoundPlayer
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
-import com.heledron.spideranimation.utilities.ecs.Component
+import com.heledron.spideranimation.utilities.ecs.ECSComponent
 import com.heledron.spideranimation.utilities.ecs.ECS
 import com.heledron.spideranimation.utilities.overloads.playSound
 import org.bukkit.Particle
@@ -18,7 +18,7 @@ import java.util.*
 import kotlin.collections.set
 import kotlin.random.Random
 
-class SoundsAndParticles : Component {
+class SoundsAndParticles : ECSComponent {
     var timeSinceLastSound = 0
     var wetness = WeakHashMap<Leg, Int>()
     val maxWetness = 20 * 3

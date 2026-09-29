@@ -2,7 +2,7 @@ package com.heledron.spideranimation.spider.components
 
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
-import com.heledron.spideranimation.utilities.ecs.Component
+import com.heledron.spideranimation.utilities.ecs.ECSComponent
 import com.heledron.spideranimation.utilities.ecs.ECS
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
 import com.heledron.spideranimation.utilities.maths.UP_VECTOR
@@ -11,7 +11,7 @@ import org.bukkit.entity.Trident
 
 class TridentHitEvent(val entity: ECSEntity, val spider: SpiderBody, val trident: Trident)
 
-class TridentHitDetector : Component {
+class TridentHitDetector : ECSComponent {
     var stunned = false
 }
 

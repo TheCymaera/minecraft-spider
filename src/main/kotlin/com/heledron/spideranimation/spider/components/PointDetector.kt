@@ -3,7 +3,7 @@ package com.heledron.spideranimation.spider.components
 import com.heledron.spideranimation.spider.components.body.Leg
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
-import com.heledron.spideranimation.utilities.ecs.Component
+import com.heledron.spideranimation.utilities.ecs.ECSComponent
 import com.heledron.spideranimation.utilities.ecs.ECS
 import com.heledron.spideranimation.utilities.lookingAtPoint
 import com.heledron.spideranimation.utilities.overloads.direction
@@ -12,7 +12,7 @@ import org.bukkit.World
 import org.bukkit.entity.Player
 import org.bukkit.util.Vector
 
-class PointDetector : Component {
+class PointDetector : ECSComponent {
     var checkPlayers = setOf<Player>()
     val selectedLeg = mutableMapOf<Player, Leg>()
 }

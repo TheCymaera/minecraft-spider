@@ -4,7 +4,7 @@ import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.components.Cloak
 import com.heledron.spideranimation.spider.components.PointDetector
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
-import com.heledron.spideranimation.utilities.ecs.Component
+import com.heledron.spideranimation.utilities.ecs.ECSComponent
 import com.heledron.spideranimation.utilities.ecs.ECS
 import com.heledron.spideranimation.utilities.events.interval
 import org.bukkit.Location
@@ -12,7 +12,7 @@ import org.bukkit.Particle
 import org.bukkit.util.Vector
 import kotlin.random.Random
 
-class SpiderRenderer : Component {
+class SpiderRenderer : ECSComponent {
     var renderDebugVisuals = false
     var useParticles = false
 }

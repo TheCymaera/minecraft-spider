@@ -1,8 +1,8 @@
 package com.heledron.spideranimation.utilities.ecs
 
-interface Queryable
+interface ECSQueryable
 
-interface Component : Queryable
+interface ECSComponent : ECSQueryable
 
 /**
  * Bevy-style Entity Component System
@@ -29,7 +29,7 @@ class ECS {
         for (listener in eventListeners) listener(message)
     }
 
-    fun spawn(vararg components: Component): ECSEntity {
+    fun spawn(vararg components: ECSComponent): ECSEntity {
         val entity = ECSEntity()
         for (component in components) {
             entity.addComponent(component)
@@ -39,13 +39,13 @@ class ECS {
     }
 
     @JvmName("query1")
-    inline fun <reified T : Queryable> query(): Iterable<T> {
+    inline fun <reified T : ECSQueryable> query(): Iterable<T> {
 //        if (!inSystem) throw Error("Cannot query outside of a system")
         return entities.mapNotNull { it.query<T>()  }
     }
 
     @JvmName("query2")
-    inline fun <reified A : Queryable, reified B : Queryable> query(): Iterable<Pair<A, B>> {
+    inline fun <reified A : ECSQueryable, reified B : ECSQueryable> query(): Iterable<Pair<A, B>> {
 //        if (!inSystem) throw Error("Cannot query outside of a system")
        return entities.mapNotNull { entity ->
             val comp1 = entity.query<A>() ?: return@mapNotNull null
@@ -55,7 +55,7 @@ class ECS {
     }
 
     @JvmName("query3")
-    inline fun <reified A : Queryable, reified B : Queryable, reified C : Queryable> query(): Iterable<Triple<A, B, C>> {
+    inline fun <reified A : ECSQueryable, reified B : ECSQueryable, reified C : ECSQueryable> query(): Iterable<Triple<A, B, C>> {
 //        if (!inSystem) throw Error("Cannot query outside of a system")
        return entities.mapNotNull { entity ->
             val comp1 = entity.query<A>() ?: return@mapNotNull null
@@ -66,7 +66,7 @@ class ECS {
     }
 
     @JvmName("query4")
-    inline fun <reified A : Queryable, reified B : Queryable, reified C : Queryable, reified D : Queryable> query(): Iterable<Quadruple<A, B, C, D>> {
+    inline fun <reified A : ECSQueryable, reified B : ECSQueryable, reified C : ECSQueryable, reified D : ECSQueryable> query(): Iterable<Quadruple<A, B, C, D>> {
 //        if (!inSystem) throw Error("Cannot query outside of a system")
         return entities.mapNotNull { entity ->
             val comp1 = entity.query<A>() ?: return@mapNotNull null
@@ -78,7 +78,7 @@ class ECS {
     }
 
     @JvmName("query5")
-    inline fun <reified A : Queryable, reified B : Queryable, reified C : Queryable, reified D : Queryable, reified E : Queryable> query(): Iterable<Quintuple<A, B, C, D, E>> {
+    inline fun <reified A : ECSQueryable, reified B : ECSQueryable, reified C : ECSQueryable, reified D : ECSQueryable, reified E : ECSQueryable> query(): Iterable<Quintuple<A, B, C, D, E>> {
         return entities.mapNotNull { entity ->
             val comp1 = entity.query<A>() ?: return@mapNotNull null
             val comp2 = entity.query<B>() ?: return@mapNotNull null
@@ -105,8 +105,8 @@ class ECS {
 }
 
 
-class ECSEntity : Queryable {
-    val components = mutableListOf<Component>()
+class ECSEntity : ECSQueryable {
+    val components = mutableListOf<ECSComponent>()
 
     var scheduledForRemoval = false
 
@@ -114,21 +114,21 @@ class ECSEntity : Queryable {
         this.scheduledForRemoval = true
     }
 
-    fun addComponent(component: Component) {
+    fun addComponent(component: ECSComponent) {
         components.add(component)
     }
 
-    inline fun <reified T : Component> removeComponent() {
+    inline fun <reified T : ECSComponent> removeComponent() {
         components.removeIf { it is T }
     }
 
-    inline fun <reified Old : Component> replaceComponent(component: Old) {
+    inline fun <reified Old : ECSComponent> replaceComponent(component: Old) {
         removeComponent<Old>()
         addComponent(component)
     }
 
     @Suppress("UNCHECKED_CAST")
-    inline fun <reified T : Queryable> query(): T? {
+    inline fun <reified T : ECSQueryable> query(): T? {
         if (this is T) return this
         return components.find { it is T } as T?
     }

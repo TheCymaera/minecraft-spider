@@ -5,7 +5,7 @@ import com.heledron.spideranimation.spider.configuration.Gait
 import com.heledron.spideranimation.spider.configuration.LerpGait
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.utilities.*
-import com.heledron.spideranimation.utilities.ecs.Component
+import com.heledron.spideranimation.utilities.ecs.ECSComponent
 import com.heledron.spideranimation.utilities.ecs.ECS
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
 import com.heledron.spideranimation.utilities.isOnGround
@@ -20,7 +20,6 @@ import com.heledron.spideranimation.utilities.maths.pitch
 import com.heledron.spideranimation.utilities.maths.pitchRadians
 import com.heledron.spideranimation.utilities.maths.rotate
 import com.heledron.spideranimation.utilities.maths.yawRadians
-import com.heledron.spideranimation.utilities.overloads.sendDebugChatMessage
 import org.bukkit.Location
 import org.bukkit.World
 import org.bukkit.util.Vector
@@ -38,7 +37,7 @@ class SpiderBody(
     val world: World,
     val position: Vector,
     val orientation: Quaternionf,
-) : Component {
+) : ECSComponent {
     var onGround = false; private set
     var legs: List<Leg> = emptyList()
     var normal: NormalInfo? = null; private set
