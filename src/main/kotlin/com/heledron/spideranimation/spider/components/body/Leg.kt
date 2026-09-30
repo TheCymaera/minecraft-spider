@@ -68,28 +68,28 @@ class Leg(
     }
 
     fun updateMemo() {
-        val lerpedGait = spider.lerpedGait(options.gait)
-        val scanOrientation = options.gait.scanPivotMode.get(spider)
+        val posture = spider.posture(options.gait)
+        val scanOrientation = options.gait.scanOrientation.get(spider)
 
         val upVector = UP_VECTOR.rotate(scanOrientation)
 
         // rest position
         restPosition = legPlan.restPosition.clone()
-        restPosition.add(upVector.clone().multiply(-lerpedGait.bodyHeight))
+        restPosition.add(upVector.clone().multiply(-posture.bodyHeight))
         restPosition.rotate(scanOrientation).add(spider.position)
 
         // lookahead
-        lookAheadPosition = lookAheadPosition(restPosition, lerpedGait.triggerZoneRadius)
+        lookAheadPosition = lookAheadPosition(restPosition, posture.triggerZoneRadius)
 
         // scan (from lookahead position)
-        val scanStartAxis = upVector.clone().multiply(lerpedGait.bodyHeight * 1.6)
-        val scanAxis = upVector.clone().multiply(-lerpedGait.bodyHeight * 2.5)
+        val scanStartAxis = upVector.clone().multiply(posture.bodyHeight * 1.6)
+        val scanAxis = upVector.clone().multiply(-posture.bodyHeight * 2.5)
         scanLine = LineSegment.fromOffset(lookAheadPosition.clone().add(scanStartAxis), scanAxis)
 
         // trigger/comfort zone capsules (from rest position; same axis as scan)
         val zoneStart = restPosition.clone().add(scanStartAxis)
         val zoneEnd = zoneStart.clone().add(scanAxis)
-        triggerZone = Capsule(zoneStart, zoneEnd, lerpedGait.triggerZoneRadius)
+        triggerZone = Capsule(zoneStart, zoneEnd, posture.triggerZoneRadius)
         comfortZone = Capsule(zoneStart, zoneEnd, options.gait.comfortZoneRadius)
     }
 
@@ -293,13 +293,13 @@ class Leg(
     }
 
     private fun disabledTarget(groundPosition: Vector?): LegTarget {
-        val lerpedGait = spider.lerpedGait(options.gait)
+        val posture = spider.posture(options.gait)
         val upVector = UP_VECTOR.rotate(spider.orientation)
 
         val target = strandedTarget()
-        target.position.add(upVector.clone().multiply(lerpedGait.bodyHeight * .5))
+        target.position.add(upVector.clone().multiply(posture.bodyHeight * .5))
 
-        val minY = (groundPosition?.y ?: -Double.MAX_VALUE) + lerpedGait.bodyHeight * .1
+        val minY = (groundPosition?.y ?: -Double.MAX_VALUE) + posture.bodyHeight * .1
         target.position.y = target.position.y.coerceAtLeast(minY)
 
         return target

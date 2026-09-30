@@ -2,7 +2,7 @@ package com.heledron.spideranimation.spider.components.body
 
 import com.heledron.spideranimation.spider.configuration.BodyPlan
 import com.heledron.spideranimation.spider.configuration.Gait
-import com.heledron.spideranimation.spider.configuration.LerpGait
+import com.heledron.spideranimation.spider.configuration.Posture
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.utilities.*
 import com.heledron.spideranimation.utilities.ecs.ECSComponent
@@ -53,7 +53,7 @@ class SpiderBody(
         lastAppliedBodyPlan = null
     }
 
-    fun lerpedGait(gait: Gait): LerpGait {
+    fun posture(gait: Gait): Posture {
         if (isRotatingYaw) {
             return gait.moving.clone()
         }
@@ -108,13 +108,6 @@ class SpiderBody(
     private fun updatePreferredAngles(gait: Gait) {
         val heading = orientation.horizontal()
 
-        if (gait.disableAdvancedRotation) {
-            preferredPitch = .0f
-            preferredRoll = .0f
-            preferredOrientation = heading
-            return
-        }
-
         fun getPos(leg: Leg): Vector {
 //            if (leg.isOutsideTriggerZone) return leg.endEffector
             return leg.groundTarget?.position ?: leg.restPosition
@@ -139,9 +132,6 @@ class SpiderBody(
 
         preferredPitch = forward.pitch().lerp(preferredPitch, gait.preferredRotationLerpFraction)
         preferredRoll = sideways.pitch().lerp(preferredRoll, gait.preferredRotationLerpFraction)
-
-        if (preferredPitch < gait.preferLevelBreakpoint) preferredPitch *= 1 - gait.preferLevelBias
-        if (preferredRoll < gait.preferLevelBreakpoint) preferredRoll *= 1 - gait.preferLevelBias
 
         preferredOrientation = Quaternionf(heading).rotateX(preferredPitch).rotateZ(preferredRoll)
     }
@@ -250,13 +240,13 @@ class SpiderBody(
 
     private fun calcPreferredY(gait: Gait): Double {
         val lookAhead = position.clone().add(velocity)
-        val ground = world.raycastGround(lookAhead, DOWN_VECTOR.rotate(preferredOrientation), lerpedGait(gait).bodyHeight)
+        val ground = world.raycastGround(lookAhead, DOWN_VECTOR.rotate(preferredOrientation), posture(gait).bodyHeight)
         val groundY = ground?.hitPosition?.y ?: -Double.MAX_VALUE
 
-        val averageY = legs.map { it.target.position.y }.average() + lerpedGait(gait).bodyHeight
+        val averageY = legs.map { it.target.position.y }.average() + posture(gait).bodyHeight
 
-        val pivot = gait.legChainPivotMode.get(this)
-        val target = UP_VECTOR.rotate(pivot).multiply(gait.maxBodyDistanceFromGround)
+        val orientation = gait.bodyHeightOrientation.get(this)
+        val target = UP_VECTOR.rotate(orientation).multiply(gait.maxBodyDistanceFromGround)
         val targetY = max(averageY, groundY + target.y)
         val stabilizedY = position.y.lerp(targetY, gait.bodyHeightCorrectionFactor)
 

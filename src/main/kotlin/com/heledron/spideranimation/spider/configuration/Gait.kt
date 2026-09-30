@@ -6,25 +6,24 @@ import com.heledron.spideranimation.utilities.maths.horizontal
 import com.heledron.spideranimation.utilities.maths.lerp
 import com.heledron.spideranimation.utilities.maths.toRadians
 import org.joml.Quaternionf
-import kotlin.math.PI
 
 
-class LerpGait(
+class Posture(
     var bodyHeight: Double,
     var triggerZoneRadius: Double,
 ) {
-    fun scale(scale: Double): LerpGait {
+    fun scale(scale: Double): Posture {
         bodyHeight *= scale
         triggerZoneRadius *= scale
         return this
     }
 
-    fun clone() = LerpGait(
+    fun clone() = Posture(
         bodyHeight = bodyHeight,
         triggerZoneRadius = triggerZoneRadius,
     )
 
-    fun lerp(target: LerpGait, factor: Double): LerpGait {
+    fun lerp(target: Posture, factor: Double): Posture {
         this.bodyHeight = bodyHeight.lerp(target.bodyHeight, factor)
         this.triggerZoneRadius = triggerZoneRadius.lerp(target.triggerZoneRadius, factor)
         return this
@@ -63,12 +62,12 @@ class Gait(
         tridentRotationalKnockBack /= scale
     }
 
-    var stationary = LerpGait(
+    var stationary = Posture(
         bodyHeight = 1.1,
         triggerZoneRadius = .25,
     )
 
-    var moving = LerpGait(
+    var moving = Posture(
         bodyHeight = 1.1,
         triggerZoneRadius = .8,
     )
@@ -113,21 +112,18 @@ class Gait(
 
     var uncomfortableSpeedMultiplier = 0.0
 
-    var disableAdvancedRotation = false
     var preferredPitchLeeway = 10f.toRadians()
 
-    var scanPivotMode = PivotMode.YAxis
-    var legChainPivotMode = PivotMode.SpiderOrientation
+    var scanOrientation = OrientationMode.YAxis
+    var bodyHeightOrientation = OrientationMode.SpiderOrientation
 
-    var preferLevelBreakpoint = 45f.toRadians()
-    var preferLevelBias = .0f //.2f
     var preferredRotationLerpFraction = .3f
 
     var rotationLerp = .3f
 }
 
 
-enum class PivotMode(val get: (spider: SpiderBody) -> Quaternionf) {
+enum class OrientationMode(val get: (spider: SpiderBody) -> Quaternionf) {
     YAxis({ spider -> spider.orientation.horizontal() }),
     SpiderOrientation({ spider -> spider.orientation }),
     GroundOrientation({ spider -> spider.preferredOrientation })

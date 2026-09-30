@@ -69,19 +69,29 @@ class LineSegment(
 
     fun distance(point: Vector): Double = sqrt(distanceSquared(point))
 
+    fun closestPoint(point: Vector): Vector = point1.clone().add(vector().multiply(projectionFactor(point)))
+
     fun distanceSquared(point: Vector): Double {
         val abX = point2.x - point1.x
         val abY = point2.y - point1.y
         val abZ = point2.z - point1.z
-        val lenSq = abX * abX + abY * abY + abZ * abZ
-        val apX = point.x - point1.x
-        val apY = point.y - point1.y
-        val apZ = point.z - point1.z
-        val t = if (lenSq < 1e-12) 0.0 else ((apX * abX + apY * abY + apZ * abZ) / lenSq).coerceIn(0.0, 1.0)
+        val t = projectionFactor(point)
         val dx = point.x - (point1.x + abX * t)
         val dy = point.y - (point1.y + abY * t)
         val dz = point.z - (point1.z + abZ * t)
         return dx * dx + dy * dy + dz * dz
+    }
+
+    private fun projectionFactor(point: Vector): Double {
+        val abX = point2.x - point1.x
+        val abY = point2.y - point1.y
+        val abZ = point2.z - point1.z
+        val lenSq = abX * abX + abY * abY + abZ * abZ
+        if (lenSq < 1e-12) return 0.0
+        val apX = point.x - point1.x
+        val apY = point.y - point1.y
+        val apZ = point.z - point1.z
+        return ((apX * abX + apY * abY + apZ * abZ) / lenSq).coerceIn(0.0, 1.0)
     }
 }
 
