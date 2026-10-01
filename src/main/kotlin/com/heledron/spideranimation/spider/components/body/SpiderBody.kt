@@ -272,18 +272,7 @@ class SpiderBody(
         return position.clone().lerp(target, gait.bodyHeightCorrectionFactor)
     }
 
-    private fun calcLegacyNormal(): NormalInfo? {
-        val pairs = LegLookUp.diagonalPairs(legs.indices.toList())
-        if (pairs.any { pair -> pair.mapNotNull { legs.getOrNull(it) }.all { it.isGrounded() } }) {
-            return NormalInfo(normal = Vector(0, 1, 0))
-        }
-
-        return null
-    }
-
     private fun calcNormal(gait: Gait): NormalInfo? {
-        if (gait.useLegacyNormalForce) return calcLegacyNormal()
-
         val centreOfMass = legs.map { it.endEffector }.average()
         centreOfMass.lerp(position, 0.5)
         centreOfMass.y += 0.01

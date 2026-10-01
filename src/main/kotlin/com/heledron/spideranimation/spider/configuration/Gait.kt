@@ -103,8 +103,6 @@ class Gait(
     var samePairCooldown = 1
     var crossPairCooldown = 1
 
-    var useLegacyNormalForce = false
-
     var gripStrength = 0.0
 
     var uncomfortableSpeedMultiplier = 0.0
