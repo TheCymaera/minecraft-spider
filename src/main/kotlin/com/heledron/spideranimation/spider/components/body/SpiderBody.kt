@@ -191,8 +191,10 @@ class SpiderBody(
 
         normalAcceleration = Vector(0.0, 0.0, 0.0)
         if (normal != null) {
-            val preferredY = calcPreferredY(gait)
-            val preferredYAcceleration = (preferredY - position.y - velocity.y).coerceAtLeast(0.0)
+            val preferredPosition = calcPreferredPosition(gait)
+
+            // normal: push towards the preferred height
+            val preferredYAcceleration = (preferredPosition.y - position.y - velocity.y).coerceAtLeast(0.0)
             val capableAcceleration = gait.bodyHeightCorrectionAcceleration * fractionOfLegsGrounded
             val accelerationMagnitude = min(preferredYAcceleration, capableAcceleration)
 
@@ -203,6 +205,23 @@ class SpiderBody(
             if (normalAcceleration.horizontalLength() > normalAcceleration.y) normalAcceleration.multiply(0.0)
 
             velocity.add(normalAcceleration)
+
+            // grip: pull towards the preferred position
+            val n = normal.normal.clone().normalize()
+
+            val offset = preferredPosition.clone().subtract(position)
+            val gripCorrection = offset.subtract(velocity)
+
+            // the component along the surface normal is already handled by the normal force
+            gripCorrection.subtract(n.clone().multiply(gripCorrection.dot(n)))
+
+            val gripLimit = gait.gripStrength * fractionOfLegsGrounded
+            if (gripCorrection.lengthSquared() > gripLimit * gripLimit) {
+                gripCorrection.normalize().multiply(gripLimit)
+            }
+
+            normalAcceleration.add(gripCorrection)
+            velocity.add(gripCorrection)
         }
 
         // apply velocity
@@ -238,34 +257,19 @@ class SpiderBody(
     }
 
 
-    private fun calcPreferredY(gait: Gait): Double {
+    private fun calcPreferredPosition(gait: Gait): Vector {
+        val up = UP_VECTOR.rotate(preferredOrientation)
+        val down = up.clone().multiply(-1.0)
+
         val lookAhead = position.clone().add(velocity)
-        val ground = world.raycastGround(lookAhead, DOWN_VECTOR.rotate(preferredOrientation), posture(gait).bodyHeight)
-        val groundY = ground?.hitPosition?.y ?: -Double.MAX_VALUE
+        val ground = world.raycastGround(lookAhead, down, posture(gait).bodyHeight)
 
-        val averageY = legs.map { it.target.position.y }.average() + posture(gait).bodyHeight
+        val groundPosition = ground?.hitPosition
+            ?: legs.map { it.target.position }.average()
 
-        val orientation = gait.bodyHeightOrientation.get(this)
-        val target = UP_VECTOR.rotate(orientation).multiply(gait.maxBodyDistanceFromGround)
-        val targetY = max(averageY, groundY + target.y)
-        val stabilizedY = position.y.lerp(targetY, gait.bodyHeightCorrectionFactor)
+        val target = groundPosition.add(up.multiply(posture(gait).bodyHeight))
 
-        return stabilizedY
-    }
-
-    private fun applyStabilization(normal: NormalInfo, gait: Gait) {
-        if (normal.origin == null) return
-        if (normal.centreOfMass == null) return
-
-        if (normal.origin.horizontalDistance(normal.centreOfMass) < gait.polygonLeeway) {
-            normal.origin.x = normal.centreOfMass.x
-            normal.origin.z = normal.centreOfMass.z
-        }
-
-        val stabilizationTarget = normal.origin.clone().setY(normal.centreOfMass.y)
-        normal.centreOfMass.lerp(stabilizationTarget, gait.stabilizationFactor)
-
-        normal.normal.copy(normal.centreOfMass).subtract(normal.origin).normalize()
+        return position.clone().lerp(target, gait.bodyHeightCorrectionFactor)
     }
 
     private fun calcLegacyNormal(): NormalInfo? {
@@ -298,7 +302,7 @@ class SpiderBody(
                 origin = origin,
                 centreOfMass = centreOfMass,
                 contactPolygon = legsPolygon
-            ).apply { applyStabilization(this, gait) }
+            )
         }
 
         val polygon2D = legsPolygon.map { Vector2d(it.x, it.z) }
@@ -319,7 +323,7 @@ class SpiderBody(
             origin = origin,
             centreOfMass = centreOfMass,
             contactPolygon = legsPolygon
-        ).apply { applyStabilization(this, gait)}
+        )
     }
 }
 
