@@ -81,8 +81,6 @@ class SpiderBody(
     fun forwardDirection() = FORWARD_VECTOR.rotate(orientation)
 
     // memo
-    var preferredPitch = orientation.getEulerAnglesYXZ(Vector3f()).x
-    var preferredRoll = orientation.getEulerAnglesYXZ(Vector3f()).z
     var preferredOrientation = Quaternionf(orientation)
 
     val velocity = Vector(0.0, 0.0, 0.0)
@@ -105,6 +103,10 @@ class SpiderBody(
         for (leg in body.legs) leg.endEffector.add(diff)
     }
 
+    // for lerping
+    private var preferredPitch = orientation.getEulerAnglesYXZ(Vector3f()).x
+    private var preferredRoll = orientation.getEulerAnglesYXZ(Vector3f()).z
+    
     private fun updatePreferredAngles(gait: Gait) {
         val heading = orientation.horizontal()
 

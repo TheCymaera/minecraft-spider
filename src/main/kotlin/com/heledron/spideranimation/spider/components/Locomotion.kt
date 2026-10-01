@@ -6,6 +6,7 @@ import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.utilities.ecs.ECS
 import com.heledron.spideranimation.utilities.ecs.ECSComponent
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
+import com.heledron.spideranimation.utilities.getYXZRelative
 import com.heledron.spideranimation.utilities.maths.FORWARD_VECTOR
 import com.heledron.spideranimation.utilities.maths.moveTowards
 import org.bukkit.util.Vector
@@ -75,22 +76,21 @@ fun setupLocomotion(app: ECS) {
 
 
 private fun SpiderBody.rotateTowards(targetVector: Vector, gait: Gait) {
-    val currentEuler = orientation.getEulerAnglesYXZ(Vector3f())
+    val facing = Quaternionf().rotationTo(FORWARD_VECTOR.toVector3f(), targetVector.toVector3f())
 
-    val targetEuler = Quaternionf()
-        .rotationTo(FORWARD_VECTOR.toVector3f(), targetVector.toVector3f())
-        .getEulerAnglesYXZ(Vector3f())
+    val relativeEuler = facing.getYXZRelative(preferredOrientation)
 
     // clamp pitch
-    targetEuler.x = targetEuler.x.coerceIn(preferredPitch - gait.preferredPitchLeeway, preferredPitch + gait.preferredPitchLeeway)
+    relativeEuler.x = relativeEuler.x.coerceIn(-gait.preferredPitchLeeway, gait.preferredPitchLeeway)
 
     // clamp roll
-    targetEuler.z = preferredRoll
+    relativeEuler.z = 0f
 
     // clamp yaw if uncomfortable
-    if (legs.any { it.isUncomfortable && !it.isMoving }) targetEuler.y = currentEuler.y
+    if (legs.any { it.isUncomfortable && !it.isMoving }) relativeEuler.y = 0f
 
-    val targetOrientation = Quaternionf().rotationYXZ(targetEuler.y, targetEuler.x, targetEuler.z)
+    val targetOrientation = Quaternionf(preferredOrientation)
+        .mul(Quaternionf().rotationYXZ(relativeEuler.y, relativeEuler.x, relativeEuler.z))
 
     // smooth target
     val easedTarget = Quaternionf(orientation).slerp(targetOrientation, 1f - gait.rotationLerp)
