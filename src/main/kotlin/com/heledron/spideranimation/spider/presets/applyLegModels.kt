@@ -38,7 +38,7 @@ fun applyLineLegModel(bodyPlan: BodyPlan, block: BlockData) {
     }
 }
 
-fun applyMechanicalLegModel(bodyPlan: BodyPlan) {
+fun applyBotLegModel(bodyPlan: BodyPlan) {
     for (leg in bodyPlan.legs) {
         val visibleSegments = leg.segments.filter { it.length > 0.0 }
 

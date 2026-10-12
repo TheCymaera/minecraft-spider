@@ -28,8 +28,11 @@ class LegPlan(
     var attachmentPosition: Vector,
     var restPosition: Vector,
     var segments: List<SegmentPlan>,
-    val restOrientation: Quaternionf = restOrientationFor(attachmentPosition, restPosition),
-)
+    orientation: Quaternionf,
+    //val restOrientation: Quaternionf = restOrientationFor(attachmentPosition, restPosition),
+) {
+	val restOrientation: Quaternionf = restOrientationFor(attachmentPosition, restPosition).mul(orientation)
+}
 
 class BodyPlan {
     var scale = 1.0
