@@ -16,7 +16,7 @@ import org.bukkit.util.Vector
 import org.joml.Quaternionf
 import kotlin.math.PI
 
-private const val ROOT_MAX_SWING = 0.2 * PI
+private const val ROOT_MAX_SWING = 0.3 * PI
 private const val ROOT_TWIST = 0.075 * PI
 private const val KNEE_LEEWAY = 0.65 * PI
 

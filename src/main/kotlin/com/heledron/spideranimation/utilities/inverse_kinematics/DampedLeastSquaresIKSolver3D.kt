@@ -1,6 +1,6 @@
 package com.heledron.spideranimation.utilities.inverse_kinematics
 
-enum class JointParameter { Angle, Azimuth, Swing, Twist }
+enum class JointParameter { Angle, SwingX, SwingY, Twist }
 
 class JointParameterDescriptor(
     val jointIndex: Int,
@@ -33,6 +33,9 @@ private fun solve(
         override fun perturbParameter(state: IKChainPose3D, parameter: JointParameterDescriptor, delta: Double) =
             perturbParameter(chain, state, parameter, delta)
 
+        override fun clampDelta(state: IKChainPose3D, parameter: JointParameterDescriptor, delta: Double) =
+            clampDelta(chain, state, parameter, delta)
+
         override fun applyStep(
             state: IKChainPose3D,
             parameters: List<JointParameterDescriptor>,
@@ -54,8 +57,8 @@ private fun createParameterDescriptors(jointStates: List<IKJointPose3D>): List<J
             }
 
             is IKSwingTwistJointState3D -> {
-                descriptors += JointParameterDescriptor(index, JointParameter.Azimuth)
-                descriptors += JointParameterDescriptor(index, JointParameter.Swing)
+                descriptors += JointParameterDescriptor(index, JointParameter.SwingX)
+                descriptors += JointParameterDescriptor(index, JointParameter.SwingY)
                 descriptors += JointParameterDescriptor(index, JointParameter.Twist)
             }
         }
@@ -64,8 +67,18 @@ private fun createParameterDescriptors(jointStates: List<IKJointPose3D>): List<J
     return descriptors
 }
 
-/** Returns the delta actually applied, which may be less than requested after clamping. */
 private fun perturbParameter(
+    chain: IKChain3D,
+    pose: IKChainPose3D,
+    descriptor: JointParameterDescriptor,
+    delta: Double,
+): Double {
+    val appliedDelta = clampDelta(chain, pose, descriptor, delta)
+    applyDelta(chain, pose, descriptor, appliedDelta)
+    return appliedDelta
+}
+
+private fun clampDelta(
     chain: IKChain3D,
     pose: IKChainPose3D,
     descriptor: JointParameterDescriptor,
@@ -75,35 +88,53 @@ private fun perturbParameter(
     val jointPose = pose.segments[descriptor.jointIndex]
 
     if (joint is IKHingeJoint3D && jointPose is IKHingeJointState3D) {
-        val nextAngle = (jointPose.angle + delta).coerceIn(joint.minAngle, joint.maxAngle)
-        val appliedDelta = nextAngle - jointPose.angle
-        jointPose.angle = nextAngle
-        return appliedDelta
+        return (jointPose.angle + delta).coerceIn(joint.minAngle, joint.maxAngle) - jointPose.angle
+    }
+
+    if (joint is IKSwingTwistJoint3D && jointPose is IKSwingTwistJointState3D) {
+        return when (descriptor.parameter) {
+            // The swing is limited to a cone, so each component's range depends on the other.
+            JointParameter.SwingX -> {
+                val limit = swingComponentLimit(jointPose.swingY, joint.maxSwing)
+                (jointPose.swingX + delta).coerceIn(-limit, limit) - jointPose.swingX
+            }
+
+            JointParameter.SwingY -> {
+                val limit = swingComponentLimit(jointPose.swingX, joint.maxSwing)
+                (jointPose.swingY + delta).coerceIn(-limit, limit) - jointPose.swingY
+            }
+
+            JointParameter.Twist -> (jointPose.twist + delta).coerceIn(joint.minTwist, joint.maxTwist) - jointPose.twist
+
+            JointParameter.Angle -> 0.0
+        }
+    }
+
+    throw IllegalStateException("IKSolver requires matching topology.")
+}
+
+private fun applyDelta(
+    chain: IKChain3D,
+    pose: IKChainPose3D,
+    descriptor: JointParameterDescriptor,
+    delta: Double,
+) {
+    val joint = chain.segments[descriptor.jointIndex].joint
+    val jointPose = pose.segments[descriptor.jointIndex]
+
+    if (joint is IKHingeJoint3D && jointPose is IKHingeJointState3D) {
+        jointPose.angle += delta
+        return
     }
 
     if (joint is IKSwingTwistJoint3D && jointPose is IKSwingTwistJointState3D) {
         when (descriptor.parameter) {
-            JointParameter.Azimuth -> {
-                jointPose.azimuth = wrapRadians(jointPose.azimuth + delta)
-                return delta
-            }
-
-            JointParameter.Swing -> {
-                val nextSwing = (jointPose.swing + delta).coerceIn(0.0, joint.maxSwing)
-                val appliedDelta = nextSwing - jointPose.swing
-                jointPose.swing = nextSwing
-                return appliedDelta
-            }
-
-            JointParameter.Twist -> {
-                val nextTwist = (jointPose.twist + delta).coerceIn(joint.minTwist, joint.maxTwist)
-                val appliedDelta = nextTwist - jointPose.twist
-                jointPose.twist = nextTwist
-                return appliedDelta
-            }
-
+            JointParameter.SwingX -> jointPose.swingX += delta
+            JointParameter.SwingY -> jointPose.swingY += delta
+            JointParameter.Twist -> jointPose.twist += delta
             JointParameter.Angle -> Unit
         }
+        return
     }
 
     throw IllegalStateException("IKSolver requires matching topology.")
@@ -117,23 +148,6 @@ private fun applyStep(
     scale: Double,
 ) {
     for (index in descriptors.indices) {
-        val descriptor = descriptors[index]
-        val joint = chain.segments[descriptor.jointIndex].joint
-        val jointPose = pose.segments[descriptor.jointIndex]
-        val delta = step[index] * scale
-
-        if (joint is IKHingeJoint3D && jointPose is IKHingeJointState3D) {
-            jointPose.angle = (jointPose.angle + delta).coerceIn(joint.minAngle, joint.maxAngle)
-            continue
-        }
-
-        if (joint is IKSwingTwistJoint3D && jointPose is IKSwingTwistJointState3D) {
-            when (descriptor.parameter) {
-                JointParameter.Azimuth -> jointPose.azimuth = wrapRadians(jointPose.azimuth + delta)
-                JointParameter.Swing -> jointPose.swing = (jointPose.swing + delta).coerceIn(0.0, joint.maxSwing)
-                JointParameter.Twist -> jointPose.twist = (jointPose.twist + delta).coerceIn(joint.minTwist, joint.maxTwist)
-                JointParameter.Angle -> Unit
-            }
-        }
+        applyDelta(chain, pose, descriptors[index], clampDelta(chain, pose, descriptors[index], step[index] * scale))
     }
 }

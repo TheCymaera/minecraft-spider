@@ -12,12 +12,12 @@ interface DampedLeastSquaresMetrics {
 
 class DampedLeastSquaresOptions(
     val iterations: Int = 24,
-    val damping: Double = 0.2,
+    val damping: Double = 0.1,
     val minDamping: Double = 0.02,
     val maxDamping: Double = 8.0,
     val dampingScale: Double = 2.5,
     val finiteDifference: Double = 0.3,
-    val maxStep: Double = 0.35,
+    val maxStep: Double = 1.0,
     val minStepScale: Double = 1.0 / 64,
 )
 
@@ -29,6 +29,9 @@ interface LeastSquaresProblem<State, Parameter, Metrics : DampedLeastSquaresMetr
 
     /** Applies `delta` to `parameter`, returning the delta actually applied after clamping. */
     fun perturbParameter(state: State, parameter: Parameter, delta: Double): Double
+
+    /** Returns the delta that perturbParameter would apply, i.e. `delta` clipped to the parameter's range. */
+    fun clampDelta(state: State, parameter: Parameter, delta: Double): Double
 
     fun applyStep(state: State, parameters: List<Parameter>, step: DoubleArray, scale: Double)
 }
@@ -50,7 +53,7 @@ fun <State, Parameter, Metrics : DampedLeastSquaresMetrics> solveDampedLeastSqua
         if (parameters.isEmpty()) break
 
         val jacobian = computeJacobian(problem, state, currentMetrics, parameters, options.finiteDifference)
-        val step = solveDampedLeastSquaresStep(jacobian, currentMetrics.errorVector, damping)
+        val step = solveDampedLeastSquaresStep(problem, state, parameters, jacobian, currentMetrics.errorVector, damping)
         if (step == null) {
             damping = minOf(options.maxDamping, damping * options.dampingScale)
             continue
@@ -141,34 +144,82 @@ private fun <State, Parameter, Metrics : DampedLeastSquaresMetrics> computeJacob
 }
 
 /** Solves `(JᵀJ + λ²I) · step = -Jᵀ · error`, returning null if the system is singular. */
-private fun solveDampedLeastSquaresStep(
+private fun <State, Parameter, Metrics : DampedLeastSquaresMetrics> solveDampedLeastSquaresStep(
+    problem: LeastSquaresProblem<State, Parameter, Metrics>,
+    state: State,
+    parameters: List<Parameter>,
     jacobian: Array<DoubleArray>,
     errorVector: DoubleArray,
     damping: Double,
 ): DoubleArray? {
-    val columnCount = jacobian.firstOrNull()?.size ?: 0
+    val columnCount = parameters.size
     if (columnCount == 0) return null
 
-    val normalMatrix = Array(columnCount) { DoubleArray(columnCount) }
-    val rhs = DoubleArray(columnCount)
+    val active = BooleanArray(columnCount) { true }
+
+    while (true) {
+        val step = solveRestrictedStep(jacobian, errorVector, damping, active) ?: return null
+
+        var pinned = false
+
+        for (index in 0 until columnCount) {
+            if (!active[index]) continue
+
+            val delta = step[index]
+            if (abs(delta) <= EPSILON) continue
+
+            val applied = problem.clampDelta(state, parameters[index], delta)
+            step[index] = applied
+
+            if (abs(applied) <= EPSILON) {
+                active[index] = false
+                pinned = true
+            }
+        }
+
+        if (!pinned) return step
+        if (active.none { it }) return null
+    }
+}
+
+private fun solveRestrictedStep(
+    jacobian: Array<DoubleArray>,
+    errorVector: DoubleArray,
+    damping: Double,
+    active: BooleanArray,
+): DoubleArray? {
+    val columns = active.indices.filter { active[it] }
+    if (columns.isEmpty()) return null
+
+    val size = columns.size
+    val normalMatrix = Array(size) { DoubleArray(size) }
+    val rhs = DoubleArray(size)
     val dampingSquared = damping * damping
 
     for (row in jacobian.indices) {
-        for (column in 0 until columnCount) {
-            val left = jacobian[row][column]
+        for (column in 0 until size) {
+            val left = jacobian[row][columns[column]]
             rhs[column] -= left * errorVector[row]
 
-            for (innerColumn in 0 until columnCount) {
-                normalMatrix[column][innerColumn] += left * jacobian[row][innerColumn]
+            for (innerColumn in 0 until size) {
+                normalMatrix[column][innerColumn] += left * jacobian[row][columns[innerColumn]]
             }
         }
     }
 
-    for (index in 0 until columnCount) {
+    for (index in 0 until size) {
         normalMatrix[index][index] += dampingSquared
     }
 
-    return solveLinearSystem(normalMatrix, rhs)
+    val solution = solveLinearSystem(normalMatrix, rhs) ?: return null
+
+    val step = DoubleArray(active.size)
+    for (index in 0 until size) {
+        if (!solution[index].isFinite()) return null
+        step[columns[index]] = solution[index]
+    }
+
+    return step
 }
 
 /** Gauss-Jordan elimination with partial pivoting. */

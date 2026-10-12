@@ -11,8 +11,9 @@ import kotlin.math.PI
 import kotlin.math.acos
 import kotlin.math.asin
 import kotlin.math.atan2
-import kotlin.math.cos
-import kotlin.math.sin
+import kotlin.math.hypot
+import kotlin.math.max
+import kotlin.math.sqrt
 
 sealed interface IKJoint3D {
     fun rotation(state: IKJointPose3D): Quaternionf
@@ -26,7 +27,7 @@ sealed interface IKJointPose3D {
 
 private const val REST_BIAS = 0.035
 
-private const val REST_AZIMUTH = PI / 2
+private const val SWING_EPSILON = 1e-9
 
 fun IKJoint3D.restState(): IKJointPose3D = when (this) {
     is IKHingeJoint3D -> IKHingeJointState3D(
@@ -39,7 +40,7 @@ fun IKJoint3D.restState(): IKJointPose3D = when (this) {
         }.coerceIn(minAngle, maxAngle),
     )
 
-    is IKSwingTwistJoint3D -> IKSwingTwistJointState3D(azimuth = REST_AZIMUTH)
+    is IKSwingTwistJoint3D -> IKSwingTwistJointState3D()
 }
 
 class IKSwingTwistJoint3D(
@@ -49,6 +50,7 @@ class IKSwingTwistJoint3D(
     val referenceAxis: Vector,
 ) : IKJoint3D {
     init {
+        require(maxSwing >= 0.0) { "IKSwingTwistJoint3D.maxSwing cannot be negative." }
         require(minTwist <= maxTwist) { "IKSwingTwistJoint3D.minTwist cannot be greater than maxTwist." }
         require(referenceAxis.lengthSquared() > 0.0) { "IKSwingTwistJoint3D.referenceAxis must be non-zero." }
     }
@@ -57,8 +59,7 @@ class IKSwingTwistJoint3D(
         val pose = state as? IKSwingTwistJointState3D
             ?: throw IllegalArgumentException("IKSwingTwistJoint3D requires a matching IKSwingTwistJointState3D.")
 
-        val direction = directionFromSpherical(pose.azimuth, pose.swing)
-        val swingRotation = quaternionFromTo(IKChain3D.CHAIN_AXIS, direction, referenceAxis)
+        val swingRotation = swingRotation(pose.swingX, pose.swingY)
         val twistRotation = Quaternionf().fromAxisAngleRad(IKChain3D.CHAIN_AXIS.toVector3f(), pose.twist.toFloat())
         return swingRotation.mul(twistRotation).normalize()
     }
@@ -84,25 +85,25 @@ class IKHingeJoint3D(
 }
 
 class IKSwingTwistJointState3D(
-    var azimuth: Double = 0.0,
-    var swing: Double = 0.0,
+    var swingX: Double = 0.0,
+    var swingY: Double = 0.0,
     var twist: Double = 0.0,
 ) : IKJointPose3D {
-    override fun clone() = IKSwingTwistJointState3D(azimuth, swing, twist)
+    override fun clone() = IKSwingTwistJointState3D(swingX, swingY, twist)
 
     override fun copy(other: IKJointPose3D) {
         val source = other as? IKSwingTwistJointState3D
             ?: throw IllegalArgumentException("IKSwingTwistJointState3D.copy requires a matching state.")
-        azimuth = source.azimuth
-        swing = source.swing
+        swingX = source.swingX
+        swingY = source.swingY
         twist = source.twist
     }
 
     override fun lerpState(other: IKJointPose3D, t: Double) {
         val target = other as? IKSwingTwistJointState3D
             ?: throw IllegalArgumentException("IKSwingTwistJointState3D.lerpState requires a matching state.")
-        azimuth = wrapRadians(azimuth + shortestAngleDelta(azimuth, target.azimuth) * t)
-        swing += (target.swing - swing) * t
+        swingX += (target.swingX - swingX) * t
+        swingY += (target.swingY - swingY) * t
         twist += (target.twist - twist) * t
     }
 }
@@ -209,14 +210,14 @@ class IKChainPose3D(
     }
 }
 
-private fun directionFromSpherical(azimuth: Double, swing: Double): Vector {
-    val sinSwing = sin(swing)
-    return Vector(
-        cos(azimuth) * sinSwing,
-        sin(azimuth) * sinSwing,
-        cos(swing),
-    ).normalize()
+internal fun swingRotation(x: Double, y: Double): Quaternionf {
+    val angle = hypot(x, y)
+    if (angle <= SWING_EPSILON) return Quaternionf()
+    return Quaternionf().rotationAxis(angle.toFloat(), (x / angle).toFloat(), (y / angle).toFloat(), 0f)
 }
+
+internal fun swingComponentLimit(other: Double, maxSwing: Double): Double =
+    sqrt(max(maxSwing * maxSwing - other * other, 0.0))
 
 internal fun quaternionFromTo(from: Vector, to: Vector, referenceAxis: Vector): Quaternionf {
     val a = from.toVector3f().normalize()
@@ -236,13 +237,6 @@ internal fun quaternionFromTo(from: Vector, to: Vector, referenceAxis: Vector): 
 
     val axis = Vector3f(a).cross(b)
     return Quaternionf().fromAxisAngleRad(axis.normalize(), acos(dot))
-}
-
-internal fun wrapRadians(angle: Double): Double {
-    var wrapped = angle
-    while (wrapped > PI) wrapped -= PI * 2
-    while (wrapped <= -PI) wrapped += PI * 2
-    return wrapped
 }
 
 private fun shortestAngleDelta(from: Double, to: Double): Double {
