@@ -14,8 +14,6 @@ import com.heledron.spideranimation.utilities.maths.UP_VECTOR
 import com.heledron.spideranimation.utilities.rendering.RenderGroup
 import com.heledron.spideranimation.utilities.rendering.renderLine
 import org.bukkit.Material
-import org.bukkit.World
-import org.bukkit.entity.BlockDisplay
 import org.bukkit.entity.Display
 import org.bukkit.util.Vector
 import org.joml.Matrix4f
@@ -30,11 +28,10 @@ fun spiderDebugRenderEntities(spider: SpiderBody, pointDetector: PointDetector, 
 
     for ((legIndex, leg) in spider.legs.withIndex()) {
 		// Render IK guides
-        if (options.debug.ikGuides) group.renderIKGuides(
+        if (options.debug.ikGuides) group["legIKGuides" to legIndex] = renderIKGuides(
             world = spider.world,
             chain = leg.ik.chain,
             pose = leg.ik.pose,
-            handlePrefix = "legIKGuides" to legIndex,
         )
     }
 
@@ -160,9 +157,9 @@ fun spiderDebugRenderEntities(spider: SpiderBody, pointDetector: PointDetector, 
     }
 
 
-    val normal = spider.normal ?: return group
-    if (options.debug.legPolygons && normal.contactPolygon != null) {
-        val points = normal.contactPolygon//.map { it.toLocation(spider.world)}
+    val stance = spider.contact ?: return group
+    if (options.debug.legPolygons && stance.contactPolygon != null) {
+        val points = stance.contactPolygon//.map { it.toLocation(spider.world)}
         for (i in points.indices) {
             val a = points[i]
             val b = points[(i + 1) % points.size]
@@ -178,9 +175,9 @@ fun spiderDebugRenderEntities(spider: SpiderBody, pointDetector: PointDetector, 
         }
     }
 
-    if (options.debug.centreOfMass && normal.centreOfMass != null) group["centreOfMass"] = renderBlock(
+    if (options.debug.centreOfMass && stance.centreOfMass != null) group["centreOfMass"] = renderBlock(
         world = spider.world,
-        position = normal.centreOfMass,
+        position = stance.centreOfMass,
         init = {
             it.teleportDuration = 1
             it.brightness = Display.Brightness(15, 15)
@@ -189,20 +186,20 @@ fun spiderDebugRenderEntities(spider: SpiderBody, pointDetector: PointDetector, 
             it.transformation = centredTransform(size, size, size)
         },
         update = {
-            val material = if (normal.normal.horizontalLength() == .0) Material.LAPIS_BLOCK else Material.REDSTONE_BLOCK
+            val material = if (stance.supportAxis.horizontalLength() == .0) Material.LAPIS_BLOCK else Material.REDSTONE_BLOCK
             it.block = material.createBlockData()
         }
     )
 
 
-    if (options.debug.normalForce && normal.centreOfMass != null && normal.origin !== null) group["acceleration"] = renderLine(
+    if (options.debug.normalForce && stance.centreOfMass != null && stance.centerOfPressure !== null) group["acceleration"] = renderLine(
         world = spider.world,
-        line = LineSegment(normal.origin, normal.centreOfMass),
+        line = LineSegment(stance.centerOfPressure, stance.centreOfMass),
         thickness = .02f * scale,
         interpolation = 1,
         init = { it.brightness = Display.Brightness(15, 15) },
         update = {
-            val material = if (spider.normalAcceleration.isZero) Material.BLACK_CONCRETE else Material.WHITE_CONCRETE
+            val material = if (spider.contactAcceleration.isZero) Material.BLACK_CONCRETE else Material.WHITE_CONCRETE
             it.block = material.createBlockData()
         }
     )

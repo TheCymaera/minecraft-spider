@@ -103,14 +103,16 @@ class Gait(
     var samePairCooldown = 1
     var crossPairCooldown = 1
 
-    var gripStrength = 0.0
+    var gripAcceleration = gravityAcceleration * 4
+    var grip = false
+
+    var topplingAcceleration = gravityAcceleration / 4
 
     var uncomfortableSpeedMultiplier = 0.0
 
     var preferredPitchLeeway = 10f.toRadians()
 
     var scanOrientation = OrientationMode.YAxis
-    var bodyHeightOrientation = OrientationMode.SpiderOrientation
 
     var preferredRotationLerpFraction = .3f
 

@@ -11,8 +11,13 @@ import com.heledron.spideranimation.spider.components.TridentHitDetector
 import com.heledron.spideranimation.spider.components.rendering.SpiderRenderer
 import com.heledron.spideranimation.utilities.ecs.ECS
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
+import com.heledron.spideranimation.utilities.maths.UP_VECTOR
+import com.heledron.spideranimation.utilities.maths.rotate
 import org.bukkit.Location
+import org.bukkit.World
 import org.bukkit.entity.Player
+import org.bukkit.util.Vector
+import org.joml.Quaternionf
 
 object AppState {
     var miscOptions = MiscellaneousOptions()
@@ -20,10 +25,16 @@ object AppState {
 
     val ecs = ECS()
 
-    fun createSpider(location: Location, options: SpiderOptions): ECSEntity {
-        location.y += options.walkGait.stationary.bodyHeight
+    fun createSpider(
+        world: World,
+        position: Vector,
+        options: SpiderOptions,
+        orientation: Quaternionf = Quaternionf(),
+    ): ECSEntity {
+        val up = UP_VECTOR.clone().rotate(orientation)
+        position.add(up.multiply(options.walkGait.stationary.bodyHeight))
         return ecs.spawn(
-            SpiderBody.fromLocation(location),
+            SpiderBody.create(world, position, orientation),
             options,
             Locomotion(),
             TridentHitDetector(),

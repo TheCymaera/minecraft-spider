@@ -8,7 +8,9 @@ import com.heledron.spideranimation.utilities.ecs.ECSComponent
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
 import com.heledron.spideranimation.utilities.getYXZRelative
 import com.heledron.spideranimation.utilities.maths.FORWARD_VECTOR
+import com.heledron.spideranimation.utilities.maths.UP_VECTOR
 import com.heledron.spideranimation.utilities.maths.moveTowards
+import com.heledron.spideranimation.utilities.maths.rotate
 import org.bukkit.util.Vector
 import org.joml.AxisAngle4f
 import org.joml.Quaternionf
@@ -67,7 +69,7 @@ fun setupLocomotion(app: ECS) {
 
             spider.walkAt(targetVelocity, tridentDetector, options.gait)
 
-            spider.rotateTowards(locomotion.faceDirection ?: spider.forwardDirection().setY(0.0), options.gait)
+            spider.rotateTowards(locomotion.faceDirection ?: FORWARD_VECTOR.rotate(spider.preferredOrientation), options.gait)
 
             locomotion.clear()
         }
@@ -112,15 +114,24 @@ private fun SpiderBody.rotateTowards(targetVector: Vector, gait: Gait) {
 
 private fun SpiderBody.walkAt(targetVelocity: Vector, tridentDetector: TridentHitDetector?, gait: Gait) {
     val acceleration = gait.moveAcceleration// * body.legs.filter { it.isGrounded() }.size / body.legs.size
-    val target = targetVelocity.clone()
 
-    if (legs.any { it.isUncomfortable && !it.isMoving }) { //  && !it.targetOutsideComfortZone
-        val scaled = target.setY(velocity.y).multiply(gait.uncomfortableSpeedMultiplier)
-        velocity.moveTowards(scaled, acceleration)
-        isWalking = targetVelocity.x != 0.0 && targetVelocity.z != 0.0
+    // preserve up motion, steer only within the perpendicular plane
+    val up = UP_VECTOR.rotate(preferredOrientation)
+    val target = targetVelocity.clone()
+        .subtract(up.clone().multiply(targetVelocity.dot(up)))
+        .add(up.clone().multiply(velocity.dot(up)))
+
+    val isUncomfortable = legs.any { it.isUncomfortable && !it.isMoving } //  && !it.targetOutsideComfortZone
+    if (isUncomfortable) {
+        velocity.moveTowards(target.clone().multiply(gait.uncomfortableSpeedMultiplier), acceleration)
+
+        val intent = targetVelocity.clone().subtract(up.clone().multiply(targetVelocity.dot(up)))
+        isWalking = intent.lengthSquared() > 1e-8
     } else {
-        velocity.moveTowards(target.setY(velocity.y), acceleration)
-        isWalking = velocity.x != 0.0 && velocity.z != 0.0
+        velocity.moveTowards(target, acceleration)
+
+        val motion = velocity.clone().subtract(up.clone().multiply(velocity.dot(up)))
+        isWalking = motion.lengthSquared() > 1e-8
     }
 
     if (tridentDetector != null && tridentDetector.stunned && targetVelocity.isZero) isWalking = false

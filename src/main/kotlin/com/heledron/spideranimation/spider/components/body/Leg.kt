@@ -5,7 +5,6 @@ import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.utilities.*
 import com.heledron.spideranimation.utilities.ecs.ECS
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
-import com.heledron.spideranimation.utilities.isOnGround
 import com.heledron.spideranimation.utilities.raycastGround
 import com.heledron.spideranimation.utilities.resolveCollision
 import com.heledron.spideranimation.utilities.maths.DOWN_VECTOR
@@ -71,17 +70,17 @@ class Leg(
         val posture = spider.posture(options.gait)
         val scanOrientation = options.gait.scanOrientation.get(spider)
 
-        val upVector = UP_VECTOR.rotate(scanOrientation)
 
         // rest position
         restPosition = legPlan.restPosition.clone()
-        restPosition.add(upVector.clone().multiply(-posture.bodyHeight))
+        restPosition.add(UP_VECTOR.clone().multiply(-posture.bodyHeight))
         restPosition.rotate(scanOrientation).add(spider.position)
 
         // lookahead
         lookAheadPosition = lookAheadPosition(restPosition, posture.triggerZoneRadius)
 
         // scan (from lookahead position)
+        val upVector = UP_VECTOR.rotate(scanOrientation)
         val scanStartAxis = upVector.clone().multiply(posture.bodyHeight * 1.6)
         val scanAxis = upVector.clone().multiply(-posture.bodyHeight * 2.5)
         scanLine = LineSegment.fromOffset(lookAheadPosition.clone().add(scanStartAxis), scanAxis)
@@ -141,7 +140,9 @@ class Leg(
 
 
         // resolve ground collision
-        val collision = spider.world.resolveCollision(endEffector, DOWN_VECTOR)
+        val scanOrientation = options.gait.scanOrientation.get(spider)
+        val down = DOWN_VECTOR.rotate(scanOrientation)
+        val collision = spider.world.resolveCollision(endEffector, down)
         if (collision != null) {
             // ignore collision if it would push the end effector further from the target
             // e.g. when grazing an obstacle
@@ -149,7 +150,7 @@ class Leg(
             if (!isFurtherFromTarget) {
                 didStep = true
                 touchingGround = true
-                endEffector.y = collision.position.y
+                endEffector.copy(collision.position)
             }
         }
 
@@ -211,7 +212,8 @@ class Leg(
     }
 
     private fun touchingGround(): Boolean {
-        return spider.world.isOnGround(endEffector, DOWN_VECTOR.rotate(spider.orientation))
+        val scanOrientation = options.gait.scanOrientation.get(spider)
+        return spider.world.raycastGround(endEffector, DOWN_VECTOR.rotate(scanOrientation), 0.001) != null
     }
 
     private fun lookAheadPosition(restPosition: Vector, triggerZoneRadius: Double): Vector {

@@ -2,7 +2,9 @@ package com.heledron.spideranimation.utilities.inverse_kinematics
 
 import com.heledron.spideranimation.utilities.LineSegment
 import com.heledron.spideranimation.utilities.maths.rotate
+import com.heledron.spideranimation.utilities.rendering.EmptyRenderItem
 import com.heledron.spideranimation.utilities.rendering.RenderGroup
+import com.heledron.spideranimation.utilities.rendering.RenderItem
 import com.heledron.spideranimation.utilities.rendering.renderLine
 import org.bukkit.Material
 import org.bukkit.World
@@ -15,10 +17,6 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 data class IKDebugStyle(
-    val lineThickness: Float = 0.02f,
-    val interpolation: Int = 1,
-    val brightness: Int = 15,
-
     val hingeArcRadiusFraction: Double = 0.6,
     val swingConeLengthFraction: Double = 1.0,
     val twistArcDistanceFraction: Double = 0.8,
@@ -39,62 +37,59 @@ data class IKDebugStyle(
     val swingColor: Material = Material.CYAN_CONCRETE,
     val twistArcColor: Material = Material.PINK_CONCRETE,
     val twistIndicatorColor: Material = Material.MAGENTA_CONCRETE,
-    val axisXColor: Material = Material.RED_CONCRETE,
-    val axisYColor: Material = Material.LIME_CONCRETE,
-    val axisZColor: Material = Material.BLUE_CONCRETE,
 ) {
     fun hingeArcRadius(length: Double) = length * hingeArcRadiusFraction
 
     fun swingConeLength(length: Double) = length * swingConeLengthFraction
 }
 
-fun RenderGroup.renderIKGuides(
+fun renderIKGuides(
     world: World,
     chain: IKChain3D,
     pose: IKChainPose3D,
     target: IKTarget3D? = null,
-    style: IKDebugStyle = IKDebugStyle(),
-    handlePrefix: Any = "ik",
-) {
+): RenderGroup {
+	val style = IKDebugStyle()
+	val out = RenderGroup()
     val nodes = chain.getWorldNodes(pose)
 
     if (style.drawConstraints) {
-        renderConstraints(world, chain, pose, nodes, style, handlePrefix)
+        out["constraints"] = renderConstraints(world, chain, pose, nodes, style)
     }
 
     if (style.drawNodeAxes) {
         for (index in nodes.indices) {
             val node = nodes[index]
-            addAxes(
+            out["axes" to index] = renderAxes(
                 world = world,
-                handle = handlePrefix to "nodeAxis$index",
                 position = node.position,
                 rotation = node.worldRotation,
                 length = style.axisLength,
-                style = style,
+                thickness = 0.015f,
             )
         }
     }
 
-    val targetOrientation = target?.orientation ?: return
-    addAxes(
+    val targetOrientation = target?.orientation
+    if (targetOrientation != null) out["target"] = renderAxes(
         world = world,
-        handle = handlePrefix to "targetAxis",
         position = target.position,
         rotation = targetOrientation,
         length = style.targetAxisLength,
-        style = style,
+		thickness = 0.015f,
     )
+    
+    return out
 }
 
-private fun RenderGroup.renderConstraints(
+private fun renderConstraints(
     world: World,
     chain: IKChain3D,
     pose: IKChainPose3D,
     nodes: List<IKChainWorldNode3D>,
     style: IKDebugStyle,
-    handlePrefix: Any,
-) {
+): RenderGroup {
+	val out = RenderGroup()
     for (index in chain.segments.indices) {
         val segment = chain.segments[index]
         val parent = nodes[index]
@@ -107,18 +102,16 @@ private fun RenderGroup.renderConstraints(
         if (guideLength <= 1e-9) continue
 
         when (val joint = segment.joint) {
-            is IKHingeJoint3D -> addHingeGuide(
+            is IKHingeJoint3D -> out[index] = addHingeGuide(
                 world = world,
-                handle = handlePrefix to "hingeGuide$index",
                 length = guideLength,
                 parent = parent,
                 joint = joint,
                 style = style,
             )
 
-            is IKSwingTwistJoint3D -> addSwingTwistGuide(
+            is IKSwingTwistJoint3D -> out[index] = addSwingTwistGuide(
                 world = world,
-                handle = handlePrefix to "swingTwist$index",
                 length = guideLength,
                 parent = parent,
                 child = child,
@@ -127,16 +120,16 @@ private fun RenderGroup.renderConstraints(
             )
         }
     }
+    return out
 }
 
-private fun RenderGroup.addHingeGuide(
+private fun addHingeGuide(
     world: World,
-    handle: Any,
     length: Double,
     parent: IKChainWorldNode3D,
     joint: IKHingeJoint3D,
     style: IKDebugStyle,
-) {
+): RenderGroup {
     val arc = arc(
         origin = parent.position,
         rotation = parent.worldRotation,
@@ -148,18 +141,17 @@ private fun RenderGroup.addHingeGuide(
         steps = style.hingeArcSteps,
     )
 
-    addArc(world, handle, arc, style.hingeColor, style)
+    return renderArc(world, arc, style.hingeColor, .02f)
 }
 
-private fun RenderGroup.addSwingTwistGuide(
+private fun addSwingTwistGuide(
     world: World,
-    handle: Any,
     length: Double,
     parent: IKChainWorldNode3D,
     child: IKChainWorldNode3D,
     joint: IKSwingTwistJoint3D,
     style: IKDebugStyle,
-) {
+): RenderGroup {
     val axisWorld = IKChain3D.CHAIN_AXIS.rotate(child.worldRotation)
     val axisInParent = axisWorld.clone().rotate(Quaternionf(parent.worldRotation).invert())
 
@@ -169,6 +161,9 @@ private fun RenderGroup.addSwingTwistGuide(
     val coneLength = style.swingConeLength(length)
     val sinSwing = sin(joint.maxSwing)
     val cosSwing = cos(joint.maxSwing)
+    
+    val thickness = .02f
+    val twistIndicatorThickness = .0175f
 
     val rim = (0 until style.coneRingSteps).map { step ->
         val angle = 2 * PI * step / style.coneRingSteps
@@ -180,12 +175,14 @@ private fun RenderGroup.addSwingTwistGuide(
 
         localToWorld(parent.position, parent.worldRotation, offset)
     }
+    
+    val out = RenderGroup()
 
-    addRing(world, handle to "swingRing", rim, style.swingColor, style)
+    out["swingRing"] = renderRing(world, rim, style.swingColor, thickness)
 
     for (spoke in 0 until style.coneSpokes) {
         val tip = rim[spoke * style.coneRingSteps / style.coneSpokes]
-        addLine(world, handle to "swingSpoke$spoke", parent.position, tip, style.swingColor, style)
+        out["swingSpoke$spoke"] = renderLine(world, parent.position, tip, style.swingColor, thickness)
     }
 
     val ringCenterOffset = Vector3f(0f, 0f, (length * style.twistArcDistanceFraction).toFloat())
@@ -202,7 +199,7 @@ private fun RenderGroup.addSwingTwistGuide(
         centerOffset = ringCenterOffset,
     )
 
-    addArc(world, handle to "twistArc", twistArc, style.twistArcColor, style)
+    out["twistArc"] = renderArc(world, twistArc, style.twistArcColor, thickness)
 
     val indicatorRotation = Quaternionf(child.worldRotation)
         .mul(quaternionFromTo(IKChain3D.CHAIN_AXIS, joint.referenceAxis, Vector(1, 0, 0)))
@@ -215,8 +212,106 @@ private fun RenderGroup.addSwingTwistGuide(
                 .multiply(style.twistIndicatorLength)
         )
 
-    addLine(world, handle to "twistIndicator", ringCenterWorld, indicatorTip, style.twistIndicatorColor, style)
+    out["twistIndicator"] = renderLine(world, ringCenterWorld, indicatorTip, style.twistIndicatorColor, twistIndicatorThickness)
+    return out
 }
+
+private fun orthogonalize(vector: Vector3f, axis: Vector3f): Vector3f {
+    val out = Vector3f(vector)
+    out.sub(Vector3f(axis).mul(vector.dot(axis)))
+
+    if (out.lengthSquared() < 1e-10f) {
+        // `vector` was parallel to `axis`; fall back to any perpendicular axis
+        out.set(0f, 1f, 0f)
+        out.sub(Vector3f(axis).mul(out.dot(axis)))
+
+        if (out.lengthSquared() < 1e-10f) {
+            out.set(1f, 0f, 0f)
+        }
+    }
+
+    return out.normalize()
+}
+
+private fun renderLine(
+    world: World,
+    start: Vector,
+    end: Vector,
+    material: Material,
+    thickness: Float,
+): RenderItem {
+    if (start.distanceSquared(end) <= 1.0e-12) return EmptyRenderItem
+
+    return renderLine(
+        world = world,
+        line = LineSegment(start, end),
+        thickness = thickness,
+        interpolation = 1,
+        init = {
+            it.brightness = Display.Brightness(15, 15)
+        },
+        update = {
+            it.block = material.createBlockData()
+        },
+    )
+}
+
+private fun renderArc(
+    world: World,
+    arc: WorldArc,
+    material: Material,
+    thickness: Float,
+): RenderGroup {
+	val out = RenderGroup()
+    for (index in 0 until arc.points.size - 1) {
+        out[index] = renderLine(world, arc.points[index], arc.points[index + 1], material, thickness)
+    }
+
+    out["spokeStart"] = renderLine(world, arc.pivot, arc.points.first(), material, thickness)
+    out["spokeEnd"] = renderLine(world, arc.pivot, arc.points.last(), material, thickness)
+
+    return out
+}
+
+private fun renderRing(
+    world: World,
+    points: List<Vector>,
+    material: Material,
+    thickness: Float,
+): RenderGroup {
+	val out = RenderGroup()
+    for (index in points.indices) {
+        val next = points[(index + 1) % points.size]
+        out[index] = renderLine(world, points[index], next, material, thickness)
+    }
+    return out
+}
+
+private fun renderAxes(
+    world: World,
+    position: Vector,
+    rotation: Quaternionf,
+    length: Double,
+    thickness: Float,
+): RenderGroup {
+    val axes = listOf(
+        Vector(1.0, 0.0, 0.0) to Material.RED_CONCRETE,
+        Vector(0.0, 1.0, 0.0) to Material.LIME_CONCRETE,
+        Vector(0.0, 0.0, 1.0) to Material.BLUE_CONCRETE,
+    )
+
+	val out = RenderGroup()
+    for ((index, axisAndBlock) in axes.withIndex()) {
+        val (axis, block) = axisAndBlock
+        val tip = position.clone().add(axis.clone().rotate(rotation).multiply(length))
+        out[index] = renderLine(world, position, tip, block, thickness)
+    }
+    return out
+}
+
+
+
+
 
 private class WorldArc(
     val pivot: Vector,
@@ -264,97 +359,4 @@ private fun localToWorld(origin: Vector, rotation: Quaternionf, local: Vector3f)
         origin.y + rotated.y,
         origin.z + rotated.z,
     )
-}
-
-private fun orthogonalize(vector: Vector3f, axis: Vector3f): Vector3f {
-    val out = Vector3f(vector)
-    out.sub(Vector3f(axis).mul(vector.dot(axis)))
-
-    if (out.lengthSquared() < 1e-10f) {
-        // `vector` was parallel to `axis`; fall back to any perpendicular axis
-        out.set(0f, 1f, 0f)
-        out.sub(Vector3f(axis).mul(out.dot(axis)))
-
-        if (out.lengthSquared() < 1e-10f) {
-            out.set(1f, 0f, 0f)
-        }
-    }
-
-    return out.normalize()
-}
-
-private fun Vector.isFinite() = x.isFinite() && y.isFinite() && z.isFinite()
-
-private fun RenderGroup.addLine(
-    world: World,
-    handle: Any,
-    start: Vector,
-    end: Vector,
-    material: Material,
-    style: IKDebugStyle,
-) {
-    if (!start.isFinite() || !end.isFinite()) return
-    if (start.distanceSquared(end) <= 1.0e-12) return
-
-    this[handle] = renderLine(
-        world = world,
-        line = LineSegment(start, end),
-        thickness = style.lineThickness,
-        interpolation = style.interpolation,
-        init = {
-            it.brightness = Display.Brightness(style.brightness, style.brightness)
-        },
-        update = {
-            it.block = material.createBlockData()
-        },
-    )
-}
-
-private fun RenderGroup.addArc(
-    world: World,
-    handle: Any,
-    arc: WorldArc,
-    material: Material,
-    style: IKDebugStyle,
-) {
-    for (index in 0 until arc.points.size - 1) {
-        addLine(world, handle to index, arc.points[index], arc.points[index + 1], material, style)
-    }
-
-    addLine(world, handle to "spokeStart", arc.pivot, arc.points.first(), material, style)
-    addLine(world, handle to "spokeEnd", arc.pivot, arc.points.last(), material, style)
-}
-
-private fun RenderGroup.addRing(
-    world: World,
-    handle: Any,
-    points: List<Vector>,
-    material: Material,
-    style: IKDebugStyle,
-) {
-    for (index in points.indices) {
-        val next = points[(index + 1) % points.size]
-        addLine(world, handle to index, points[index], next, material, style)
-    }
-}
-
-private fun RenderGroup.addAxes(
-    world: World,
-    handle: Any,
-    position: Vector,
-    rotation: Quaternionf,
-    length: Double,
-    style: IKDebugStyle,
-) {
-    val axes = listOf(
-        Vector(1.0, 0.0, 0.0) to style.axisXColor,
-        Vector(0.0, 1.0, 0.0) to style.axisYColor,
-        Vector(0.0, 0.0, 1.0) to style.axisZColor,
-    )
-
-    for ((index, axisAndBlock) in axes.withIndex()) {
-        val (axis, block) = axisAndBlock
-        val tip = position.clone().add(axis.clone().rotate(rotation).multiply(length))
-        addLine(world, handle to index, position, tip, block, style)
-    }
 }

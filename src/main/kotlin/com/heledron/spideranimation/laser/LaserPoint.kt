@@ -3,6 +3,7 @@ package com.heledron.spideranimation.laser
 import com.heledron.spideranimation.utilities.rendering.renderBlock
 import com.heledron.spideranimation.spider.components.Locomotion
 import com.heledron.spideranimation.spider.components.body.SpiderBody
+import com.heledron.spideranimation.spider.configuration.OrientationMode
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.utilities.ecs.ECSComponent
 import com.heledron.spideranimation.utilities.ecs.ECS
@@ -40,7 +41,12 @@ fun setupLaserPointer(app: ECS) {
             val distance = options.walkGait.stationary.bodyHeight * 2
             val currentSpeed = spider.velocity.length()
             val decelerateDistance = (currentSpeed * currentSpeed) / (2 * options.gait.moveAcceleration)
-            val currentDistance = spider.position.horizontalDistance(nearestLaser.position)
+
+            val currentDistance = if (options.gait.scanOrientation == OrientationMode.YAxis) {
+                spider.position.horizontalDistance(nearestLaser.position)
+            } else {
+                spider.position.distance(nearestLaser.position)
+            }
 
             val walkVelocity = if (currentDistance > distance + decelerateDistance) {
                 direction.clone().multiply(options.gait.maxSpeed)

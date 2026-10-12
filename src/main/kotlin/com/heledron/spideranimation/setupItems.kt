@@ -7,6 +7,7 @@ import com.heledron.spideranimation.spider.components.PointDetector
 import com.heledron.spideranimation.spider.components.rendering.SpiderRenderer
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
 import com.heledron.spideranimation.laser.LaserPoint
+import com.heledron.spideranimation.spider.configuration.OrientationMode
 import com.heledron.spideranimation.spider.presets.defaultPreset
 import com.heledron.spideranimation.utilities.custom_items.CustomItemComponent
 import com.heledron.spideranimation.utilities.custom_items.attach
@@ -15,14 +16,19 @@ import com.heledron.spideranimation.utilities.custom_items.customItemRegistry
 import com.heledron.spideranimation.utilities.currentPlugin
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
 import com.heledron.spideranimation.utilities.events.onTick
+import com.heledron.spideranimation.utilities.maths.UP_VECTOR
 import com.heledron.spideranimation.utilities.namespacedID
 import com.heledron.spideranimation.utilities.raycastGround
 import com.heledron.spideranimation.utilities.Serializer
 import com.heledron.spideranimation.utilities.ecs.ECSComponent
+import com.heledron.spideranimation.utilities.maths.FORWARD_VECTOR
+import com.heledron.spideranimation.utilities.maths.rotate
+import com.heledron.spideranimation.utilities.maths.toRadians
 import com.heledron.spideranimation.utilities.overloads.direction
 import com.heledron.spideranimation.utilities.overloads.eyePosition
 import com.heledron.spideranimation.utilities.overloads.playSound
 import com.heledron.spideranimation.utilities.overloads.position
+import com.heledron.spideranimation.utilities.overloads.yawRadians
 import com.heledron.spideranimation.utilities.persistence.UUIDDataType
 import net.kyori.adventure.text.Component
 import org.bukkit.Material
@@ -31,8 +37,8 @@ import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import org.bukkit.persistence.PersistentDataType
 import org.bukkit.util.Vector
+import org.joml.Quaternionf
 import java.util.UUID
-import kotlin.math.roundToInt
 
 
 fun setupItems() {
@@ -50,15 +56,21 @@ fun setupItems() {
 			item.spiderUUID = null
 			player.sendActionBar(Component.text("Spider removed"))
 		} else {
-			val yawIncrements = 45.0f
-			val yaw = (player.yaw / yawIncrements).roundToInt() * yawIncrements
-
-			val hitPosition = player.world.raycastGround(player.eyePosition, player.direction, 100.0)?.hitPosition ?: return@onGestureUse
+			val result = player.world.raycastGround(player.eyePosition, player.direction, 100.0) ?: return@onGestureUse
+			val hitPosition = result.hitPosition
+			val up = result.hitBlockFace?.direction ?: UP_VECTOR
 
 			player.world.playSound(hitPosition, Sound.BLOCK_NETHERITE_BLOCK_PLACE, 1.0f, 1.0f)
 
 			val options = item.spiderOptions ?: defaultPreset()
-			val entity = AppState.createSpider(hitPosition.toLocation(player.world).apply { this.yaw = yaw }, options)
+			val yawDirection = FORWARD_VECTOR.rotate(Quaternionf().rotationY(player.yawRadians()))
+			val orientation = SpiderBody.snapRotationAbout(
+				SpiderBody.orientationFrom(up, player.direction, yawDirection),
+				up,
+				45f.toRadians(),
+			)
+
+			val entity = AppState.createSpider(player.world, hitPosition, options, orientation)
 			val spider = entity.query<SpiderBody>() ?: return@onGestureUse
 			item.spiderUUID = spider.uuid
 
@@ -128,6 +140,17 @@ fun setupItems() {
         options.gallop = !options.gallop
         player.world.playSound(player.position, Sound.BLOCK_DISPENSER_FAIL, 1.0f, 2.0f)
         player.sendActionBar(Component.text(if (!options.gallop) "Walk mode" else "Gallop mode"))
+    }
+
+    val toggleGripComponent = CustomItemComponent("toggleGrip")
+    customItemRegistry += { createNamedItem(Material.SLIME_BALL, "Toggle Grip").attach(toggleGripComponent) }
+    toggleGripComponent.onGestureUse { player, _ ->
+        val entity = AppState.findNearestSpider(player) ?: return@onGestureUse
+        val options = entity.query<SpiderOptions>() ?: return@onGestureUse
+        options.gait.grip = !options.gait.grip
+        options.gait.scanOrientation = if (options.gait.grip) OrientationMode.GroundOrientation else OrientationMode.YAxis
+        player.world.playSound(player.position, Sound.BLOCK_HONEY_BLOCK_HIT, 1.0f, 2.0f)
+        player.sendActionBar(Component.text(if (!options.gait.grip) "Grip off" else "Grip on"))
     }
 
     val laserPointerComponent = CustomItemComponent("laserPointer")

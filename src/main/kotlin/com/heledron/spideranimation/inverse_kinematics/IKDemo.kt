@@ -133,12 +133,11 @@ class IKDemo(
         )
 
         if (renderDebugVisuals) {
-            group.renderIKGuides(
+            group["ikGuides"] = renderIKGuides(
                 world = world,
                 chain = chain,
                 pose = pose,
                 target = target,
-                handlePrefix = "guide",
             )
         }
 

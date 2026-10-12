@@ -5,6 +5,7 @@ import com.google.gson.JsonSyntaxException
 import com.heledron.spideranimation.AppState
 import com.heledron.spideranimation.MiscellaneousOptions
 import com.heledron.spideranimation.SpiderAnimationPlugin
+import com.heledron.spideranimation.spider.components.Locomotion
 import com.heledron.spideranimation.spider.components.body.SpiderBody
 import com.heledron.spideranimation.spider.components.splay
 import com.heledron.spideranimation.spider.configuration.SpiderOptions
@@ -13,6 +14,7 @@ import com.heledron.spideranimation.heldSpiderUUID
 import com.heledron.spideranimation.utilities.Serializer
 import com.heledron.spideranimation.utilities.custom_items.openCustomItemInventory
 import com.heledron.spideranimation.utilities.ecs.ECSEntity
+import com.heledron.spideranimation.utilities.events.interval
 import com.heledron.spideranimation.utilities.events.runLater
 import com.mojang.brigadier.Message
 import com.mojang.brigadier.StringReader
@@ -52,6 +54,36 @@ fun spiderCommandTree(afterChange: () -> Unit): LiteralArgumentBuilder<CommandSo
         .then(scaleCommand(afterChange))
         .then(splayCommand())
         .then(itemsCommand())
+        // temp debug
+        .then(Commands.literal("fall").then(Commands.argument("height", DoubleArgumentType.doubleArg()).executes { ctx ->
+            val height = DoubleArgumentType.getDouble(ctx, "height")
+            val spider = findTargetSpider(ctx.source) ?: return@executes SUCCESS
+            val body = spider.query<SpiderBody>() ?: return@executes SUCCESS
+            val newPosition = body.position.clone().apply { y += height }
+            body.teleport(spider, newPosition)
+        
+            SUCCESS
+        }))
+        .then(Commands.literal("walk").then(Commands.argument("ticks", IntegerArgumentType.integer(1)).executes { ctx ->
+            val ticks = IntegerArgumentType.getInteger(ctx, "ticks")
+            val spider = requireTargetSpider(ctx.source)
+            val options = spider.query<SpiderOptions>() ?: throw commandError("No spider found")
+
+            var remaining = ticks
+            interval(0, 1) { self ->
+                val body = spider.query<SpiderBody>()
+                val locomotion = spider.query<Locomotion>()
+
+                if (remaining-- <= 0 || body == null || locomotion == null || spider.scheduledForRemoval) {
+                    self.close()
+                    return@interval
+                }
+
+                locomotion.walk(body.forwardDirection().multiply(options.gait.maxSpeed))
+            }
+
+            SUCCESS
+        }))
 
 private fun optionsCommand(afterChange: () -> Unit): LiteralArgumentBuilder<CommandSourceStack> {
     // KNOWN LIMITATION: A path containing `[` must be quoted.

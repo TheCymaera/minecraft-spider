@@ -50,6 +50,11 @@ class RenderEntity <T : Entity> (
     val update : (T) -> Unit = {},
 ): RenderItem {
     override fun submit(handle: Any) {
+        if (!location.isFinite) {
+            System.err.println("Tried to submit a RenderEntity with non-finite location. Ignored.")
+            return
+        }
+
         val entity = RenderEntityTracker.get(handle, clazz)
 
         if (entity != null) {

@@ -1,6 +1,5 @@
 package com.heledron.spideranimation.utilities
 
-import com.heledron.spideranimation.utilities.maths.DOWN_VECTOR
 import com.heledron.spideranimation.utilities.maths.FORWARD_VECTOR
 import org.bukkit.FluidCollisionMode
 import org.bukkit.World
@@ -8,7 +7,6 @@ import org.bukkit.util.RayTraceResult
 import org.bukkit.util.Transformation
 import org.bukkit.util.Vector
 import org.joml.*
-import javax.sound.sampled.Line
 import kotlin.math.abs
 import kotlin.math.sqrt
 
@@ -38,6 +36,15 @@ fun Vector.horizontalDistance(other: Vector): Double {
 
 fun Vector.horizontalLength(): Double {
     return sqrt(x * x + z * z)
+}
+
+fun Vector.scaleTangential(axis: Vector, factor: Double): Vector {
+    val unit = axis.clone().normalize()
+    val along = this.dot(unit)
+    this.subtract(unit.clone().multiply(along))
+    this.multiply(factor)
+    this.add(unit.clone().multiply(along))
+    return this
 }
 
 fun List<Vector>.average(): Vector {
@@ -100,20 +107,21 @@ fun World.raycastGround(position: Vector, direction: Vector, maxDistance: Double
     return this.rayTraceBlocks(location, direction, maxDistance, FluidCollisionMode.NEVER, true)
 }
 
-fun World.isOnGround(position: Vector, downVector: Vector = DOWN_VECTOR): Boolean {
-    return this.raycastGround(position, downVector, 0.001) != null
-}
-
-data class CollisionResult(val position: Vector, val offset: Vector)
+data class CollisionResult(
+    val position: Vector,
+    val offset: Vector,
+    val normal: Vector,
+)
 
 fun World.resolveCollision(position: Vector, direction: Vector): CollisionResult? {
+	if (direction.lengthSquared() < 1e-12) return null
+	
     val location = position.toLocation(this)
     val ray = this.rayTraceBlocks(location.subtract(direction), direction, direction.length(), FluidCollisionMode.NEVER, true)
-    if (ray != null) {
-        return CollisionResult(ray.hitPosition, ray.hitPosition.clone().subtract(position))
-    }
+        ?: return null
 
-    return null
+    val hitFace = ray.hitBlockFace ?: return null
+    return CollisionResult(ray.hitPosition, ray.hitPosition.clone().subtract(position), hitFace.direction)
 }
 
 fun lookingAtPoint(eye: Vector, direction: Vector, point: Vector, tolerance: Double): Boolean {
